@@ -1,10 +1,24 @@
 const { gql } = require('apollo-server-express');
 
 const typeDefs = gql`
+  enum Role {
+    USER
+    ADMIN
+  }
+
+  enum OrderStatus {
+    PENDING
+    PREPARING
+    READY
+    DELIVERED
+    CANCELLED
+  }
+
   type User {
     id: ID!
     name: String!
     email: String!
+    role: Role!
   }
 
   type Product {
@@ -21,15 +35,22 @@ const typeDefs = gql`
 
   type Order {
     id: ID!
-    user: ID
+    user: User
     items: [OrderItem!]!
     total: Float!
+    status: OrderStatus!
     createdAt: String!
   }
 
   type AuthPayload {
     token: String!
     user: User!
+  }
+
+  type DashboardMetrics {
+    totalOrders: Int!
+    pendingOrders: Int!
+    totalRevenue: Float!
   }
 
   input ProductInput {
@@ -51,14 +72,19 @@ const typeDefs = gql`
   type Query {
     products(limit: Int, offset: Int): [Product!]!
     product(id: ID!): Product
-    orders(limit: Int, offset: Int): [Order!]!
+    orders(limit: Int, offset: Int, status: OrderStatus): [Order!]!
+    order(id: ID!): Order!
+    dashboardMetrics: DashboardMetrics!
   }
 
   type Mutation {
-    signup(name: String!, email: String!, password: String!): AuthPayload!
+    signup(name: String!, email: String!, password: String!, role: Role, adminKey: String): AuthPayload!
     login(email: String!, password: String!): AuthPayload!
     createProduct(input: ProductInput!): Product!
+    updateProduct(id: ID!, input: ProductInput!): Product!
+    deleteProduct(id: ID!): Boolean!
     createOrder(input: OrderInput!): Order!
+    updateOrderStatus(id: ID!, status: OrderStatus!): Order!
   }
 `;
 

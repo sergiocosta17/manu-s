@@ -5,12 +5,20 @@ const config = require('../config/env');
 const { validateEmail, validatePassword } = require('../utils/validators');
 
 class AuthService {
-  async signup(name, email, password) {
+  async signup(name, email, password, role = 'USER', adminKey = null) {
     validateEmail(email);
     validatePassword(password);
 
     if (!name || name.trim() === '') {
       throw new Error('O nome é obrigatório');
+    }
+
+    if (role === 'ADMIN') {
+      if (adminKey !== config.adminAccessKey) {
+        throw new Error('Chave de acesso de administrador inválida');
+      }
+    } else {
+      role = 'USER';
     }
 
     const existingUser = await User.findOne({ email });
@@ -22,12 +30,13 @@ class AuthService {
     const user = new User({
       name,
       email,
-      password: hashedPassword
+      password: hashedPassword,
+      role
     });
 
     await user.save();
 
-    const token = jwt.sign({ id: user._id, email: user.email }, config.jwtSecret, {
+    const token = jwt.sign({ id: user._id, email: user.email, role: user.role }, config.jwtSecret, {
       expiresIn: '7d'
     });
 
@@ -47,7 +56,7 @@ class AuthService {
       throw new Error('Credenciais inválidas');
     }
 
-    const token = jwt.sign({ id: user._id, email: user.email }, config.jwtSecret, {
+    const token = jwt.sign({ id: user._id, email: user.email, role: user.role }, config.jwtSecret, {
       expiresIn: '7d'
     });
 

@@ -16,9 +16,25 @@ class ProductService {
 
   async createProduct(productData) {
     validateProductInput(productData);
-    
     const product = new Product(productData);
     return await product.save();
+  }
+
+  async updateProduct(id, productData) {
+    validateProductInput(productData);
+    const product = await Product.findByIdAndUpdate(id, productData, { new: true });
+    if (!product) {
+      throw new Error('Produto não encontrado');
+    }
+    return product;
+  }
+
+  async deleteProduct(id) {
+    const product = await Product.findByIdAndDelete(id);
+    if (!product) {
+      throw new Error('Produto não encontrado');
+    }
+    return true;
   }
 }
 
