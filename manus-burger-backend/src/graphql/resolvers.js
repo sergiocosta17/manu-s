@@ -1,63 +1,35 @@
-const Product = require('../models/Product');
-const Order = require('../models/Order');
-const jwt = require('jsonwebtoken');
-const { AuthenticationError, ForbiddenError } = require('apollo-server-express');
-
-const verifyToken = (token) => {
-  if (!token) throw new AuthenticationError('Token not provided');
-  try {
-    return jwt.verify(token.replace('Bearer ', ''), process.env.JWT_SECRET);
-  } catch (err) {
-    throw new AuthenticationError('Invalid or expired token');
-  }
-};
+const ProductService = require('../services/ProductService');
+const OrderService = require('../services/OrderService');
+const AuthService = require('../services/AuthService');
 
 const resolvers = {
   Query: {
-    getProducts: async () => await Product.find(),
-    getProduct: async (_, { id }) => await Product.findById(id),
-    getOrders: async (_, __, { token }) => {
-      const user = verifyToken(token);
-      if (user.role !== 'admin') throw new ForbiddenError('Not authorized');
-      return await Order.find().populate('items.product');
+    products: async (_, { limit, offset }) => {
+      return await ProductService.getAllProducts(limit, offset);
     },
-    getMyOrders: async (_, __, { token }) => {
-      const user = verifyToken(token);
-      return await Order.find({ client: user.id }).populate('items.product');
+    product: async (_, { id }) => {
+      return await ProductService.getProductById(id);
+    },
+    orders: async (_, { limit, offset }, context) => {
+      if (!context.user) throw new Error('Não autorizado');
+      return await OrderService.getAllOrders(limit, offset);
     }
   },
+  
   Mutation: {
-    addProduct: async (_, args, { token }) => {
-      const user = verifyToken(token);
-      if (user.role !== 'admin') throw new ForbiddenError('Not authorized');
-      const product = new Product(args);
-      return await product.save();
+    signup: async (_, { name, email, password }) => {
+      return await AuthService.signup(name, email, password);
     },
-    updateProduct: async (_, { id, ...updates }, { token }) => {
-      const user = verifyToken(token);
-      if (user.role !== 'admin') throw new ForbiddenError('Not authorized');
-      return await Product.findByIdAndUpdate(id, updates, { new: true });
+    login: async (_, { email, password }) => {
+      return await AuthService.login(email, password);
     },
-    deleteProduct: async (_, { id }, { token }) => {
-      const user = verifyToken(token);
-      if (user.role !== 'admin') throw new ForbiddenError('Not authorized');
-      await Product.findByIdAndDelete(id);
-      return "Deleted";
+    createProduct: async (_, { input }, context) => {
+      if (!context.user) throw new Error('Não autorizado');
+      return await ProductService.createProduct(input);
     },
-    createOrder: async (_, { items, totalPrice }, { token }) => {
-      const user = verifyToken(token);
-      const order = new Order({
-        client: user.id,
-        items,
-        totalPrice
-      });
-      await order.save();
-      return order;
-    },
-    updateOrderStatus: async (_, { id, status }, { token }) => {
-      const user = verifyToken(token);
-      if (user.role !== 'admin') throw new ForbiddenError('Not authorized');
-      return await Order.findByIdAndUpdate(id, { status }, { new: true });
+    createOrder: async (_, { input }, context) => {
+      if (!context.user) throw new Error('Não autorizado');
+      return await OrderService.createOrder(input, context.user.id); 
     }
   }
 };

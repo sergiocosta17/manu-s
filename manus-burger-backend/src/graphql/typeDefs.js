@@ -1,26 +1,41 @@
 const { gql } = require('apollo-server-express');
 
 const typeDefs = gql`
+  type User {
+    id: ID!
+    name: String!
+    email: String!
+  }
+
   type Product {
     id: ID!
     name: String!
-    description: String
     price: Float!
-    category: String!
+    description: String
   }
 
   type OrderItem {
-    product: Product
-    quantity: Int
+    product: Product!
+    quantity: Int!
   }
 
   type Order {
     id: ID!
-    client: ID!
-    items: [OrderItem]
-    totalPrice: Float!
-    status: String!
-    createdAt: String
+    user: ID
+    items: [OrderItem!]!
+    total: Float!
+    createdAt: String!
+  }
+
+  type AuthPayload {
+    token: String!
+    user: User!
+  }
+
+  input ProductInput {
+    name: String!
+    price: Float!
+    description: String
   }
 
   input OrderItemInput {
@@ -28,19 +43,22 @@ const typeDefs = gql`
     quantity: Int!
   }
 
+  input OrderInput {
+    items: [OrderItemInput!]!
+    total: Float!
+  }
+
   type Query {
-    getProducts: [Product]
-    getProduct(id: ID!): Product
-    getOrders: [Order]
-    getMyOrders: [Order]
+    products(limit: Int, offset: Int): [Product!]!
+    product(id: ID!): Product
+    orders(limit: Int, offset: Int): [Order!]!
   }
 
   type Mutation {
-    addProduct(name: String!, description: String, price: Float!, category: String!): Product
-    updateProduct(id: ID!, name: String, price: Float): Product
-    deleteProduct(id: ID!): String
-    createOrder(items: [OrderItemInput]!, totalPrice: Float!): Order
-    updateOrderStatus(id: ID!, status: String!): Order
+    signup(name: String!, email: String!, password: String!): AuthPayload!
+    login(email: String!, password: String!): AuthPayload!
+    createProduct(input: ProductInput!): Product!
+    createOrder(input: OrderInput!): Order!
   }
 `;
 
