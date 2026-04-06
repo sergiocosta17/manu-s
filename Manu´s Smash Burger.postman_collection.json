@@ -1,0 +1,66 @@
+{
+  "info": {
+    "_postman_id": "9b8f864c-36f5-40ff-b973-3c1897ea91fc",
+    "name": "Manu´s Smash Burger",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "37946091"
+  },
+  "item": [
+    {
+      "name": "Cadastrar usuário",
+      "request": {
+        "method": "POST",
+        "header": []
+      },
+      "response": []
+    },
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "header": []
+      },
+      "response": []
+    },
+    {
+      "name": "Cadastrar Hamburguer",
+      "request": {
+        "method": "POST",
+        "header": []
+      },
+      "response": []
+    },
+    {
+      "name": "Cadastrar Bebida",
+      "request": {
+        "method": "POST",
+        "header": []
+      },
+      "response": []
+    },
+    {
+      "name": "Cadastrar Acompanhamento",
+      "request": {
+        "method": "POST",
+        "header": []
+      },
+      "response": []
+    },
+    {
+      "name": "Listar Cardápio",
+      "request": {
+        "method": "POST",
+        "header": []
+      },
+      "response": []
+    },
+    {
+      "name": "Criar pedido",
+      "request": {
+        "method": "POST",
+        "header": []
+      },
+      "response": []
+    }
+  ]
+}
