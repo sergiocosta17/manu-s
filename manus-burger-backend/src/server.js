@@ -11,8 +11,8 @@ const { getUser } = require('./utils/auth');
 async function startServer() {
   const app = express();
 
+  // Mantemos apenas o CORS. O Apollo vai lidar com o JSON sozinho!
   app.use(cors());
-  app.use(express.json());
 
   const server = new ApolloServer({
     typeDefs,
@@ -33,8 +33,7 @@ async function startServer() {
   await server.start();
   server.applyMiddleware({ app });
 
-  await mongoose.connect(config.mongoUri, {
-  });
+  await mongoose.connect(config.mongoUri, {});
 
   app.listen(config.port, () => {
     console.log(`Server running at http://localhost:${config.port}${server.graphqlPath}`);

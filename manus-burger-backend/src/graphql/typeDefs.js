@@ -14,6 +14,15 @@ const typeDefs = gql`
     CANCELLED
   }
 
+  enum Category {
+    BURGER
+    CHICKEN
+    COMBO
+    SIDE
+    DRINK
+    DESSERT
+  }
+
   type User {
     id: ID!
     name: String!
@@ -25,7 +34,10 @@ const typeDefs = gql`
     id: ID!
     name: String!
     price: Float!
+    promotionalPrice: Float
     description: String
+    category: Category!
+    imageUrl: String
   }
 
   type OrderItem {
@@ -47,16 +59,13 @@ const typeDefs = gql`
     user: User!
   }
 
-  type DashboardMetrics {
-    totalOrders: Int!
-    pendingOrders: Int!
-    totalRevenue: Float!
-  }
-
   input ProductInput {
     name: String!
     price: Float!
+    promotionalPrice: Float
     description: String
+    category: Category!
+    imageUrl: String
   }
 
   input OrderItemInput {
@@ -70,11 +79,8 @@ const typeDefs = gql`
   }
 
   type Query {
-    products(limit: Int, offset: Int): [Product!]!
-    product(id: ID!): Product
-    orders(limit: Int, offset: Int, status: OrderStatus): [Order!]!
-    order(id: ID!): Order!
-    dashboardMetrics: DashboardMetrics!
+    products(category: Category): [Product!]!
+    orders: [Order!]!
   }
 
   type Mutation {
