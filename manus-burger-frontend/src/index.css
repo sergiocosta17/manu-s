@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-yellow: #FBBF24;
+  --color-brand-red: #DC2626;
+  --color-brand-dark: #1F2937;
+  --color-brand-light: #F9FAFB;
+}
+
+body {
+  background-color: var(--color-brand-light);
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+}

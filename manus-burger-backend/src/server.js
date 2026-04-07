@@ -34,8 +34,6 @@ async function startServer() {
   server.applyMiddleware({ app });
 
   await mongoose.connect(config.mongoUri, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
   });
 
   app.listen(config.port, () => {
