@@ -7,6 +7,7 @@ export default function AdminDashboard() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('OVERVIEW');
   const [expandedHistory, setExpandedHistory] = useState({});
+  const [revenueFilter, setRevenueFilter] = useState('MONTH');
   const navigate = useNavigate();
 
   const userRole = localStorage.getItem('userRole');
@@ -114,7 +115,30 @@ export default function AdminDashboard() {
     return acc;
   }, {});
 
-  const totalRevenue = orders.filter(o => o.status === 'DELIVERED').reduce((acc, o) => acc + o.total, 0);
+  const getFilteredRevenue = () => {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfWeek = startOfDay - (now.getDay() * 24 * 60 * 60 * 1000);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const startOfYear = new Date(now.getFullYear(), 0, 1).getTime();
+
+    const delivered = orders.filter(o => o.status === 'DELIVERED');
+
+    switch (revenueFilter) {
+      case 'DAY':
+        return delivered.filter(o => Number(o.createdAt) >= startOfDay).reduce((acc, o) => acc + o.total, 0);
+      case 'WEEK':
+        return delivered.filter(o => Number(o.createdAt) >= startOfWeek).reduce((acc, o) => acc + o.total, 0);
+      case 'MONTH':
+        return delivered.filter(o => Number(o.createdAt) >= startOfMonth).reduce((acc, o) => acc + o.total, 0);
+      case 'YEAR':
+        return delivered.filter(o => Number(o.createdAt) >= startOfYear).reduce((acc, o) => acc + o.total, 0);
+      case 'ALL':
+      default:
+        return delivered.reduce((acc, o) => acc + o.total, 0);
+    }
+  };
+
   const pendingOrders = orders.filter(o => o.status === 'PENDING' || o.status === 'PREPARING');
   const deliveredOrders = orders.filter(o => o.status === 'DELIVERED').length;
 
@@ -238,16 +262,37 @@ export default function AdminDashboard() {
             {activeTab === 'OVERVIEW' && (
               <div className="animate-fade-in space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-                  <div className="bg-white rounded-3xl p-6 shadow-sm border-2 border-[#E5DCC3] flex flex-col justify-center items-center text-center">
-                    <p className="text-[#1A1A1A]/50 font-extrabold text-xs tracking-widest uppercase mb-2">Faturamento Total</p>
-                    <p className="text-3xl md:text-4xl font-extrabold text-[#C1704D]">R$ {totalRevenue.toFixed(2).replace('.', ',')}</p>
+                  
+                  {/* Cartão de Faturamento com Filtro */}
+                  <div className="bg-white rounded-3xl p-6 shadow-sm border-2 border-[#E5DCC3] flex flex-col justify-center relative min-h-[140px]">
+                    <div className="flex justify-between items-start mb-4">
+                      <p className="text-[#1A1A1A]/50 font-extrabold text-xs tracking-widest uppercase">Faturamento</p>
+                      <select 
+                        value={revenueFilter} 
+                        onChange={(e) => setRevenueFilter(e.target.value)}
+                        className="bg-[#FDF9EB] border border-[#E5DCC3] text-[#1A1A1A] text-[10px] font-bold rounded-lg px-2 py-1 outline-none focus:border-[#C1704D] cursor-pointer"
+                      >
+                        <option value="DAY">Hoje</option>
+                        <option value="WEEK">Esta Semana</option>
+                        <option value="MONTH">Este Mês</option>
+                        <option value="YEAR">Este Ano</option>
+                        <option value="ALL">Geral</option>
+                      </select>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-3xl md:text-4xl font-extrabold text-[#C1704D]">
+                        R$ {getFilteredRevenue().toFixed(2).replace('.', ',')}
+                      </p>
+                    </div>
                   </div>
-                  <div className="bg-[#1A1A1A] rounded-3xl p-6 shadow-lg border-2 border-[#EBCB6C] flex flex-col justify-center items-center text-center relative overflow-hidden">
+
+                  <div className="bg-[#1A1A1A] rounded-3xl p-6 shadow-lg border-2 border-[#EBCB6C] flex flex-col justify-center items-center text-center relative overflow-hidden min-h-[140px]">
                     <p className="text-[#EBCB6C]/70 font-extrabold text-xs tracking-widest uppercase mb-2">Pedidos Ativos</p>
                     <p className="text-4xl md:text-5xl font-extrabold text-white">{pendingOrders.length}</p>
                     {pendingOrders.length > 0 && <div className="absolute top-0 left-0 w-full h-1 bg-red-500"></div>}
                   </div>
-                  <div className="bg-white rounded-3xl p-6 shadow-sm border-2 border-[#E5DCC3] flex flex-col justify-center items-center text-center">
+                  
+                  <div className="bg-white rounded-3xl p-6 shadow-sm border-2 border-[#E5DCC3] flex flex-col justify-center items-center text-center min-h-[140px]">
                     <p className="text-[#1A1A1A]/50 font-extrabold text-xs tracking-widest uppercase mb-2">Pedidos Entregues</p>
                     <p className="text-3xl md:text-4xl font-extrabold text-[#1A1A1A]">{deliveredOrders}</p>
                   </div>
