@@ -5,6 +5,7 @@ export default function AdminProducts() {
   const [products, setProducts] = useState([]);
   const [activeCategory, setActiveCategory] = useState('BURGER');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   
@@ -18,6 +19,7 @@ export default function AdminProducts() {
   });
 
   const navigate = useNavigate();
+  const userRole = localStorage.getItem('userRole');
 
   const categories = [
     { value: 'BURGER', label: 'Bovinos' },
@@ -33,6 +35,8 @@ export default function AdminProducts() {
   }, []);
 
   const fetchProducts = async () => {
+    setLoading(true);
+    setError('');
     try {
       const response = await fetch('http://localhost:4000/graphql', {
         method: 'POST',
@@ -44,10 +48,19 @@ export default function AdminProducts() {
           query: `query { products { id name price promotionalPrice description category imageUrl } }`
         })
       });
+      
       const result = await response.json();
-      setProducts(result.data.products);
+      
+      if (result.errors) {
+        throw new Error(result.errors[0].message);
+      }
+      
+      // Proteção absoluta: Se não for um array, vira array vazio. Evita a tela branca.
+      setProducts(Array.isArray(result.data?.products) ? result.data.products : []);
     } catch (err) {
-      console.error(err);
+      console.error('Erro no GraphQL:', err);
+      setError('Erro de comunicação com o servidor: ' + err.message);
+      setProducts([]); 
     } finally {
       setLoading(false);
     }
@@ -89,26 +102,27 @@ export default function AdminProducts() {
       setFormData({ name: '', price: '', promotionalPrice: '', description: '', category: 'BURGER', imageUrl: '' });
       fetchProducts();
     } catch (err) {
-      alert(err.message);
+      alert('Erro ao salvar: ' + err.message);
     }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Excluir este produto permanentemente?')) return;
     try {
-      await fetch('http://localhost:4000/graphql', {
+      const response = await fetch('http://localhost:4000/graphql', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
         },
-        body: JSON.stringify({
-          query: `mutation { deleteProduct(id: "${id}") }`
-        })
+        body: JSON.stringify({ query: `mutation { deleteProduct(id: "${id}") }` })
       });
+      const res = await response.json();
+      if (res.errors) throw new Error(res.errors[0].message);
+      
       fetchProducts();
     } catch (err) {
-      alert('Erro ao excluir');
+      alert('Erro ao excluir: ' + err.message);
     }
   };
 
@@ -116,10 +130,10 @@ export default function AdminProducts() {
     setEditingProduct(product);
     setFormData({
       name: product.name,
-      price: product.price.toString(),
+      price: product.price ? product.price.toString() : '',
       promotionalPrice: product.promotionalPrice ? product.promotionalPrice.toString() : '',
       description: product.description || '',
-      category: product.category,
+      category: product.category || 'BURGER',
       imageUrl: product.imageUrl || ''
     });
     setIsModalOpen(true);
@@ -130,7 +144,8 @@ export default function AdminProducts() {
     navigate('/');
   };
 
-  const filteredProducts = products.filter(p => p.category === activeCategory);
+  const safeProducts = Array.isArray(products) ? products : [];
+  const filteredProducts = safeProducts.filter(p => p.category === activeCategory);
 
   return (
     <div className="min-h-screen bg-[#FDF9EB] flex flex-col relative pb-24 md:pb-0">
@@ -142,7 +157,7 @@ export default function AdminProducts() {
           </div>
 
           <div className="hidden md:flex items-center gap-6">
-            <button onClick={() => navigate('/admin')} className="text-[#EBCB6C] font-bold hover:text-white transition-colors">⚙️ Pedidos</button>
+            <button onClick={() => navigate('/admin')} className="text-[#EBCB6C] font-bold hover:text-white transition-colors">⚙️ Painel Central</button>
             <button onClick={() => navigate('/menu')} className="text-[#EBCB6C] font-bold hover:text-white transition-colors">🏠 Loja</button>
             <button onClick={handleLogout} className="text-red-400 font-bold hover:text-red-300 transition-colors">Sair</button>
           </div>
@@ -184,6 +199,12 @@ export default function AdminProducts() {
            <div className="flex justify-center items-center py-20">
              <div className="animate-spin text-4xl text-[#C1704D]">🍔</div>
            </div>
+        ) : error ? (
+           <div className="text-center py-10 bg-red-50 rounded-3xl border-2 border-red-200 shadow-sm mx-2">
+             <p className="text-red-600 font-extrabold text-lg mb-2 uppercase tracking-wide">ALERTA DE SISTEMA</p>
+             <p className="text-red-500 font-bold max-w-lg mx-auto">{error}</p>
+             <p className="text-sm mt-4 font-semibold opacity-70">O Backend não reconheceu a estrutura do pedido. Verifique o terminal do Node.js.</p>
+           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProducts.map(p => (
@@ -212,11 +233,11 @@ export default function AdminProducts() {
                     <div>
                       {p.promotionalPrice ? (
                         <>
-                          <p className="text-[#1A1A1A]/40 line-through text-xs font-bold">R$ {p.price.toFixed(2).replace('.', ',')}</p>
-                          <p className="text-2xl font-extrabold text-red-600">R$ {p.promotionalPrice.toFixed(2).replace('.', ',')}</p>
+                          <p className="text-[#1A1A1A]/40 line-through text-xs font-bold">R$ {Number(p.price || 0).toFixed(2).replace('.', ',')}</p>
+                          <p className="text-2xl font-extrabold text-red-600">R$ {Number(p.promotionalPrice || 0).toFixed(2).replace('.', ',')}</p>
                         </>
                       ) : (
-                        <p className="text-2xl font-extrabold text-[#C1704D]">R$ {p.price.toFixed(2).replace('.', ',')}</p>
+                        <p className="text-2xl font-extrabold text-[#C1704D]">R$ {Number(p.price || 0).toFixed(2).replace('.', ',')}</p>
                       )}
                     </div>
                   </div>
@@ -290,19 +311,21 @@ export default function AdminProducts() {
 
       <footer className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#1A1A1A] p-2 px-6 border-t-2 border-[#EBCB6C] pb-safe">
         <div className="flex justify-between items-center w-full max-w-md mx-auto">
-          <button onClick={() => navigate('/menu')} className="flex flex-col items-center gap-1 text-white/50 hover:text-white p-2">
-            <span className="text-xl">🏠</span>
-            <span className="text-[10px] font-bold tracking-wider">LOJA</span>
-          </button>
-          <button className="flex flex-col items-center gap-1 text-[#EBCB6C] p-2">
+          <button onClick={() => navigate('/menu')} className="flex flex-col items-center gap-1 text-white/50 hover:text-white p-2 transition-colors">
             <span className="text-xl">🍔</span>
-            <span className="text-[10px] font-bold tracking-wider">PRODUTOS</span>
+            <span className="text-[10px] font-bold tracking-wider">MENU</span>
           </button>
-          <button onClick={() => navigate('/admin')} className="flex flex-col items-center gap-1 text-white/50 hover:text-white p-2">
-            <span className="text-xl">⚙️</span>
+          <button onClick={() => navigate('/orders')} className="flex flex-col items-center gap-1 text-white/50 hover:text-white p-2 transition-colors">
+            <span className="text-xl">📦</span>
             <span className="text-[10px] font-bold tracking-wider">PEDIDOS</span>
           </button>
-          <button onClick={handleLogout} className="flex flex-col items-center gap-1 text-red-400/70 hover:text-red-400 p-2">
+          {userRole === 'ADMIN' && (
+            <button onClick={() => navigate('/admin')} className="flex flex-col items-center gap-1 text-[#EBCB6C] p-2 transition-colors">
+              <span className="text-xl">⚙️</span>
+              <span className="text-[10px] font-bold tracking-wider">ADMIN</span>
+            </button>
+          )}
+          <button onClick={handleLogout} className="flex flex-col items-center gap-1 text-red-400/70 hover:text-red-400 p-2 transition-colors">
             <span className="text-xl">🚪</span>
             <span className="text-[10px] font-bold tracking-wider">SAIR</span>
           </button>
