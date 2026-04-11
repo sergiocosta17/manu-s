@@ -1,22 +1,42 @@
+// src/App.jsx
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Outlet } from 'react-router-dom';
+import { CartProvider } from './contexts/CartContext';
 import Login from './pages/Login';
 import Menu from './pages/Menu';
 import Profile from './pages/Profile';
 import Promotions from './pages/Promotions';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminProducts from './pages/AdminProducts';
+import Header from './components/Header';
+import GlobalModals from './components/GlobalModals';
+
+function AppLayout() {
+  return (
+    <div className="relative">
+      <Header />
+      <main className="pt-20">
+        <Outlet />
+      </main>
+      <GlobalModals />
+    </div>
+  );
+}
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Login />} />
-      <Route path="/menu" element={<Menu />} />
-      <Route path="/profile" element={<Profile />} />
-      <Route path="/promotions" element={<Promotions />} />
-      <Route path="/admin" element={<AdminDashboard />} />
-      <Route path="/admin/products" element={<AdminProducts />} />
-    </Routes>
+    <CartProvider>
+      <Routes>
+        <Route path="/" element={<Login />} />
+        <Route element={<AppLayout />}>
+          <Route path="/menu" element={<Menu />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/promotions" element={<Promotions />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/products" element={<AdminProducts />} />
+        </Route>
+      </Routes>
+    </CartProvider>
   );
 }
 

@@ -67,6 +67,7 @@ const typeDefs = gql`
     avatarUrl: String
     storeName: String
     storeAddress: Address
+    storePhone: String
     addresses: [Address!]!
     paymentMethods: [SavedPaymentMethod!]!
     createdAt: String!
@@ -178,9 +179,16 @@ const typeDefs = gql`
     estimatedDays: Int!
   }
 
+  # ✅ Tipo para configurações da loja (usado no checkout para retirada)
+  type StoreSettings {
+    storeName: String
+    storeAddress: String
+    storePhone: String
+  }
+
   # ==================== INPUTS ====================
   input AddressInput {
-    label: String!
+    label: String
     zipCode: String!
     street: String!
     number: String!
@@ -268,9 +276,10 @@ const typeDefs = gql`
 
   input UpdateStoreInput {
     storeName: String
+    storeAddress: AddressInput
+    storePhone: String
     phone: String
     avatarUrl: String
-    storeAddress: AddressInput
   }
 
   input ChangePasswordInput {
@@ -316,8 +325,11 @@ const typeDefs = gql`
     # Shipping
     calculateShipping(zipCode: String!): ShippingQuote!
     
-    # Store info (para pickup)
+    # Store info (para pickup - retorna usuário admin)
     storeInfo: User
+    
+    # Store settings (para checkout - retorna apenas dados da loja formatados)
+    storeSettings: StoreSettings
   }
 
   # ==================== MUTATIONS ====================
@@ -377,6 +389,8 @@ const typeDefs = gql`
     
     # Apply coupon (usado internamente no createOrder)
     applyCoupon(code: String!): Coupon!
+
+    confirmDelivery(id: ID!): Order!
   }
 `;
 

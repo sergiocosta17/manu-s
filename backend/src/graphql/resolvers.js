@@ -1,3 +1,4 @@
+// resolvers.js
 const Product = require('../models/Product');
 const Order = require('../models/Order');
 const User = require('../models/User');
@@ -8,13 +9,12 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config/env');
 
-// Helper para verificar autenticação
+// Helpers
 const requireAuth = (user) => {
   if (!user) throw new Error('Não autenticado');
   return user;
 };
 
-// Helper para verificar admin
 const requireAdmin = (user) => {
   requireAuth(user);
   if (user.role !== 'ADMIN') throw new Error('Não autorizado');
@@ -198,8 +198,9 @@ const resolvers = {
       requireAdmin(user);
       
       const now = new Date();
-      const startOfDay = new Date(now.setHours(0, 0, 0, 0));
-      const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfWeek = new Date(startOfDay);
+      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
       const [
@@ -245,24 +246,46 @@ const resolvers = {
 
     // ==================== SHIPPING ====================
     calculateShipping: async (_, { zipCode }) => {
-      // Implementação simplificada - integrar com API dos Correios
-      // Por enquanto retorna valor fixo baseado no CEP
-      const fee = 10.0; // R$ 10,00 fixo
-      const estimatedDays = 3;
-      
+      // Lógica simples - pode ser expandida
+      const fee = 5.0;
+      const estimatedDays = 1;
       return { fee, estimatedDays };
     },
 
-    // ==================== STORE INFO ====================
+    // ==================== STORE ====================
     storeInfo: async () => {
       return await User.findOne({ role: 'ADMIN' });
+    },
+
+    storeSettings: async () => {
+      const admin = await User.findOne({ role: 'ADMIN' });
+      
+      if (!admin) {
+        return {
+          storeName: 'Nossa Loja',
+          storeAddress: 'Endereço não configurado',
+          storePhone: null
+        };
+      }
+      
+      // Formatar endereço se existir
+      let formattedAddress = 'Endereço não configurado';
+      if (admin.storeAddress) {
+        const addr = admin.storeAddress;
+        formattedAddress = `${addr.street}, ${addr.number}${addr.complement ? ' - ' + addr.complement : ''}, ${addr.neighborhood}, ${addr.city} - ${addr.state}`;
+      }
+      
+      return {
+        storeName: admin.storeName || 'Nossa Loja',
+        storeAddress: formattedAddress,
+        storePhone: admin.storePhone || null
+      };
     }
   },
 
   Mutation: {
     // ==================== AUTH ====================
     signup: async (_, { name, email, password, role, adminKey }) => {
-      
       const existingUser = await User.findOne({ email });
       if (existingUser) throw new Error('E-mail já cadastrado');
 
@@ -348,11 +371,14 @@ const resolvers = {
       
       const dbUser = await User.findById(user.userId);
       
-      // Se é o primeiro endereço ou marcado como default, define como principal
       if (dbUser.addresses.length === 0 || input.isDefault) {
-        // Remove default dos outros
         dbUser.addresses.forEach(addr => addr.isDefault = false);
         input.isDefault = true;
+      }
+      
+      // Garantir que label tenha valor
+      if (!input.label) {
+        input.label = dbUser.addresses.length === 0 ? 'Casa' : `Endereço ${dbUser.addresses.length + 1}`;
       }
       
       dbUser.addresses.push(input);
@@ -396,7 +422,6 @@ const resolvers = {
         addr => addr._id.toString() !== addressId
       );
       
-      // Se removeu o default e ainda tem endereços, define o primeiro como default
       if (wasDefault && dbUser.addresses.length > 0) {
         dbUser.addresses[0].isDefault = true;
       }
@@ -539,7 +564,6 @@ const resolvers = {
     createOrder: async (_, { input }, { user }) => {
       requireAuth(user);
       
-      // Aplicar cupom se fornecido
       let discount = input.discount || 0;
       if (input.couponCode) {
         const coupon = await Coupon.findOne({ 
@@ -576,7 +600,6 @@ const resolvers = {
       order.status = status;
       order.statusHistory.push({ status, timestamp: new Date() });
       
-      // Se entregue via pagamento na entrega, marca como pago
       if (status === 'DELIVERED' && ['CASH', 'CARD_ON_DELIVERY'].includes(order.paymentMethod)) {
         order.paymentStatus = 'PAID';
       }
@@ -607,6 +630,28 @@ const resolvers = {
       return await Order.findById(id).populate('user').populate('items.product');
     },
 
+    confirmDelivery: async (_, { id }, { user }) => {
+      requireAuth(user);
+      
+      const order = await Order.findById(id);
+      if (!order) throw new Error('Pedido não encontrado');
+      
+      if (order.user.toString() !== user.userId) {
+        throw new Error('Não autorizado');
+      }
+      
+      if (order.status !== 'DELIVERED') {
+        throw new Error('Pedido ainda não foi entregue');
+      }
+      
+      order.status = 'COMPLETED';
+      order.customerConfirmedAt = new Date();
+      order.statusHistory.push({ status: 'COMPLETED', timestamp: new Date() });
+      
+      await order.save();
+      return await Order.findById(id).populate('user').populate('items.product');
+    },
+
     // ==================== PROMOTIONS ====================
     createPromotion: async (_, { input }, { user }) => {
       requireAdmin(user);
@@ -616,7 +661,6 @@ const resolvers = {
         isActive: input.isActive !== false
       });
       
-      // Atualiza o preço promocional dos produtos
       if (input.discountType === 'FIXED') {
         await Product.updateMany(
           { _id: { $in: input.products } },
@@ -642,7 +686,6 @@ const resolvers = {
       
       const promotion = await Promotion.findById(id);
       if (promotion) {
-        // Remove preço promocional dos produtos
         await Product.updateMany(
           { _id: { $in: promotion.products } },
           { $set: { promotionalPrice: null } }

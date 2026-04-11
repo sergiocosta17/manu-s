@@ -15,7 +15,7 @@ async function getCroppedImg(imageSrc, pixelCrop) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
 
-  const AVATAR_SIZE = 400; 
+  const AVATAR_SIZE = 400;
   canvas.width = AVATAR_SIZE;
   canvas.height = AVATAR_SIZE;
 
@@ -29,16 +29,36 @@ export default function Profile() {
   const isAdmin = userRole === 'ADMIN';
 
   const [activeTab, setActiveTab] = useState(isAdmin ? 'STORE_INFO' : 'INFO');
-  
+
   const [clientData, setClientData] = useState({ name: '', phone: '', email: '', birthDate: '', avatarUrl: '' });
   const [adminData, setAdminData] = useState({ storeName: '', phone: '', email: '', avatarUrl: '' });
-  
+
   const [addresses, setAddresses] = useState([]);
-  const [adminAddressForm, setAdminAddressForm] = useState({ cep: '', street: '', number: '', complement: '', neighborhood: '', city: '', state: '' });
+  const [adminAddressForm, setAdminAddressForm] = useState({
+    label: 'Loja',
+    zipCode: '',
+    street: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
+    city: '',
+    state: '',
+    isDefault: true
+  });
 
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState(null);
-  const [addressForm, setAddressForm] = useState({ title: '', cep: '', street: '', number: '', complement: '', neighborhood: '', city: '', state: '', isMain: false });
+  const [addressForm, setAddressForm] = useState({
+    label: '',
+    zipCode: '',
+    street: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
+    city: '',
+    state: '',
+    isDefault: false
+  });
   const [isCepLoading, setIsCepLoading] = useState(false);
 
   const [cropModalOpen, setCropModalOpen] = useState(false);
@@ -52,8 +72,8 @@ export default function Profile() {
 
   const formatPhone = (val) => {
     if (!val) return '';
-    let v = val.replace(/\D/g, ''); 
-    if (v.length > 11) v = v.slice(0, 11); 
+    let v = val.replace(/\D/g, '');
+    if (v.length > 11) v = v.slice(0, 11);
     if (v.length > 2 && v.length <= 7) return `(${v.slice(0, 2)}) ${v.slice(2)}`;
     if (v.length > 7) return `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7)}`;
     if (v.length > 0) return `(${v}`;
@@ -70,9 +90,9 @@ export default function Profile() {
     let val = e.target.value.replace(/\D/g, '');
     if (val.length > 8) val = val.slice(0, 8);
     let formattedCep = val.length > 5 ? `${val.slice(0, 5)}-${val.slice(5)}` : val;
-    
-    if (targetForm === 'ADMIN') setAdminAddressForm(prev => ({ ...prev, cep: formattedCep }));
-    else setAddressForm(prev => ({ ...prev, cep: formattedCep }));
+
+    if (targetForm === 'ADMIN') setAdminAddressForm(prev => ({ ...prev, zipCode: formattedCep }));
+    else setAddressForm(prev => ({ ...prev, zipCode: formattedCep }));
 
     if (val.length === 8) {
       setIsCepLoading(true);
@@ -89,7 +109,7 @@ export default function Profile() {
             document.getElementById('addressNumber')?.focus();
           }
         }
-      } catch (err) {} finally { setIsCepLoading(false); }
+      } catch (err) { } finally { setIsCepLoading(false); }
     }
   };
 
@@ -103,13 +123,57 @@ export default function Profile() {
         const profileRes = await fetch('http://localhost:4000/graphql', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ query: `query { me { name email phone birthDate avatarUrl storeName pickupAddress addresses } }` })
+          body: JSON.stringify({
+            query: `
+              query GetMe {
+                me {
+                  id
+                  name
+                  email
+                  role
+                  phone
+                  birthDate
+                  avatarUrl
+                  storeName
+                  storeAddress {
+                    id
+                    label
+                    zipCode
+                    street
+                    number
+                    complement
+                    neighborhood
+                    city
+                    state
+                    isDefault
+                  }
+                  addresses {
+                    id
+                    label
+                    zipCode
+                    street
+                    number
+                    complement
+                    neighborhood
+                    city
+                    state
+                    isDefault
+                  }
+                }
+              }
+            `
+          })
         });
+
         const profileJson = await profileRes.json();
-        if (profileJson.errors) throw new Error(profileJson.errors[0].message);
-        
+
+        if (profileJson.errors) {
+          console.error('GraphQL Errors:', profileJson.errors);
+          throw new Error(profileJson.errors[0].message);
+        }
+
         const user = profileJson.data.me;
-        
+
         if (isAdmin) {
           setAdminData({
             storeName: user.storeName || user.name,
@@ -117,22 +181,55 @@ export default function Profile() {
             email: user.email || '',
             avatarUrl: user.avatarUrl || ''
           });
-          if (user.pickupAddress) {
-            try { setAdminAddressForm(JSON.parse(user.pickupAddress)); } 
-            catch(e) { setAdminAddressForm(prev => ({...prev, street: user.pickupAddress})); }
+          if (user.storeAddress) {
+            setAdminAddressForm({
+              label: user.storeAddress.label || 'Loja',
+              zipCode: user.storeAddress.zipCode || '',
+              street: user.storeAddress.street || '',
+              number: user.storeAddress.number || '',
+              complement: user.storeAddress.complement || '',
+              neighborhood: user.storeAddress.neighborhood || '',
+              city: user.storeAddress.city || '',
+              state: user.storeAddress.state || '',
+              isDefault: true
+            });
           }
         } else {
           setClientData({
-            name: user.name || '', email: user.email || '', phone: formatPhone(user.phone), birthDate: user.birthDate || '', avatarUrl: user.avatarUrl || ''
+            name: user.name || '',
+            email: user.email || '',
+            phone: formatPhone(user.phone),
+            birthDate: user.birthDate || '',
+            avatarUrl: user.avatarUrl || ''
           });
-          if (user.addresses) setAddresses(JSON.parse(user.addresses));
+          if (user.addresses) {
+            setAddresses(user.addresses);
+          }
         }
 
         if (!isAdmin) {
           const ordersRes = await fetch('http://localhost:4000/graphql', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ query: `query { orders { id total status createdAt items { quantity product { name } } } }` })
+            body: JSON.stringify({
+              query: `
+                query GetOrders {
+                  orders {
+                    id
+                    total
+                    status
+                    createdAt
+                    items {
+                      quantity
+                      name
+                      product {
+                        name
+                      }
+                    }
+                  }
+                }
+              `
+            })
           });
           const ordersJson = await ordersRes.json();
           if (!ordersJson.errors) {
@@ -140,7 +237,11 @@ export default function Profile() {
             setOrders(safeOrders.sort((a, b) => Number(b.createdAt) - Number(a.createdAt)));
           }
         }
-      } catch (err) {} finally { setLoading(false); }
+      } catch (err) {
+        console.error('Fetch error:', err);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchAllData();
   }, [isAdmin, navigate]);
@@ -161,78 +262,280 @@ export default function Profile() {
   const handleSaveCrop = async () => {
     try {
       const croppedImageBase64 = await getCroppedImg(imageToCrop, croppedAreaPixels);
-      if (isAdmin) setAdminData(prev => ({...prev, avatarUrl: croppedImageBase64}));
-      else setClientData(prev => ({...prev, avatarUrl: croppedImageBase64}));
+      if (isAdmin) setAdminData(prev => ({ ...prev, avatarUrl: croppedImageBase64 }));
+      else setClientData(prev => ({ ...prev, avatarUrl: croppedImageBase64 }));
       setCropModalOpen(false);
       setImageToCrop(null);
     } catch (e) { alert('Erro ao processar imagem.'); }
   };
 
-  const syncProfileToBackend = async (dataToUpdate) => {
-    try {
-      await fetch('http://localhost:4000/graphql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({
-          query: `mutation UpdateProfile($name: String, $phone: String, $birthDate: String, $avatarUrl: String, $storeName: String, $pickupAddress: String, $addresses: String) { updateProfile(name: $name, phone: $phone, birthDate: $birthDate, avatarUrl: $avatarUrl, storeName: $storeName, pickupAddress: $pickupAddress, addresses: $addresses) { id } }`,
-          variables: dataToUpdate
-        })
-      });
-      return true;
-    } catch (err) { alert('Erro ao salvar no banco'); return false; }
-  };
-
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
-    const variables = isAdmin 
-      ? { name: adminData.storeName, phone: adminData.phone, pickupAddress: JSON.stringify(adminAddressForm), storeName: adminData.storeName, avatarUrl: adminData.avatarUrl }
-      : { name: clientData.name, phone: clientData.phone, birthDate: clientData.birthDate, avatarUrl: clientData.avatarUrl };
+    const token = localStorage.getItem('token');
 
-    if (await syncProfileToBackend(variables)) alert('Perfil atualizado!');
+    try {
+      if (isAdmin) {
+        const response = await fetch('http://localhost:4000/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({
+            query: `
+              mutation UpdateStore($input: UpdateStoreInput!) {
+                updateStore(input: $input) {
+                  id
+                  storeName
+                }
+              }
+            `,
+            variables: {
+              input: {
+                storeName: adminData.storeName,
+                phone: adminData.phone,
+                avatarUrl: adminData.avatarUrl,
+                storeAddress: {
+                  label: adminAddressForm.label || 'Loja',
+                  zipCode: adminAddressForm.zipCode,
+                  street: adminAddressForm.street,
+                  number: adminAddressForm.number,
+                  complement: adminAddressForm.complement || null,
+                  neighborhood: adminAddressForm.neighborhood,
+                  city: adminAddressForm.city,
+                  state: adminAddressForm.state,
+                  isDefault: true
+                }
+              }
+            }
+          })
+        });
+
+        const json = await response.json();
+        if (json.errors) throw new Error(json.errors[0].message);
+        alert('Configurações da loja atualizadas!');
+
+      } else {
+        const response = await fetch('http://localhost:4000/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({
+            query: `
+              mutation UpdateProfile($input: UpdateProfileInput!) {
+                updateProfile(input: $input) {
+                  id
+                  name
+                }
+              }
+            `,
+            variables: {
+              input: {
+                name: clientData.name,
+                phone: clientData.phone,
+                birthDate: clientData.birthDate,
+                avatarUrl: clientData.avatarUrl
+              }
+            }
+          })
+        });
+
+        const json = await response.json();
+        if (json.errors) throw new Error(json.errors[0].message);
+        alert('Perfil atualizado!');
+      }
+    } catch (err) {
+      console.error('Update error:', err);
+      alert('Erro ao salvar: ' + err.message);
+    }
   };
 
   const openAddressModal = (address = null) => {
     if (address) {
       setEditingAddressId(address.id);
-      setAddressForm(address);
+      setAddressForm({
+        label: address.label || '',
+        zipCode: address.zipCode || '',
+        street: address.street || '',
+        number: address.number || '',
+        complement: address.complement || '',
+        neighborhood: address.neighborhood || '',
+        city: address.city || '',
+        state: address.state || '',
+        isDefault: address.isDefault || false
+      });
     } else {
       setEditingAddressId(null);
-      setAddressForm({ title: '', cep: '', street: '', number: '', complement: '', neighborhood: '', city: '', state: '', isMain: addresses.length === 0 });
+      setAddressForm({
+        label: '',
+        zipCode: '',
+        street: '',
+        number: '',
+        complement: '',
+        neighborhood: '',
+        city: '',
+        state: '',
+        isDefault: addresses.length === 0
+      });
     }
     setIsAddressModalOpen(true);
   };
 
   const handleSaveAddress = async (e) => {
     e.preventDefault();
-    let updated = [...addresses];
-    if (addressForm.isMain) updated = updated.map(a => ({ ...a, isMain: false }));
-    if (editingAddressId) updated = updated.map(a => a.id === editingAddressId ? { ...addressForm, id: a.id } : a);
-    else updated.push({ ...addressForm, id: Date.now().toString() });
-    if (updated.length === 1) updated[0].isMain = true;
+    const token = localStorage.getItem('token');
 
-    setAddresses(updated);
-    setIsAddressModalOpen(false);
-    await syncProfileToBackend({ addresses: JSON.stringify(updated) });
+    try {
+      if (editingAddressId) {
+        const response = await fetch('http://localhost:4000/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({
+            query: `
+              mutation UpdateAddress($addressId: ID!, $input: AddressInput!) {
+                updateAddress(addressId: $addressId, input: $input) {
+                  id
+                  addresses {
+                    id
+                    label
+                    zipCode
+                    street
+                    number
+                    complement
+                    neighborhood
+                    city
+                    state
+                    isDefault
+                  }
+                }
+              }
+            `,
+            variables: {
+              addressId: editingAddressId,
+              input: {
+                label: addressForm.label,
+                zipCode: addressForm.zipCode,
+                street: addressForm.street,
+                number: addressForm.number,
+                complement: addressForm.complement || null,
+                neighborhood: addressForm.neighborhood,
+                city: addressForm.city,
+                state: addressForm.state,
+                isDefault: addressForm.isDefault
+              }
+            }
+          })
+        });
+
+        const json = await response.json();
+        if (json.errors) throw new Error(json.errors[0].message);
+        setAddresses(json.data.updateAddress.addresses);
+
+      } else {
+        const response = await fetch('http://localhost:4000/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({
+            query: `
+              mutation AddAddress($input: AddressInput!) {
+                addAddress(input: $input) {
+                  id
+                  addresses {
+                    id
+                    label
+                    zipCode
+                    street
+                    number
+                    complement
+                    neighborhood
+                    city
+                    state
+                    isDefault
+                  }
+                }
+              }
+            `,
+            variables: {
+              input: {
+                label: addressForm.label,
+                zipCode: addressForm.zipCode,
+                street: addressForm.street,
+                number: addressForm.number,
+                complement: addressForm.complement || null,
+                neighborhood: addressForm.neighborhood,
+                city: addressForm.city,
+                state: addressForm.state,
+                isDefault: addressForm.isDefault
+              }
+            }
+          })
+        });
+
+        const json = await response.json();
+        if (json.errors) throw new Error(json.errors[0].message);
+        setAddresses(json.data.addAddress.addresses);
+      }
+
+      setIsAddressModalOpen(false);
+    } catch (err) {
+      console.error('Address error:', err);
+      alert('Erro ao salvar endereço: ' + err.message);
+    }
   };
 
   const handleDeleteAddress = async (id) => {
     if (!window.confirm('Excluir este endereço?')) return;
-    let updated = addresses.filter(a => a.id !== id);
-    if (updated.length > 0 && addresses.find(a => a.id === id).isMain) updated[0].isMain = true; 
-    setAddresses(updated);
-    await syncProfileToBackend({ addresses: JSON.stringify(updated) });
+
+    const token = localStorage.getItem('token');
+
+    try {
+      const response = await fetch('http://localhost:4000/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          query: `
+            mutation DeleteAddress($addressId: ID!) {
+              deleteAddress(addressId: $addressId) {
+                id
+                addresses {
+                  id
+                  label
+                  zipCode
+                  street
+                  number
+                  complement
+                  neighborhood
+                  city
+                  state
+                  isDefault
+                }
+              }
+            }
+          `,
+          variables: { addressId: id }
+        })
+      });
+
+      const json = await response.json();
+      if (json.errors) throw new Error(json.errors[0].message);
+      setAddresses(json.data.deleteAddress.addresses);
+    } catch (err) {
+      console.error('Delete error:', err);
+      alert('Erro ao excluir: ' + err.message);
+    }
   };
 
   const handleLogout = () => {
-    if (window.confirm('Terminar sessão?')) { localStorage.clear(); navigate('/'); }
+    if (window.confirm('Terminar sessão?')) {
+      localStorage.clear();
+      navigate('/');
+    }
   };
 
   const getStatusDisplay = (status) => {
     const map = {
-      PENDING: { label: 'Aguardando', color: 'text-red-500 bg-red-50' },
+      PLACED: { label: 'Recebido', color: 'text-blue-500 bg-blue-50' },
+      CONFIRMED: { label: 'Confirmado', color: 'text-indigo-500 bg-indigo-50' },
       PREPARING: { label: 'Em Produção', color: 'text-[#C1704D] bg-[#C1704D]/10' },
-      READY: { label: 'Pronto p/ Entrega', color: 'text-[#EBCB6C] bg-[#1A1A1A]' },
-      DELIVERED: { label: 'Entregue', color: 'text-green-600 bg-green-50' },
+      OUT_FOR_DELIVERY: { label: 'Saiu p/ Entrega', color: 'text-[#EBCB6C] bg-[#1A1A1A]' },
+      DELIVERED: { label: 'Entregue', color: 'text-green-500 bg-green-50' },
+      COMPLETED: { label: 'Concluído', color: 'text-green-600 bg-green-50' },
       CANCELLED: { label: 'Cancelado', color: 'text-gray-500 bg-gray-100' }
     };
     return map[status] || { label: status, color: 'text-gray-500 bg-gray-100' };
@@ -257,59 +560,23 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-[#FDF9EB] flex flex-col relative pb-24 md:pb-0 font-sans selection:bg-[#EBCB6C] selection:text-[#1A1A1A]">
-      
-      {/* CABEÇALHO UNIFICADO */}
-      <header className="sticky top-0 z-30 bg-[#1A1A1A]/95 backdrop-blur-md p-4 shadow-sm border-b border-[#EBCB6C]/20">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="cursor-pointer" onClick={() => navigate('/menu')}>
-            <h1 className="text-3xl font-black text-[#FDF9EB] tracking-tighter leading-none">MANU´S</h1>
-            <p className="text-[9px] font-bold text-[#EBCB6C] tracking-[0.3em] uppercase mt-1">
-              {isAdmin ? 'Configurações' : 'Minha Conta'}
-            </p>
-          </div>
-          <div className="hidden md:flex items-center gap-6">
-            {isAdmin ? (
-              <>
-                <button onClick={() => navigate('/promotions')} className="text-white/50 hover:text-white transition-colors text-sm font-bold flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg> Ofertas
-                </button>
-                <button onClick={() => window.scrollTo(0,0)} className="text-[#EBCB6C] font-bold hover:text-white transition-colors text-sm flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg> Meu Perfil
-                </button>
-                <button onClick={() => navigate('/admin')} className="text-white/50 hover:text-white transition-colors text-sm font-bold flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> Gestão
-                </button>
-              </>
-            ) : (
-              <>
-                <button onClick={() => navigate('/promotions')} className="text-white/50 hover:text-white transition-colors text-sm font-bold flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg> Ofertas
-                </button>
-                <button onClick={() => navigate('/menu')} className="text-white/50 hover:text-white transition-colors text-sm font-bold flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg> Voltar à Loja
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
 
       {loading ? (
-         <div className="flex-grow flex flex-col justify-center items-center opacity-50">
-           <svg className="w-12 h-12 animate-spin text-[#C1704D] mb-4" fill="none" viewBox="0 0 24 24">
-             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-           </svg>
-         </div>
+        <div className="flex-grow flex flex-col justify-center items-center opacity-50">
+          <svg className="w-12 h-12 animate-spin text-[#C1704D] mb-4" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
       ) : (
         <main className="flex-grow w-full max-w-7xl mx-auto p-4 md:p-8 flex flex-col lg:flex-row gap-8">
-          
+
           {/* SIDEBAR NAVEGAÇÃO */}
           <aside className="w-full lg:w-80 flex-shrink-0">
             <div className="bg-white/80 backdrop-blur-sm rounded-[2rem] shadow-sm border border-white/60 p-6 flex flex-col h-full">
               <div className="flex items-center gap-4 mb-8 pb-8 border-b border-gray-100">
                 <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-[#EBCB6C] overflow-hidden flex-shrink-0">
-                  {currentAvatar ? <img src={currentAvatar} className="w-full h-full object-cover" /> : <svg className="w-full h-full p-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>}
+                  {currentAvatar ? <img src={currentAvatar} className="w-full h-full object-cover" alt="Avatar" /> : <svg className="w-full h-full p-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>}
                 </div>
                 <div className="overflow-hidden">
                   <h2 className="text-lg font-black text-[#1A1A1A] truncate">{currentName || 'Bem-vindo(a)'}</h2>
@@ -333,14 +600,14 @@ export default function Profile() {
           </aside>
 
           <section className="flex-grow animate-fade-in w-full overflow-hidden">
-            
+
             {isAdmin && activeTab === 'STORE_INFO' && (
               <div className="bg-white/80 backdrop-blur-sm rounded-[2rem] shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-white/60 p-8 md:p-10 w-full">
                 <h3 className="text-2xl font-black text-[#1A1A1A] mb-8">Informações da Loja</h3>
                 <form className="space-y-6 max-w-2xl" onSubmit={handleUpdateProfile}>
                   <div className="flex flex-col md:flex-row items-center gap-6 mb-8 border-b border-gray-100 pb-8">
                     <div className="w-24 h-24 rounded-full bg-gray-100 border-2 border-dashed border-gray-300 shadow-sm overflow-hidden flex-shrink-0 relative">
-                      {adminData.avatarUrl ? <img src={adminData.avatarUrl} className="w-full h-full object-cover" /> : <span className="flex items-center justify-center h-full text-3xl text-gray-400">📷</span>}
+                      {adminData.avatarUrl ? <img src={adminData.avatarUrl} className="w-full h-full object-cover" alt="Logo" /> : <span className="flex items-center justify-center h-full text-3xl text-gray-400">📷</span>}
                     </div>
                     <div className="flex-grow w-full text-center md:text-left">
                       <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Logo da Loja</label>
@@ -354,7 +621,7 @@ export default function Profile() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Nome da Loja</label>
-                      <input type="text" required className="w-full bg-white border border-[#E5DCC3] px-5 py-4 rounded-2xl font-bold text-[#1A1A1A] outline-none focus:border-[#C1704D]" value={adminData.storeName} onChange={e => setAdminData({...adminData, storeName: e.target.value})} />
+                      <input type="text" required className="w-full bg-white border border-[#E5DCC3] px-5 py-4 rounded-2xl font-bold text-[#1A1A1A] outline-none focus:border-[#C1704D]" value={adminData.storeName} onChange={e => setAdminData({ ...adminData, storeName: e.target.value })} />
                     </div>
                     <div>
                       <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Telefone</label>
@@ -368,33 +635,33 @@ export default function Profile() {
                       <label className="block text-[10px] font-black text-[#C1704D] mb-2 uppercase flex items-center gap-1">
                         {isCepLoading && <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>} CEP *
                       </label>
-                      <input required className="w-full bg-white border border-[#C1704D]/30 px-4 py-3.5 rounded-xl font-black text-[#C1704D] outline-none focus:border-[#C1704D] placeholder-[#C1704D]/30" placeholder="00000-000" value={adminAddressForm.cep} onChange={e => handleCepChange(e, 'ADMIN')} maxLength="9" />
+                      <input required className="w-full bg-white border border-[#C1704D]/30 px-4 py-3.5 rounded-xl font-black text-[#C1704D] outline-none focus:border-[#C1704D] placeholder-[#C1704D]/30" placeholder="00000-000" value={adminAddressForm.zipCode} onChange={e => handleCepChange(e, 'ADMIN')} maxLength="9" />
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Rua / Logradouro *</label>
-                      <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold text-[#1A1A1A] outline-none focus:bg-white focus:border-[#C1704D]" value={adminAddressForm.street} onChange={e => setAdminAddressForm({...adminAddressForm, street: e.target.value})} />
+                      <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold text-[#1A1A1A] outline-none focus:bg-white focus:border-[#C1704D]" value={adminAddressForm.street} onChange={e => setAdminAddressForm({ ...adminAddressForm, street: e.target.value })} />
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     <div>
                       <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Número *</label>
-                      <input id="adminAddressNumber" required className="w-full bg-white border border-[#E5DCC3] px-4 py-3.5 rounded-xl font-bold text-[#1A1A1A] outline-none focus:border-[#C1704D]" value={adminAddressForm.number} onChange={e => setAdminAddressForm({...adminAddressForm, number: e.target.value})} />
+                      <input id="adminAddressNumber" required className="w-full bg-white border border-[#E5DCC3] px-4 py-3.5 rounded-xl font-bold text-[#1A1A1A] outline-none focus:border-[#C1704D]" value={adminAddressForm.number} onChange={e => setAdminAddressForm({ ...adminAddressForm, number: e.target.value })} />
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Bairro *</label>
-                      <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold text-[#1A1A1A] outline-none focus:bg-white focus:border-[#C1704D]" value={adminAddressForm.neighborhood} onChange={e => setAdminAddressForm({...adminAddressForm, neighborhood: e.target.value})} />
+                      <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold text-[#1A1A1A] outline-none focus:bg-white focus:border-[#C1704D]" value={adminAddressForm.neighborhood} onChange={e => setAdminAddressForm({ ...adminAddressForm, neighborhood: e.target.value })} />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
                       <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Cidade *</label>
-                      <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold text-[#1A1A1A] outline-none focus:bg-white focus:border-[#C1704D]" value={adminAddressForm.city} onChange={e => setAdminAddressForm({...adminAddressForm, city: e.target.value})} />
+                      <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold text-[#1A1A1A] outline-none focus:bg-white focus:border-[#C1704D]" value={adminAddressForm.city} onChange={e => setAdminAddressForm({ ...adminAddressForm, city: e.target.value })} />
                     </div>
                     <div>
                       <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Estado (UF) *</label>
-                      <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold text-[#1A1A1A] outline-none focus:bg-white focus:border-[#C1704D] uppercase" maxLength="2" value={adminAddressForm.state} onChange={e => setAdminAddressForm({...adminAddressForm, state: e.target.value})} />
+                      <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold text-[#1A1A1A] outline-none focus:bg-white focus:border-[#C1704D] uppercase" maxLength="2" value={adminAddressForm.state} onChange={e => setAdminAddressForm({ ...adminAddressForm, state: e.target.value })} />
                     </div>
                   </div>
 
@@ -409,7 +676,7 @@ export default function Profile() {
                 <form className="space-y-6 max-w-2xl" onSubmit={handleUpdateProfile}>
                   <div className="flex flex-col md:flex-row items-center gap-6 mb-8 border-b border-gray-100 pb-8">
                     <div className="w-24 h-24 rounded-full bg-gray-100 border-2 border-dashed border-gray-300 shadow-sm overflow-hidden flex-shrink-0 relative">
-                      {clientData.avatarUrl ? <img src={clientData.avatarUrl} className="w-full h-full object-cover" /> : <span className="flex items-center justify-center h-full text-3xl text-gray-400">📷</span>}
+                      {clientData.avatarUrl ? <img src={clientData.avatarUrl} className="w-full h-full object-cover" alt="Avatar" /> : <span className="flex items-center justify-center h-full text-3xl text-gray-400">📷</span>}
                     </div>
                     <div className="flex-grow w-full text-center md:text-left">
                       <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Sua Foto</label>
@@ -422,11 +689,11 @@ export default function Profile() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Nome Completo</label>
-                      <input type="text" required className="w-full bg-white border border-[#E5DCC3] px-5 py-4 rounded-2xl font-bold text-[#1A1A1A] outline-none focus:border-[#C1704D]" value={clientData.name} onChange={e => setClientData({...clientData, name: e.target.value})} />
+                      <input type="text" required className="w-full bg-white border border-[#E5DCC3] px-5 py-4 rounded-2xl font-bold text-[#1A1A1A] outline-none focus:border-[#C1704D]" value={clientData.name} onChange={e => setClientData({ ...clientData, name: e.target.value })} />
                     </div>
                     <div>
                       <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Data Nascimento</label>
-                      <input type="date" required className="w-full bg-white border border-[#E5DCC3] px-5 py-4 rounded-2xl font-bold text-[#1A1A1A] outline-none focus:border-[#C1704D]" value={clientData.birthDate} onChange={e => setClientData({...clientData, birthDate: e.target.value})} />
+                      <input type="date" required className="w-full bg-white border border-[#E5DCC3] px-5 py-4 rounded-2xl font-bold text-[#1A1A1A] outline-none focus:border-[#C1704D]" value={clientData.birthDate} onChange={e => setClientData({ ...clientData, birthDate: e.target.value })} />
                     </div>
                     <div>
                       <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Telemóvel</label>
@@ -457,15 +724,15 @@ export default function Profile() {
                 ) : (
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                     {addresses.map(addr => (
-                      <div key={addr.id} className={`${addr.isMain ? 'border-2 border-[#EBCB6C] bg-gradient-to-r from-white to-[#FDF9EB]/50' : 'border border-gray-200 bg-white'} p-6 rounded-3xl relative overflow-hidden group`}>
-                        {addr.isMain && <div className="absolute top-4 right-4 bg-[#1A1A1A] text-[#EBCB6C] text-[9px] font-black px-3 py-1 rounded-full uppercase">Principal</div>}
-                        <h4 className="font-black text-[#1A1A1A] text-lg mb-1">{addr.title || 'Sem título'}</h4>
+                      <div key={addr.id} className={`${addr.isDefault ? 'border-2 border-[#EBCB6C] bg-gradient-to-r from-white to-[#FDF9EB]/50' : 'border border-gray-200 bg-white'} p-6 rounded-3xl relative overflow-hidden group`}>
+                        {addr.isDefault && <div className="absolute top-4 right-4 bg-[#1A1A1A] text-[#EBCB6C] text-[9px] font-black px-3 py-1 rounded-full uppercase">Principal</div>}
+                        <h4 className="font-black text-[#1A1A1A] text-lg mb-1">{addr.label || 'Sem título'}</h4>
                         <p className="text-sm font-semibold text-[#1A1A1A]/60 leading-relaxed mb-5 whitespace-pre-wrap">
-                          {addr.street}, {addr.number} {addr.complement ? ` - ${addr.complement}` : ''}<br/>
-                          {addr.neighborhood} - {addr.city}, {addr.state}<br/>
-                          <span className="text-[10px] uppercase opacity-60">CEP: {addr.cep}</span>
+                          {addr.street}, {addr.number} {addr.complement ? ` - ${addr.complement}` : ''}<br />
+                          {addr.neighborhood} - {addr.city}, {addr.state}<br />
+                          <span className="text-[10px] uppercase opacity-60">CEP: {addr.zipCode}</span>
                         </p>
-                        <div className={`flex gap-4 pt-4 border-t ${addr.isMain ? 'border-[#EBCB6C]/30' : 'border-gray-100'}`}>
+                        <div className={`flex gap-4 pt-4 border-t ${addr.isDefault ? 'border-[#EBCB6C]/30' : 'border-gray-100'}`}>
                           <button onClick={() => openAddressModal(addr)} className="text-[10px] font-black text-[#1A1A1A] hover:text-[#C1704D] uppercase">Editar</button>
                           <button onClick={() => handleDeleteAddress(addr.id)} className="text-[10px] font-black text-red-500 hover:text-red-700 uppercase">Remover</button>
                         </div>
@@ -497,7 +764,7 @@ export default function Profile() {
                             <p className="text-xs font-bold text-[#1A1A1A]/50 mb-4">{formatDate(order.createdAt)}</p>
                             <div className="space-y-1">
                               {order.items.map((i, idx) => (
-                                <p key={idx} className="text-sm font-semibold text-[#1A1A1A]"><span className="text-[#C1704D] font-black mr-2">{i.quantity}x</span> {i.product?.name || 'Removido'}</p>
+                                <p key={idx} className="text-sm font-semibold text-[#1A1A1A]"><span className="text-[#C1704D] font-black mr-2">{i.quantity}x</span> {i.product?.name || i.name || 'Removido'}</p>
                               ))}
                             </div>
                           </div>
@@ -512,6 +779,15 @@ export default function Profile() {
                 )}
               </div>
             )}
+
+            {!isAdmin && activeTab === 'PAYMENTS' && (
+              <div className="bg-white/80 backdrop-blur-sm rounded-[2rem] shadow-sm border border-white/60 p-8 md:p-10 w-full">
+                <h3 className="text-2xl font-black text-[#1A1A1A] mb-8">Formas de Pagamento</h3>
+                <div className="text-center py-16 bg-gray-50 rounded-3xl border border-gray-100 border-dashed">
+                  <p className="text-[#1A1A1A]/40 font-black text-sm uppercase">Em breve você poderá gerenciar seus cartões aqui.</p>
+                </div>
+              </div>
+            )}
           </section>
         </main>
       )}
@@ -519,47 +795,59 @@ export default function Profile() {
       {isAddressModalOpen && (
         <div className="fixed inset-0 bg-[#1A1A1A]/80 flex items-center justify-center z-50 p-4 md:p-6">
           <div className="bg-[#FDF9EB] rounded-[2rem] p-8 md:p-10 w-full max-w-2xl shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-black text-[#1A1A1A] border-b border-[#E5DCC3]/50 pb-4 mb-8">Novo Endereço</h2>
+            <h2 className="text-2xl font-black text-[#1A1A1A] border-b border-[#E5DCC3]/50 pb-4 mb-8">{editingAddressId ? 'Editar Endereço' : 'Novo Endereço'}</h2>
             <form onSubmit={handleSaveAddress} className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="md:col-span-2">
                   <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Identificação</label>
-                  <input required autoFocus className="w-full bg-white border border-[#E5DCC3] px-4 py-3.5 rounded-xl font-bold outline-none" placeholder="Ex: Casa, Trabalho" value={addressForm.title} onChange={e => setAddressForm({...addressForm, title: e.target.value})} />
+                  <input required autoFocus className="w-full bg-white border border-[#E5DCC3] px-4 py-3.5 rounded-xl font-bold outline-none" placeholder="Ex: Casa, Trabalho" value={addressForm.label} onChange={e => setAddressForm({ ...addressForm, label: e.target.value })} />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-[#C1704D] mb-2 uppercase">CEP *</label>
-                  <input required className="w-full bg-white border border-[#C1704D]/30 px-4 py-3.5 rounded-xl font-black text-[#C1704D] outline-none" placeholder="00000-000" value={addressForm.cep} onChange={e => handleCepChange(e, 'CLIENT')} maxLength="9" />
+                  <label className="block text-[10px] font-black text-[#C1704D] mb-2 uppercase flex items-center gap-1">
+                    {isCepLoading && <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>} CEP *
+                  </label>
+                  <input required className="w-full bg-white border border-[#C1704D]/30 px-4 py-3.5 rounded-xl font-black text-[#C1704D] outline-none" placeholder="00000-000" value={addressForm.zipCode} onChange={e => handleCepChange(e, 'CLIENT')} maxLength="9" />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
                 <div className="md:col-span-3">
                   <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Rua / Logradouro *</label>
-                  <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold outline-none" value={addressForm.street} onChange={e => setAddressForm({...addressForm, street: e.target.value})} />
+                  <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold outline-none" value={addressForm.street} onChange={e => setAddressForm({ ...addressForm, street: e.target.value })} />
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Número *</label>
-                  <input id="addressNumber" required className="w-full bg-white border border-[#E5DCC3] px-4 py-3.5 rounded-xl font-bold outline-none" value={addressForm.number} onChange={e => setAddressForm({...addressForm, number: e.target.value})} />
+                  <input id="addressNumber" required className="w-full bg-white border border-[#E5DCC3] px-4 py-3.5 rounded-xl font-bold outline-none" value={addressForm.number} onChange={e => setAddressForm({ ...addressForm, number: e.target.value })} />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Complemento</label>
-                  <input className="w-full bg-white border border-[#E5DCC3] px-4 py-3.5 rounded-xl font-bold outline-none" value={addressForm.complement} onChange={e => setAddressForm({...addressForm, complement: e.target.value})} />
+                  <input className="w-full bg-white border border-[#E5DCC3] px-4 py-3.5 rounded-xl font-bold outline-none" value={addressForm.complement} onChange={e => setAddressForm({ ...addressForm, complement: e.target.value })} />
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Bairro *</label>
-                  <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold outline-none" value={addressForm.neighborhood} onChange={e => setAddressForm({...addressForm, neighborhood: e.target.value})} />
+                  <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold outline-none" value={addressForm.neighborhood} onChange={e => setAddressForm({ ...addressForm, neighborhood: e.target.value })} />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="md:col-span-2">
                   <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Cidade *</label>
-                  <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold outline-none" value={addressForm.city} onChange={e => setAddressForm({...addressForm, city: e.target.value})} />
+                  <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold outline-none" value={addressForm.city} onChange={e => setAddressForm({ ...addressForm, city: e.target.value })} />
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">UF *</label>
-                  <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold outline-none uppercase" maxLength="2" value={addressForm.state} onChange={e => setAddressForm({...addressForm, state: e.target.value})} />
+                  <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold outline-none uppercase" maxLength="2" value={addressForm.state} onChange={e => setAddressForm({ ...addressForm, state: e.target.value })} />
                 </div>
+              </div>
+              <div className="flex items-center gap-3 pt-2">
+                <input
+                  type="checkbox"
+                  id="isDefault"
+                  checked={addressForm.isDefault}
+                  onChange={e => setAddressForm({ ...addressForm, isDefault: e.target.checked })}
+                  className="w-5 h-5 rounded border-gray-300 text-[#C1704D] focus:ring-[#C1704D]"
+                />
+                <label htmlFor="isDefault" className="text-sm font-bold text-[#1A1A1A]/70">Definir como endereço principal</label>
               </div>
               <div className="flex gap-4 pt-6 border-t border-[#E5DCC3]/50">
                 <button type="button" onClick={() => setIsAddressModalOpen(false)} className="w-1/3 bg-white border border-gray-200 py-4 rounded-xl font-black uppercase text-xs">Cancelar</button>
@@ -575,15 +863,15 @@ export default function Profile() {
           <div className="bg-[#FDF9EB] rounded-[2rem] w-full max-w-md shadow-2xl flex flex-col h-[80vh] md:h-[600px] animate-fade-in">
             <div className="p-6 border-b border-[#E5DCC3]/50 flex justify-between items-center bg-white/50">
               <h2 className="text-xl font-black">Ajustar Foto</h2>
-              <button onClick={() => setCropModalOpen(false)} className="text-gray-500 w-8 h-8 rounded-full bg-gray-200/50">X</button>
+              <button onClick={() => setCropModalOpen(false)} className="text-gray-500 w-8 h-8 rounded-full bg-gray-200/50 flex items-center justify-center">✕</button>
             </div>
             <div className="relative flex-grow bg-[#1A1A1A]">
               {imageToCrop && <Cropper image={imageToCrop} crop={crop} zoom={zoom} aspect={1} cropShape="round" showGrid={false} onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={(a, pixels) => setCroppedAreaPixels(pixels)} />}
             </div>
             <div className="p-6 bg-white/80 space-y-5">
               <div className="flex items-center gap-4">
-                  <span className="text-[10px] font-black uppercase">Zoom</span>
-                  <input type="range" value={zoom} min={1} max={3} step={0.1} onChange={(e) => setZoom(e.target.value)} className="flex-grow accent-[#C1704D]" />
+                <span className="text-[10px] font-black uppercase">Zoom</span>
+                <input type="range" value={zoom} min={1} max={3} step={0.1} onChange={(e) => setZoom(parseFloat(e.target.value))} className="flex-grow accent-[#C1704D]" />
               </div>
               <button onClick={handleSaveCrop} className="w-full bg-[#C1704D] text-white font-black py-4.5 rounded-xl uppercase text-xs">Confirmar Recorte</button>
             </div>
@@ -599,18 +887,18 @@ export default function Profile() {
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
                 <span className="text-[9px] font-black tracking-[0.2em]">OFERTAS</span>
               </button>
-              
+
               <button onClick={() => navigate('/admin')} className="flex flex-col items-center gap-1.5 text-white/40 hover:text-white p-2 transition-all">
-                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                 <span className="text-[9px] font-black tracking-[0.2em]">PAINEL</span>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                <span className="text-[9px] font-black tracking-[0.2em]">PAINEL</span>
               </button>
 
               <button onClick={() => navigate('/admin/products')} className="flex flex-col items-center gap-1.5 text-white/40 hover:text-white p-2 transition-all">
-                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-                 <span className="text-[9px] font-black tracking-[0.2em]">PRODUTOS</span>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                <span className="text-[9px] font-black tracking-[0.2em]">PRODUTOS</span>
               </button>
 
-              <button onClick={() => window.scrollTo(0,0)} className="flex flex-col items-center gap-1.5 text-[#EBCB6C] p-2 transition-all relative">
+              <button onClick={() => window.scrollTo(0, 0)} className="flex flex-col items-center gap-1.5 text-[#EBCB6C] p-2 transition-all relative">
                 <div className="bg-[#EBCB6C] text-[#1A1A1A] p-3 rounded-full shadow-[0_4px_15px_rgba(235,203,108,0.4)] border-4 border-[#1A1A1A] -mt-6">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                 </div>
@@ -627,7 +915,7 @@ export default function Profile() {
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
                 <span className="text-[9px] font-black tracking-[0.2em]">OFERTAS</span>
               </button>
-              <button onClick={() => window.scrollTo(0,0)} className="flex flex-col items-center gap-1.5 text-[#EBCB6C] p-2 transition-all relative">
+              <button onClick={() => window.scrollTo(0, 0)} className="flex flex-col items-center gap-1.5 text-[#EBCB6C] p-2 transition-all relative">
                 <div className="bg-[#EBCB6C] text-[#1A1A1A] p-3 rounded-full shadow-[0_4px_15px_rgba(235,203,108,0.4)] border-4 border-[#1A1A1A] -mt-6">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                 </div>

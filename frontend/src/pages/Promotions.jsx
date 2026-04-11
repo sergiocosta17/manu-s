@@ -87,51 +87,6 @@ export default function Promotions() {
 
   return (
     <div className="min-h-screen bg-[#FDF9EB] flex flex-col relative pb-24 md:pb-0 font-sans selection:bg-[#EBCB6C] selection:text-[#1A1A1A]">
-      
-      <header className="sticky top-0 z-30 bg-[#1A1A1A]/95 backdrop-blur-md p-4 shadow-sm border-b border-[#EBCB6C]/20">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          
-          <div className="cursor-pointer" onClick={() => navigate('/menu')}>
-            <h1 className="text-3xl font-extrabold text-[#FDF9EB] tracking-tighter leading-none">MANU´S</h1>
-            <p className="text-[9px] md:text-[10px] font-bold text-red-500 tracking-[0.3em] uppercase mt-1">Ofertas 🔥</p>
-          </div>
-
-          <div className="hidden md:flex items-center gap-6">
-            <button onClick={() => navigate('/menu')} className="text-white/50 hover:text-white transition-colors text-sm flex items-center gap-2 font-bold">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 001 1m-6 0h6"></path></svg>
-              Voltar à Loja
-            </button>
-            <button onClick={() => navigate('/profile')} className="text-white/50 hover:text-white transition-colors text-sm flex items-center gap-2 font-bold">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-              Meu Perfil
-            </button>
-            {userRole === 'ADMIN' && (
-              <button onClick={() => navigate('/admin')} className="text-white/50 hover:text-white transition-colors text-sm flex items-center gap-2 font-bold">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                Gestão
-              </button>
-            )}
-            
-            <button onClick={() => setIsCartOpen(true)} className="bg-gradient-to-br from-[#C1704D] to-[#A35C3E] hover:from-[#A35C3E] hover:to-[#C1704D] text-white font-black px-6 py-2.5 rounded-xl shadow-[0_4px_15px_rgba(193,112,77,0.3)] flex items-center gap-3 transition-transform active:scale-95 uppercase tracking-wider text-xs">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-              <span>{cartItemsCount} Itens</span>
-              {cartTotalValue > 0 && <span className="border-l border-white/30 pl-3">R$ {cartTotalValue.toFixed(2).replace('.', ',')}</span>}
-            </button>
-          </div>
-
-          <div className="md:hidden flex items-center gap-4">
-            <button onClick={() => setIsCartOpen(true)} className="relative flex items-center justify-center text-[#EBCB6C] bg-white/5 p-2.5 rounded-xl border border-white/10 shadow-sm active:scale-95 transition-transform">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-              {cartItemsCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md border border-[#1A1A1A]">
-                  {cartItemsCount}
-                </span>
-              )}
-            </button>
-          </div>
-
-        </div>
-      </header>
 
       <main className="flex-grow w-full max-w-7xl mx-auto p-4 md:p-8 animate-fade-in">
         

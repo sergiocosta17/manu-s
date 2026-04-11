@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const addressSchema = new mongoose.Schema({
-  label: { type: String, required: true },
+  label: { type: String, default: 'Loja' },
   zipCode: { type: String, required: true },
   street: { type: String, required: true },
   number: { type: String, required: true },
@@ -9,7 +9,7 @@ const addressSchema = new mongoose.Schema({
   neighborhood: { type: String, required: true },
   city: { type: String, required: true },
   state: { type: String, required: true },
-  isDefault: { type: Boolean, default: false }
+  isDefault: { type: Boolean, default: true }
 });
 
 const paymentMethodSchema = new mongoose.Schema({
@@ -33,11 +33,12 @@ const userSchema = new mongoose.Schema({
   birthDate: { type: String },
   avatarUrl: { type: String },
   
-  // Campos específicos do ADMIN (loja)
-  storeName: { type: String },
-  storeAddress: { type: addressSchema },
+  // ==================== Campos específicos do ADMIN (loja) ====================
+  storeName: { type: String, default: '' },
+  storeAddress: { type: addressSchema },  // ✅ Objeto estruturado
+  storePhone: { type: String, default: '' },
   
-  // Campos do cliente
+  // ==================== Campos do cliente ====================
   addresses: [addressSchema],
   paymentMethods: [paymentMethodSchema]
   
