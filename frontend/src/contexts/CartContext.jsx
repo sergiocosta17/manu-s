@@ -19,7 +19,6 @@ export function CartProvider({ children }) {
 
   const addToCart = (product, quantity = 1, observation = '') => {
     setCart((prevCart) => {
-      // Verifica se já existe o mesmo produto com a mesma observação
       const existingIndex = prevCart.findIndex(
         (item) => item.id === product.id && item.observation === observation
       );
@@ -77,7 +76,6 @@ export function CartProvider({ children }) {
     0
   );
 
-  // ✅ Função getCartTotal (para compatibilidade com GlobalModals)
   const getCartTotal = () => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
   };
@@ -99,12 +97,29 @@ export function CartProvider({ children }) {
         },
         body: JSON.stringify({
           query: `query { 
-            myOrders { 
+            orders { 
               id 
               status 
               createdAt 
-              items { name quantity price } 
-              total 
+              total
+              subtotal
+              shippingFee
+              discount
+              deliveryType
+              paymentMethod
+              paymentStatus
+              deliveryAddress {
+                street
+                number
+                complement
+                neighborhood
+                city
+              }
+              items { 
+                name 
+                quantity 
+                price 
+              } 
             } 
           }`,
         }),
@@ -113,47 +128,26 @@ export function CartProvider({ children }) {
       const result = await response.json();
 
       if (result.errors) {
-        // Tenta query alternativa se myOrders não existir
-        const altResponse = await fetch('http://localhost:4000/graphql', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            query: `query { 
-              orders { 
-                id 
-                status 
-                createdAt 
-                items { name quantity price } 
-                total 
-              } 
-            }`,
-          }),
-        });
-        const altResult = await altResponse.json();
-        if (altResult.data?.orders) {
-          setMyOrders(altResult.data.orders);
-        }
+        console.error('Erro ao buscar pedidos:', result.errors);
         return;
       }
 
-      if (result.data?.myOrders) {
-        setMyOrders(result.data.myOrders);
+      if (result.data?.orders) {
+        setMyOrders(result.data.orders);
       }
     } catch (err) {
       console.error('Erro de rede ao buscar pedidos:', err);
     }
   }, []);
 
-  // ✅ Pedidos ativos para rastreamento
-  // DELIVERED fica visível para o cliente confirmar recebimento
-  const activeTrackingOrders = myOrders.filter(
-    (order) => !['COMPLETED', 'CANCELLED'].includes(order.status)
-  );
+  // ✅ Pedidos ativos para rastreamento - Filtro corrigido
+  const activeTrackingOrders = myOrders.filter((order) => {
+    // Status que indicam pedido finalizado ou cancelado
+    const finishedStatuses = ['COMPLETED', 'CANCELLED'];
+    return !finishedStatuses.includes(order.status);
+  });
 
-  // ✅ Confirmar entrega pelo cliente
+  // ✅ Confirmar entrega/retirada pelo cliente - Corrigido
   const handleConfirmDelivery = async (orderId) => {
     try {
       const response = await fetch('http://localhost:4000/graphql', {
@@ -166,36 +160,44 @@ export function CartProvider({ children }) {
           query: `mutation { confirmDelivery(id: "${orderId}") { id status } }`,
         }),
       });
+      
       const result = await response.json();
+      
       if (result.data?.confirmDelivery) {
+        // ✅ Atualiza o estado local imediatamente para remover o pedido da lista
+        setMyOrders((prevOrders) =>
+          prevOrders.map((order) =>
+            order.id === orderId
+              ? { ...order, status: 'COMPLETED' }
+              : order
+          )
+        );
+        
+        // Também faz fetch para garantir sincronização
         await fetchMyOrders();
+      } else if (result.errors) {
+        console.error('Erro ao confirmar:', result.errors);
       }
     } catch (err) {
       console.error('Erro ao confirmar entrega:', err);
     }
   };
 
-  // ✅ Alias para compatibilidade com GlobalModals
   const cartItems = cart;
   const setActiveTrackingOrders = setMyOrders;
 
   const value = {
-    // Dados do carrinho
     cart,
     cartItems,
     setCart,
     isCartOpen,
     setIsCartOpen,
-    
-    // Dados de rastreamento
     isTrackingOpen,
     setIsTrackingOpen,
     myOrders,
     setMyOrders,
     activeTrackingOrders,
     setActiveTrackingOrders,
-    
-    // Funções do carrinho
     addToCart,
     removeFromCart,
     updateQuantity,
@@ -203,8 +205,6 @@ export function CartProvider({ children }) {
     cartItemsCount,
     cartTotalValue,
     getCartTotal,
-    
-    // Funções de pedidos
     fetchMyOrders,
     handleConfirmDelivery,
   };

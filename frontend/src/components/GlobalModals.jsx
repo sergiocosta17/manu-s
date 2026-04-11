@@ -86,11 +86,6 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
-  Refresh: ({ className = "w-5 h-5" }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-    </svg>
-  ),
 };
 
 export default function GlobalModals() {
@@ -103,13 +98,13 @@ export default function GlobalModals() {
     updateQuantity,
     removeFromCart,
     getCartTotal,
-    clearCart,
     activeTrackingOrders,
     fetchMyOrders,
     handleConfirmDelivery,
   } = useCart();
 
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [confirmingOrderId, setConfirmingOrderId] = useState(null);
 
   useEffect(() => {
     if (!isTrackingOpen) return;
@@ -177,13 +172,13 @@ export default function GlobalModals() {
         description: 'O entregador está a caminho',
       },
       DELIVERED: {
-        label: 'Entregue',
+        label: isPickup ? 'Retirado' : 'Entregue',
         icon: <Icons.Gift className="w-4 h-4" />,
         color: 'text-green-600',
         bg: 'bg-green-50',
         border: 'border-green-200',
         step: 4,
-        description: 'Confirme o recebimento do seu pedido',
+        description: isPickup ? 'Confirme a retirada do seu pedido' : 'Confirme o recebimento do seu pedido',
       },
       READY_FOR_PICKUP: {
         label: 'Pronto para Retirada',
@@ -226,15 +221,14 @@ export default function GlobalModals() {
     return statusMap[status] || statusMap.PENDING;
   };
 
+  // ✅ CORREÇÃO: Mostra botão para DELIVERED ou PICKED_UP
   const needsConfirmation = (order) => {
-    if (order.deliveryType === 'PICKUP') {
-      return order.status === 'PICKED_UP';
-    }
-    return order.status === 'DELIVERED';
+    return ['DELIVERED', 'PICKED_UP'].includes(order.status);
   };
 
-  const getConfirmationTexts = (deliveryType) => {
-    if (deliveryType === 'PICKUP') {
+  const getConfirmationTexts = (order) => {
+    const isPickup = order.deliveryType === 'PICKUP';
+    if (isPickup) {
       return {
         title: 'Pedido retirado!',
         subtitle: 'Por favor, confirme a retirada',
@@ -255,6 +249,12 @@ export default function GlobalModals() {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const onConfirmDelivery = async (orderId) => {
+    setConfirmingOrderId(orderId);
+    await handleConfirmDelivery(orderId);
+    setConfirmingOrderId(null);
   };
 
   const deliveryFee = 5.0;
@@ -329,7 +329,6 @@ export default function GlobalModals() {
                             R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}
                           </p>
                           
-                          {/* Controles de quantidade */}
                           <div className="flex items-center justify-between mt-3">
                             <div className="flex items-center gap-2 bg-[#faf8f5] rounded-xl p-1">
                               <button
@@ -364,7 +363,6 @@ export default function GlobalModals() {
             {/* Footer */}
             {cartItems.length > 0 && (
               <div className="bg-white border-t border-[#1e3a5f]/10 p-6 space-y-4">
-                {/* Resumo */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-[#1e3a5f]/60 text-sm">
                     <span>Subtotal</span>
@@ -382,7 +380,6 @@ export default function GlobalModals() {
                   </div>
                 </div>
 
-                {/* Botão */}
                 <button
                   onClick={() => {
                     setIsCartOpen(false);
@@ -407,34 +404,34 @@ export default function GlobalModals() {
 
       {/* ==================== MODAL DE ACOMPANHAMENTO ==================== */}
       {isTrackingOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
           <div
             className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm"
             onClick={() => setIsTrackingOpen(false)}
           />
-          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="relative w-full max-w-lg bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
             
-            {/* Header */}
-            <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] p-6">
+            {/* Header - Compacto */}
+            <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] p-4 sm:p-6 flex-shrink-0">
               <div className="flex justify-between items-center">
                 <div>
-                  <h2 className="text-xl font-bold text-white">Meus Pedidos</h2>
-                  <p className="text-white/60 text-sm flex items-center gap-2 mt-1">
+                  <h2 className="text-lg sm:text-xl font-bold text-white">Meus Pedidos</h2>
+                  <p className="text-white/60 text-xs sm:text-sm flex items-center gap-2 mt-1">
                     <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
                     Atualizando em tempo real
                   </p>
                 </div>
                 <button
                   onClick={() => setIsTrackingOpen(false)}
-                  className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
                 >
-                  <Icons.Close className="w-5 h-5 text-white" />
+                  <Icons.Close className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </button>
               </div>
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-4 bg-[#faf8f5]">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 bg-[#faf8f5]">
               {activeTrackingOrders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <div className="w-20 h-20 bg-[#1e3a5f]/5 rounded-full flex items-center justify-center mb-4">
@@ -444,18 +441,19 @@ export default function GlobalModals() {
                   <p className="text-[#1e3a5f]/30 text-sm mt-1">Seus pedidos aparecerão aqui</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {activeTrackingOrders.map((order) => {
                     const statusInfo = getStatusInfo(order.status, order.deliveryType);
                     const showConfirmation = needsConfirmation(order);
-                    const confirmTexts = getConfirmationTexts(order.deliveryType);
+                    const confirmTexts = getConfirmationTexts(order);
                     const isCancelled = order.status === 'CANCELLED';
                     const isPickup = order.deliveryType === 'PICKUP';
+                    const isConfirming = confirmingOrderId === order.id;
 
                     return (
                       <div
                         key={order.id}
-                        className={`bg-white rounded-2xl overflow-hidden shadow-sm border-2 transition-all ${
+                        className={`bg-white rounded-xl sm:rounded-2xl overflow-hidden shadow-sm border-2 transition-all ${
                           showConfirmation 
                             ? 'border-green-300 shadow-green-100' 
                             : isCancelled
@@ -463,45 +461,45 @@ export default function GlobalModals() {
                               : 'border-[#1e3a5f]/5'
                         }`}
                       >
-                        {/* Cabeçalho do pedido */}
-                        <div className="p-4 border-b border-[#1e3a5f]/5">
+                        {/* Cabeçalho do pedido - Compacto */}
+                        <div className="p-3 sm:p-4 border-b border-[#1e3a5f]/5">
                           <div className="flex justify-between items-start">
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-[#1e3a5f]/40">
+                                <span className="text-[10px] sm:text-xs font-bold text-[#1e3a5f]/40">
                                   #{order.id.slice(-6).toUpperCase()}
                                 </span>
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 ${
+                                <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold flex items-center gap-1 ${
                                   isPickup 
                                     ? 'bg-purple-100 text-purple-700' 
                                     : 'bg-blue-100 text-blue-700'
                                 }`}>
-                                  {isPickup ? <Icons.Package className="w-3 h-3" /> : <Icons.Motorcycle className="w-3 h-3" />}
+                                  {isPickup ? <Icons.Package className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> : <Icons.Motorcycle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
                                   {isPickup ? 'Retirada' : 'Entrega'}
                                 </span>
                               </div>
-                              <p className="text-xs text-[#1e3a5f]/40 mt-1 flex items-center gap-1">
-                                <Icons.Clock className="w-3 h-3" />
+                              <p className="text-[10px] sm:text-xs text-[#1e3a5f]/40 mt-1 flex items-center gap-1">
+                                <Icons.Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                                 {formatTime(order.createdAt)}
                               </p>
                             </div>
                             <span
-                              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 ${statusInfo.bg} ${statusInfo.color} ${statusInfo.border} border`}
+                              className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold flex items-center gap-1 ${statusInfo.bg} ${statusInfo.color} ${statusInfo.border} border`}
                             >
                               {statusInfo.icon}
-                              {statusInfo.label}
+                              <span className="hidden xs:inline">{statusInfo.label}</span>
                             </span>
                           </div>
                         </div>
 
-                        {/* Timeline de status */}
+                        {/* Timeline de status - Compacto */}
                         {!isCancelled && (
-                          <div className="px-4 py-3 bg-[#faf8f5]">
-                            <div className="flex gap-1 mb-2">
+                          <div className="px-3 sm:px-4 py-2 sm:py-3 bg-[#faf8f5]">
+                            <div className="flex gap-1 mb-1.5 sm:mb-2">
                               {[1, 2, 3, 4].map((step) => (
                                 <div
                                   key={step}
-                                  className={`flex-1 h-1.5 rounded-full transition-all duration-500 ${
+                                  className={`flex-1 h-1 sm:h-1.5 rounded-full transition-all duration-500 ${
                                     step <= statusInfo.step
                                       ? 'bg-gradient-to-r from-[#1e3a5f] to-[#d4a853]'
                                       : 'bg-[#1e3a5f]/10'
@@ -509,7 +507,7 @@ export default function GlobalModals() {
                                 />
                               ))}
                             </div>
-                            <p className="text-xs text-[#1e3a5f]/60 text-center">
+                            <p className="text-[10px] sm:text-xs text-[#1e3a5f]/60 text-center">
                               {statusInfo.description}
                             </p>
                           </div>
@@ -517,8 +515,8 @@ export default function GlobalModals() {
 
                         {/* Mensagem de cancelado */}
                         {isCancelled && (
-                          <div className="px-4 py-3 bg-red-50">
-                            <p className="text-red-600 font-medium text-sm text-center flex items-center justify-center gap-2">
+                          <div className="px-3 sm:px-4 py-2 sm:py-3 bg-red-50">
+                            <p className="text-red-600 font-medium text-xs sm:text-sm text-center flex items-center justify-center gap-2">
                               <Icons.XCircle className="w-4 h-4" />
                               {statusInfo.description}
                             </p>
@@ -527,12 +525,12 @@ export default function GlobalModals() {
 
                         {/* Endereço de entrega */}
                         {!isPickup && order.deliveryAddress && (
-                          <div className="px-4 py-3 bg-blue-50/50 border-t border-blue-100">
-                            <p className="text-xs font-bold text-blue-700 mb-1 flex items-center gap-1">
-                              <Icons.LocationMarker className="w-3 h-3" />
+                          <div className="px-3 sm:px-4 py-2 sm:py-3 bg-blue-50/50 border-t border-blue-100">
+                            <p className="text-[10px] sm:text-xs font-bold text-blue-700 mb-0.5 sm:mb-1 flex items-center gap-1">
+                              <Icons.LocationMarker className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                               Entregar em:
                             </p>
-                            <p className="text-xs text-blue-900">
+                            <p className="text-[10px] sm:text-xs text-blue-900">
                               {order.deliveryAddress.street}, {order.deliveryAddress.number}
                               {order.deliveryAddress.complement && ` - ${order.deliveryAddress.complement}`}
                             </p>
@@ -541,19 +539,19 @@ export default function GlobalModals() {
 
                         {/* Aviso de retirada */}
                         {isPickup && order.status === 'READY_FOR_PICKUP' && (
-                          <div className="px-4 py-3 bg-purple-50 border-t border-purple-100">
-                            <p className="text-purple-700 font-bold text-sm text-center flex items-center justify-center gap-2">
+                          <div className="px-3 sm:px-4 py-2 sm:py-3 bg-purple-50 border-t border-purple-100">
+                            <p className="text-purple-700 font-bold text-xs sm:text-sm text-center flex items-center justify-center gap-2">
                               <Icons.Store className="w-4 h-4" />
                               Retire seu pedido no balcão!
                             </p>
                           </div>
                         )}
 
-                        {/* Itens do pedido */}
-                        <div className="p-4">
-                          <div className="space-y-2 mb-3">
+                        {/* Itens do pedido - Compacto */}
+                        <div className="p-3 sm:p-4">
+                          <div className="space-y-1 sm:space-y-2 mb-2 sm:mb-3">
                             {order.items.map((item, idx) => (
-                              <div key={idx} className="flex justify-between text-sm">
+                              <div key={idx} className="flex justify-between text-xs sm:text-sm">
                                 <span className="text-[#1e3a5f]/70">
                                   {item.quantity}x {item.name}
                                 </span>
@@ -563,32 +561,47 @@ export default function GlobalModals() {
                               </div>
                             ))}
                           </div>
-                          <div className="border-t border-[#1e3a5f]/10 pt-3 flex justify-between">
-                            <span className="font-bold text-[#1e3a5f]">Total</span>
-                            <span className="font-black text-[#d4a853] text-lg">
+                          <div className="border-t border-[#1e3a5f]/10 pt-2 sm:pt-3 flex justify-between">
+                            <span className="font-bold text-[#1e3a5f] text-sm">Total</span>
+                            <span className="font-black text-[#d4a853] text-base sm:text-lg">
                               R$ {order.total.toFixed(2).replace('.', ',')}
                             </span>
                           </div>
                         </div>
 
-                        {/* Botão de confirmar */}
+                        {/* ✅ BOTÃO DE CONFIRMAR - SEMPRE VISÍVEL QUANDO NECESSÁRIO */}
                         {showConfirmation && (
-                          <div className="p-4 bg-green-50 border-t border-green-200">
-                            <div className="text-center mb-3">
-                              <p className="text-green-700 font-bold text-sm flex items-center justify-center gap-2">
+                          <div className="p-3 sm:p-4 bg-green-50 border-t border-green-200">
+                            <div className="text-center mb-2 sm:mb-3">
+                              <p className="text-green-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-2">
                                 {confirmTexts.icon}
                                 {confirmTexts.title}
                               </p>
-                              <p className="text-green-600 text-xs">
+                              <p className="text-green-600 text-[10px] sm:text-xs">
                                 {confirmTexts.subtitle}
                               </p>
                             </div>
                             <button
-                              onClick={() => handleConfirmDelivery(order.id)}
-                              className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-green-500/20 transition-all flex items-center justify-center gap-2"
+                              onClick={() => onConfirmDelivery(order.id)}
+                              disabled={isConfirming}
+                              className={`w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white font-bold py-2.5 sm:py-3 rounded-xl shadow-lg shadow-green-500/20 transition-all flex items-center justify-center gap-2 text-sm ${
+                                isConfirming ? 'opacity-70 cursor-not-allowed' : ''
+                              }`}
                             >
-                              <Icons.Check className="w-5 h-5" />
-                              {confirmTexts.buttonText}
+                              {isConfirming ? (
+                                <>
+                                  <svg className="animate-spin w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                  Confirmando...
+                                </>
+                              ) : (
+                                <>
+                                  <Icons.Check className="w-4 h-4 sm:w-5 sm:h-5" />
+                                  {confirmTexts.buttonText}
+                                </>
+                              )}
                             </button>
                           </div>
                         )}
