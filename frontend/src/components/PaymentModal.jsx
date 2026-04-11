@@ -1,6 +1,57 @@
 import React, { useState } from 'react';
 import { useCart } from '../contexts/CartContext';
 
+// ============ ÍCONES ============
+const Icons = {
+  Close: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  ),
+  ArrowLeft: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+    </svg>
+  ),
+  Motorcycle: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+    </svg>
+  ),
+  Store: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+    </svg>
+  ),
+  Pix: ({ className = "w-5 h-5", color = "currentColor" }) => (
+    <svg className={className} fill={color} viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <path d="M11.917 11.71a2.046 2.046 0 0 1-1.454-.602l-2.1-2.1a.4.4 0 0 0-.551 0l-2.108 2.108a2.044 2.044 0 0 1-1.454.602h-.414l2.66 2.66c.83.83 2.177.83 3.007 0l2.667-2.668h-.253zM4.25 4.282c.55 0 1.066.214 1.454.602l2.108 2.108a.39.39 0 0 0 .552 0l2.1-2.1a2.044 2.044 0 0 1 1.453-.602h.253L9.503 1.623a2.127 2.127 0 0 0-3.007 0l-2.66 2.66h.414z"/>
+      <path d="m14.377 6.496-1.612-1.612a.307.307 0 0 1-.114.023h-.733c-.379 0-.75.154-1.017.422l-2.1 2.1a1.005 1.005 0 0 1-1.425 0L5.268 5.32a1.448 1.448 0 0 0-1.018-.422h-.9a.306.306 0 0 1-.109-.021L1.623 6.496c-.83.83-.83 2.177 0 3.008l1.618 1.618a.305.305 0 0 1 .108-.022h.901c.38 0 .75-.153 1.018-.421L7.375 8.57a1.034 1.034 0 0 1 1.426 0l2.1 2.1c.267.268.638.421 1.017.421h.733c.04 0 .079.01.114.024l1.612-1.612c.83-.83.83-2.178 0-3.008z"/>
+    </svg>
+  ),
+  CreditCard: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+    </svg>
+  ),
+  Cash: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+    </svg>
+  ),
+  Spinner: ({ className = "w-5 h-5" }) => (
+    <svg className={`${className} animate-spin`} fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+  ),
+  Lightning: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+      <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
+  ),
+};
+
 export default function PaymentModal({ 
   isOpen, 
   onClose, 
@@ -19,10 +70,31 @@ export default function PaymentModal({
   const [loading, setLoading] = useState(false);
 
   const paymentMethods = [
-    { id: 'PIX', label: 'PIX', icon: '💠', description: 'Pagamento instantâneo' },
-    { id: 'CREDIT_CARD', label: 'Cartão de Crédito', icon: '💳', description: 'Pague na entrega' },
-    { id: 'DEBIT_CARD', label: 'Cartão de Débito', icon: '💳', description: 'Pague na entrega' },
-    { id: 'CASH', label: 'Dinheiro', icon: '💵', description: 'Pague na entrega' },
+    { 
+      id: 'PIX', 
+      label: 'PIX', 
+      icon: (selected) => <Icons.Pix className="w-6 h-6" color={selected ? "#fff" : "#32BCAD"} />,
+      description: 'Pagamento instantâneo', 
+      highlight: true 
+    },
+    { 
+      id: 'CREDIT_CARD', 
+      label: 'Cartão de Crédito', 
+      icon: () => <Icons.CreditCard className="w-6 h-6" />,
+      description: 'Pague na entrega' 
+    },
+    { 
+      id: 'DEBIT_CARD', 
+      label: 'Cartão de Débito', 
+      icon: () => <Icons.CreditCard className="w-6 h-6" />,
+      description: 'Pague na entrega' 
+    },
+    { 
+      id: 'CASH', 
+      label: 'Dinheiro', 
+      icon: () => <Icons.Cash className="w-6 h-6" />,
+      description: 'Pague na entrega' 
+    },
   ];
 
   const handleSubmitOrder = async () => {
@@ -36,7 +108,6 @@ export default function PaymentModal({
     try {
       const token = localStorage.getItem('token');
 
-      // ✅ Montar items conforme OrderItemInput do schema
       const itemsInput = cart.map((item) => ({
         product: item.id,
         name: item.name,
@@ -44,7 +115,6 @@ export default function PaymentModal({
         quantity: item.quantity,
       }));
 
-      // ✅ Montar deliveryAddress conforme AddressInput
       let deliveryAddressInput = null;
       if (deliveryType === 'DELIVERY' && address) {
         deliveryAddressInput = {
@@ -88,9 +158,7 @@ export default function PaymentModal({
               }
             }
           `,
-          variables: {
-            input: orderInput,
-          },
+          variables: { input: orderInput },
         }),
       });
 
@@ -103,7 +171,7 @@ export default function PaymentModal({
       if (result.data?.createOrder) {
         await fetchMyOrders();
         onSuccess();
-        alert(`Pedido #${result.data.createOrder.id.slice(-6).toUpperCase()} criado com sucesso! 🎉`);
+        alert(`Pedido #${result.data.createOrder.id.slice(-6).toUpperCase()} criado com sucesso!`);
       }
     } catch (err) {
       console.error('Erro ao criar pedido:', err);
@@ -123,51 +191,52 @@ export default function PaymentModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div 
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      <div className="relative bg-[#1A1A1A] rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="relative bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+        
         {/* Header */}
-        <div className="p-6 border-b border-white/10">
+        <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-black text-white">Pagamento</h2>
-              <p className="text-white/50 text-sm mt-1">Etapa 2 de 2 - Forma de pagamento</p>
+              <h2 className="text-xl font-bold text-white">Pagamento</h2>
+              <p className="text-white/60 text-sm mt-1">Etapa 2 de 2 • Forma de pagamento</p>
             </div>
             <button
               onClick={onClose}
               className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
             >
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <Icons.Close className="w-5 h-5 text-white" />
             </button>
           </div>
 
+          {/* Progress - Ambas douradas na etapa 2 */}
           <div className="flex gap-2 mt-4">
-            <div className="flex-1 h-1 bg-[#C1704D] rounded-full" />
-            <div className="flex-1 h-1 bg-[#C1704D] rounded-full" />
+            <div className="flex-1 h-1.5 bg-[#d4a853] rounded-full" />
+            <div className="flex-1 h-1.5 bg-[#d4a853] rounded-full" />
           </div>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#faf8f5]">
+          
           {/* Endereço/Tipo Selecionado */}
-          <div className="bg-white/5 rounded-2xl p-4">
+          <div className="bg-white rounded-2xl p-4 border border-[#1e3a5f]/10">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#C1704D]/20 flex items-center justify-center text-xl">
-                {deliveryType === 'DELIVERY' ? '🛵' : '🏪'}
+              <div className="w-10 h-10 rounded-xl bg-[#1e3a5f] flex items-center justify-center flex-shrink-0 text-white">
+                {deliveryType === 'DELIVERY' ? <Icons.Motorcycle className="w-5 h-5" /> : <Icons.Store className="w-5 h-5" />}
               </div>
-              <div className="flex-1">
-                <p className="text-white/50 text-xs font-medium">
+              <div className="flex-1 min-w-0">
+                <p className="text-[#1e3a5f]/50 text-xs font-medium">
                   {deliveryType === 'DELIVERY' ? 'Entregar em' : 'Retirar em'}
                 </p>
-                <p className="text-white font-bold text-sm">{formatAddress()}</p>
+                <p className="text-[#1e3a5f] font-bold text-sm truncate">{formatAddress()}</p>
               </div>
               <button
                 onClick={onBack}
-                className="text-[#C1704D] text-sm font-bold hover:underline"
+                className="text-[#d4a853] text-sm font-bold hover:underline flex-shrink-0"
               >
                 Alterar
               </button>
@@ -176,96 +245,104 @@ export default function PaymentModal({
 
           {/* Formas de Pagamento */}
           <div>
-            <label className="block text-white font-bold mb-3">Forma de Pagamento *</label>
+            <label className="block text-[#1e3a5f] font-bold mb-3">Forma de Pagamento</label>
             <div className="space-y-3">
-              {paymentMethods.map((method) => (
-                <button
-                  key={method.id}
-                  onClick={() => setPaymentMethod(method.id)}
-                  className={`w-full p-4 rounded-2xl border-2 text-left transition-all ${
-                    paymentMethod === method.id
-                      ? 'border-[#C1704D] bg-[#C1704D]/10'
-                      : 'border-white/10 bg-white/5 hover:border-white/30'
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
-                      paymentMethod === method.id ? 'bg-[#C1704D]' : 'bg-white/10'
-                    }`}>
-                      {method.icon}
+              {paymentMethods.map((method) => {
+                const isSelected = paymentMethod === method.id;
+                return (
+                  <button
+                    key={method.id}
+                    onClick={() => setPaymentMethod(method.id)}
+                    className={`w-full p-4 rounded-2xl border-2 text-left transition-all ${
+                      isSelected
+                        ? 'border-[#1e3a5f] bg-[#1e3a5f]/5 shadow-md'
+                        : 'border-[#1e3a5f]/10 bg-white hover:border-[#1e3a5f]/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                        isSelected ? 'bg-[#1e3a5f] text-white' : 'bg-[#1e3a5f]/10 text-[#1e3a5f]'
+                      }`}>
+                        {method.icon(isSelected)}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-[#1e3a5f] font-bold">{method.label}</p>
+                          {method.highlight && (
+                            <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                              <Icons.Lightning className="w-3 h-3" />
+                              RÁPIDO
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[#1e3a5f]/50 text-sm">{method.description}</p>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        isSelected ? 'border-[#1e3a5f]' : 'border-[#1e3a5f]/30'
+                      }`}>
+                        {isSelected && (
+                          <div className="w-2.5 h-2.5 bg-[#1e3a5f] rounded-full" />
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-white font-bold">{method.label}</p>
-                      <p className="text-white/50 text-sm">{method.description}</p>
-                    </div>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      paymentMethod === method.id ? 'border-[#C1704D]' : 'border-white/30'
-                    }`}>
-                      {paymentMethod === method.id && (
-                        <div className="w-2.5 h-2.5 bg-[#C1704D] rounded-full" />
-                      )}
-                    </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           {/* Resumo Final */}
-          <div className="bg-white/5 rounded-2xl p-4">
-            <h3 className="text-white font-bold mb-3">Resumo do Pedido</h3>
+          <div className="bg-white rounded-2xl p-4 border border-[#1e3a5f]/10">
+            <h3 className="text-[#1e3a5f] font-bold mb-3">Resumo do Pedido</h3>
             
             <div className="space-y-2 mb-4 max-h-32 overflow-y-auto">
               {cart.map((item, index) => (
                 <div key={index} className="flex justify-between text-sm">
-                  <span className="text-white/70">{item.quantity}x {item.name}</span>
-                  <span className="text-white/70">
+                  <span className="text-[#1e3a5f]/70">{item.quantity}x {item.name}</span>
+                  <span className="text-[#1e3a5f]/70">
                     R$ {((item.promotionalPrice || item.price) * item.quantity).toFixed(2).replace('.', ',')}
                   </span>
                 </div>
               ))}
             </div>
 
-            <div className="border-t border-white/10 pt-3 space-y-2">
-              <div className="flex justify-between text-sm text-white/70">
+            <div className="border-t border-[#1e3a5f]/10 pt-3 space-y-2">
+              <div className="flex justify-between text-sm text-[#1e3a5f]/60">
                 <span>Subtotal</span>
                 <span>R$ {subtotal.toFixed(2).replace('.', ',')}</span>
               </div>
-              <div className="flex justify-between text-sm text-white/70">
+              <div className="flex justify-between text-sm text-[#1e3a5f]/60">
                 <span>Entrega</span>
-                <span>{shippingFee > 0 ? `R$ ${shippingFee.toFixed(2).replace('.', ',')}` : 'Grátis'}</span>
+                <span className={shippingFee === 0 ? 'text-green-600 font-medium' : ''}>
+                  {shippingFee > 0 ? `R$ ${shippingFee.toFixed(2).replace('.', ',')}` : 'Grátis'}
+                </span>
               </div>
-              <div className="flex justify-between text-white font-black text-xl pt-2">
-                <span>Total</span>
-                <span className="text-[#C1704D]">R$ {total.toFixed(2).replace('.', ',')}</span>
+              <div className="flex justify-between items-center pt-2 border-t border-[#1e3a5f]/10">
+                <span className="text-[#1e3a5f] font-bold">Total</span>
+                <span className="text-[#d4a853] font-black text-2xl">R$ {total.toFixed(2).replace('.', ',')}</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-white/10">
+        <div className="p-6 bg-white border-t border-[#1e3a5f]/10">
           <div className="flex gap-3">
             <button
               onClick={onBack}
-              className="flex-1 py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold transition-colors flex items-center justify-center gap-2"
+              className="flex-1 py-4 rounded-2xl bg-[#1e3a5f]/5 hover:bg-[#1e3a5f]/10 text-[#1e3a5f] font-bold transition-colors flex items-center justify-center gap-2"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-              </svg>
+              <Icons.ArrowLeft className="w-5 h-5" />
               Voltar
             </button>
             <button
               onClick={handleSubmitOrder}
               disabled={!paymentMethod || loading}
-              className="flex-1 py-4 rounded-2xl bg-[#C1704D] hover:bg-[#A35C3E] text-white font-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-[#d4a853] to-[#c49843] hover:from-[#c49843] hover:to-[#b48833] text-white font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#d4a853]/30"
             >
               {loading ? (
                 <div className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
+                  <Icons.Spinner className="w-5 h-5" />
                   Enviando...
                 </div>
               ) : (

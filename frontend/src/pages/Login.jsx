@@ -64,138 +64,311 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FDF9EB] p-4 md:p-8 selection:bg-[#EBCB6C] selection:text-[#1A1A1A]">
-      <div className="bg-white/80 backdrop-blur-xl rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] w-full max-w-5xl flex overflow-hidden border border-white">
+    <div className="min-h-screen flex items-center justify-center bg-[#faf8f5] p-4 md:p-8 selection:bg-[#1e3a5f] selection:text-white overflow-hidden relative">
+      
+      {/* Padrão de fundo sutil */}
+      <div className="absolute inset-0 opacity-[0.03]" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%231e3a5f' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+      }}></div>
+
+      {/* Elementos decorativos */}
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#1e3a5f] to-transparent opacity-20"></div>
+      <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#1e3a5f] to-transparent opacity-20"></div>
+
+      <div className="relative z-10 w-full max-w-5xl">
         
-        <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-[#1A1A1A] to-[#2a2a2a] flex-col justify-center items-center p-12 text-center relative overflow-hidden group">
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-          <div className="absolute top-0 right-0 -mt-20 -mr-20 w-64 h-64 bg-[#C1704D] opacity-20 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
-          <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-64 h-64 bg-[#EBCB6C] opacity-10 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
+        {/* Card Principal */}
+        <div className="bg-white rounded-3xl shadow-[0_25px_80px_rgba(30,58,95,0.12)] border border-[#1e3a5f]/5 flex overflow-hidden">
           
-          <div className="relative z-10 flex flex-col items-center">
-            <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-[#FDF9EB] tracking-tighter leading-none mb-2">MANU´S</h1>
-            <p className="text-sm font-black text-[#EBCB6C] tracking-[0.4em] uppercase mb-10">Smash Burguer</p>
-            <div className="mb-8 filter drop-shadow-2xl hover:scale-110 transition-transform duration-500 cursor-default">
-              <svg className="w-28 h-28 text-[#EBCB6C]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 15h16v1a3 3 0 01-3 3H7a3 3 0 01-3-3v-1zm16-4H4v1h16v-1zm-2-2H6C6 5 9.5 4 12 4s6 1 6 5z"></path>
-              </svg>
+          {/* Lado Esquerdo - Branding */}
+          <div className="hidden lg:flex lg:w-1/2 bg-[#1e3a5f] flex-col justify-center items-center p-16 text-center relative overflow-hidden">
+            
+            {/* Decorações elegantes */}
+            <div className="absolute inset-0 opacity-10">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+              <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#d4a853] rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
             </div>
-            <p className="text-[#FDF9EB] opacity-70 text-base font-semibold max-w-sm leading-relaxed">
-              O sabor autêntico do smash. Faça o seu pedido agora e acompanhe o status em tempo real!
+
+            {/* Linhas decorativas douradas */}
+            <div className="absolute top-12 left-12 w-20 h-px bg-gradient-to-r from-[#d4a853] to-transparent"></div>
+            <div className="absolute top-12 left-12 w-px h-20 bg-gradient-to-b from-[#d4a853] to-transparent"></div>
+            <div className="absolute bottom-12 right-12 w-20 h-px bg-gradient-to-l from-[#d4a853] to-transparent"></div>
+            <div className="absolute bottom-12 right-12 w-px h-20 bg-gradient-to-t from-[#d4a853] to-transparent"></div>
+            
+            <div className="relative z-10 flex flex-col items-center">
+              {/* Logo */}
+              <div className="mb-10 transform hover:scale-105 transition-transform duration-500">
+                <img 
+                  src="/logo.png" 
+                  alt="Manu's Smash Burger" 
+                  className="h-32 w-auto filter drop-shadow-2xl brightness-0 invert"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'block';
+                  }}
+                />
+                <div className="hidden text-center">
+                  <h1 className="text-5xl font-black text-white tracking-tight leading-none italic" style={{ fontFamily: 'Georgia, serif' }}>
+                    Manu's
+                  </h1>
+                  <p className="text-[11px] font-bold text-[#d4a853] tracking-[0.4em] uppercase mt-2">
+                    Smash Burger
+                  </p>
+                </div>
+              </div>
+              
+              {/* Linha divisória dourada */}
+              <div className="w-24 h-px bg-gradient-to-r from-transparent via-[#d4a853] to-transparent mb-10"></div>
+              
+              {/* Descrição */}
+              <p className="text-white/70 text-sm font-light max-w-xs leading-relaxed tracking-wide">
+                O autêntico sabor do smash burger artesanal. Qualidade e tradição em cada mordida.
+              </p>
+              
+              {/* Badges elegantes */}
+              <div className="flex gap-6 mt-14">
+                <div className="text-center">
+                  <p className="text-3xl font-light text-[#d4a853]">500+</p>
+                  <p className="text-[10px] text-white/50 uppercase tracking-widest mt-1">Clientes</p>
+                </div>
+                <div className="w-px bg-white/20"></div>
+                <div className="text-center">
+                  <p className="text-3xl font-light text-[#d4a853]">4.9</p>
+                  <p className="text-[10px] text-white/50 uppercase tracking-widest mt-1">Avaliação</p>
+                </div>
+                <div className="w-px bg-white/20"></div>
+                <div className="text-center">
+                  <p className="text-3xl font-light text-[#d4a853]">30'</p>
+                  <p className="text-[10px] text-white/50 uppercase tracking-widest mt-1">Entrega</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Lado Direito - Formulário */}
+          <div className="w-full lg:w-1/2 p-8 md:p-14 flex flex-col justify-center bg-white">
+            
+            {/* Logo Mobile */}
+            <div className="lg:hidden text-center mb-10">
+              <img 
+                src="/logo.png" 
+                alt="Manu's Smash Burger" 
+                className="h-20 w-auto mx-auto mb-2"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'block';
+                }}
+              />
+              <div className="hidden text-center">
+                <h1 className="text-4xl font-black text-[#1e3a5f] tracking-tight leading-none italic" style={{ fontFamily: 'Georgia, serif' }}>
+                  Manu's
+                </h1>
+                <p className="text-[10px] font-bold text-[#1e3a5f]/60 tracking-[0.3em] uppercase mt-1">
+                  Smash Burger
+                </p>
+              </div>
+            </div>
+
+            {/* Título */}
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-light text-[#1e3a5f] tracking-wide">
+                {isLogin ? 'Bem-vindo de volta' : 'Criar sua conta'}
+              </h2>
+              <p className="text-sm text-[#1e3a5f]/50 mt-2">
+                {isLogin ? 'Entre para continuar seu pedido' : 'Junte-se à família Manu\'s'}
+              </p>
+            </div>
+
+            {/* Tabs Elegantes */}
+            <div className="flex border-b border-[#1e3a5f]/10 mb-8">
+              <button
+                type="button"
+                onClick={() => { setIsLogin(true); setError(''); }}
+                className={`flex-1 py-4 text-sm font-medium tracking-wide transition-all duration-300 relative ${
+                  isLogin 
+                    ? 'text-[#1e3a5f]' 
+                    : 'text-[#1e3a5f]/40 hover:text-[#1e3a5f]/60'
+                }`}
+              >
+                Entrar
+                {isLogin && (
+                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-[#1e3a5f] rounded-full"></div>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIsLogin(false); setError(''); }}
+                className={`flex-1 py-4 text-sm font-medium tracking-wide transition-all duration-300 relative ${
+                  !isLogin 
+                    ? 'text-[#1e3a5f]' 
+                    : 'text-[#1e3a5f]/40 hover:text-[#1e3a5f]/60'
+                }`}
+              >
+                Cadastrar
+                {!isLogin && (
+                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-[#1e3a5f] rounded-full"></div>
+                )}
+              </button>
+            </div>
+
+            {/* Formulário */}
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {!isLogin && (
+                <div className="group">
+                  <label className="block text-xs font-medium text-[#1e3a5f]/50 mb-2 tracking-wide">
+                    Nome Completo
+                  </label>
+                  <input 
+                    type="text" 
+                    required
+                    className="w-full px-4 py-4 rounded-xl bg-[#faf8f5] border border-[#1e3a5f]/10 focus:border-[#1e3a5f]/30 focus:bg-white focus:ring-4 focus:ring-[#1e3a5f]/5 outline-none transition-all text-[#1e3a5f] placeholder-[#1e3a5f]/30"
+                    placeholder="Como devemos te chamar?"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
+              )}
+
+              <div className="group">
+                <label className="block text-xs font-medium text-[#1e3a5f]/50 mb-2 tracking-wide">
+                  E-mail
+                </label>
+                <input 
+                  type="email" 
+                  required
+                  className="w-full px-4 py-4 rounded-xl bg-[#faf8f5] border border-[#1e3a5f]/10 focus:border-[#1e3a5f]/30 focus:bg-white focus:ring-4 focus:ring-[#1e3a5f]/5 outline-none transition-all text-[#1e3a5f] placeholder-[#1e3a5f]/30"
+                  placeholder="seu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="group">
+                <label className="block text-xs font-medium text-[#1e3a5f]/50 mb-2 tracking-wide">
+                  Senha
+                </label>
+                <input 
+                  type="password" 
+                  required
+                  className="w-full px-4 py-4 rounded-xl bg-[#faf8f5] border border-[#1e3a5f]/10 focus:border-[#1e3a5f]/30 focus:bg-white focus:ring-4 focus:ring-[#1e3a5f]/5 outline-none transition-all text-[#1e3a5f] placeholder-[#1e3a5f]/30"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+
+              {!isLogin && (
+                <div className="pt-2">
+                  <label className="flex items-center gap-4 cursor-pointer p-4 rounded-xl border border-[#1e3a5f]/10 bg-[#faf8f5] hover:bg-[#f5f3f0] transition-all group">
+                    <div className="relative flex items-center">
+                      <input 
+                        type="checkbox" 
+                        className="peer sr-only"
+                        checked={isAdmin}
+                        onChange={(e) => setIsAdmin(e.target.checked)}
+                      />
+                      <div className="w-5 h-5 rounded border-2 border-[#1e3a5f]/20 peer-checked:border-[#1e3a5f] peer-checked:bg-[#1e3a5f] transition-all flex items-center justify-center">
+                        {isAdmin && (
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path>
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-sm text-[#1e3a5f]/70 group-hover:text-[#1e3a5f] transition-colors">
+                      Sou gestor da loja
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              {!isLogin && isAdmin && (
+                <div className="animate-fade-in pt-2">
+                  <label className="text-xs font-medium text-[#d4a853] mb-2 flex items-center gap-2 tracking-wide">
+                    <span className="w-1.5 h-1.5 bg-[#d4a853] rounded-full animate-pulse"></span>
+                    Chave de Segurança
+                  </label>
+                  <input 
+                    type="password" 
+                    required={isAdmin}
+                    className="w-full px-4 py-4 rounded-xl bg-[#1e3a5f]/5 border border-[#d4a853]/30 focus:border-[#d4a853] text-[#1e3a5f] focus:ring-4 focus:ring-[#d4a853]/10 outline-none transition-all font-mono tracking-widest placeholder-[#1e3a5f]/30"
+                    placeholder="Digite o código"
+                    value={adminKey}
+                    onChange={(e) => setAdminKey(e.target.value)}
+                  />
+                </div>
+              )}
+
+              {error && (
+                <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-100 flex items-center gap-3">
+                  <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                  </div>
+                  {error}
+                </div>
+              )}
+
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="w-full bg-[#1e3a5f] hover:bg-[#162d4a] text-white font-medium text-sm py-4 rounded-xl transition-all duration-300 active:scale-[0.98] shadow-lg shadow-[#1e3a5f]/20 hover:shadow-xl hover:shadow-[#1e3a5f]/30 disabled:opacity-70 mt-8 flex justify-center items-center gap-3 relative overflow-hidden group"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                {loading ? (
+                  <>
+                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Processando...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{isLogin ? 'Entrar' : 'Criar conta'}</span>
+                    <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                    </svg>
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* Divisor */}
+            <div className="flex items-center gap-4 my-8">
+              <div className="flex-1 h-px bg-[#1e3a5f]/10"></div>
+              <span className="text-xs text-[#1e3a5f]/30 uppercase tracking-widest">ou</span>
+              <div className="flex-1 h-px bg-[#1e3a5f]/10"></div>
+            </div>
+
+            {/* Social Login (opcional visual) */}
+            <button className="w-full border border-[#1e3a5f]/10 hover:border-[#1e3a5f]/20 hover:bg-[#faf8f5] text-[#1e3a5f]/70 font-medium text-sm py-4 rounded-xl transition-all flex justify-center items-center gap-3">
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              <span>Continuar com Google</span>
+            </button>
+
+            {/* Footer */}
+            <p className="text-center text-[#1e3a5f]/30 text-xs mt-8">
+              Ao continuar, você concorda com nossos{' '}
+              <span className="text-[#1e3a5f]/50 hover:text-[#1e3a5f] cursor-pointer underline">Termos de Uso</span>
             </p>
           </div>
         </div>
 
-        <div className="w-full md:w-1/2 p-8 md:p-14 flex flex-col justify-center bg-white/50">
-          <div className="md:hidden text-center mb-10">
-            <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#1A1A1A] to-[#C1704D] tracking-tighter leading-none mb-1">MANU´S</h1>
-            <p className="text-[10px] font-black text-[#C1704D] tracking-[0.3em] uppercase">Smash Burguer</p>
+        {/* Badge inferior elegante */}
+        <div className="flex justify-center mt-8">
+          <div className="flex items-center gap-2 text-[#1e3a5f]/40 text-xs">
+            <span>©</span>
+            <span>Manu's Smash Burger</span>
+            <span>•</span>
+            <span>Todos os direitos reservados</span>
           </div>
-
-          <div className="flex justify-between items-center mb-10 bg-gray-100/50 p-1.5 rounded-2xl border border-gray-200/50 shadow-inner">
-            <button
-              type="button"
-              onClick={() => { setIsLogin(true); setError(''); }}
-              className={`flex-1 py-3.5 rounded-xl text-xs font-black tracking-widest transition-all duration-300 uppercase ${isLogin ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-gray-400 hover:text-[#1A1A1A]'}`}
-            >
-              Entrar
-            </button>
-            <button
-              type="button"
-              onClick={() => { setIsLogin(false); setError(''); }}
-              className={`flex-1 py-3.5 rounded-xl text-xs font-black tracking-widest transition-all duration-300 uppercase ${!isLogin ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-gray-400 hover:text-[#1A1A1A]'}`}
-            >
-              Criar Conta
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-5 animate-fade-in">
-            {!isLogin && (
-              <div>
-                <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase tracking-widest">Nome Completo</label>
-                <input 
-                  type="text" 
-                  required
-                  className="w-full px-5 py-4 rounded-2xl bg-white border border-[#E5DCC3] focus:border-[#C1704D] focus:ring-4 focus:ring-[#C1704D]/10 outline-none transition-all font-bold text-[#1A1A1A] placeholder-gray-300"
-                  placeholder="Como devemos te chamar?"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </div>
-            )}
-
-            <div>
-              <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase tracking-widest">E-mail de Acesso</label>
-              <input 
-                type="email" 
-                required
-                className="w-full px-5 py-4 rounded-2xl bg-white border border-[#E5DCC3] focus:border-[#C1704D] focus:ring-4 focus:ring-[#C1704D]/10 outline-none transition-all font-bold text-[#1A1A1A] placeholder-gray-300"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase tracking-widest">Senha</label>
-              <input 
-                type="password" 
-                required
-                className="w-full px-5 py-4 rounded-2xl bg-white border border-[#E5DCC3] focus:border-[#C1704D] focus:ring-4 focus:ring-[#C1704D]/10 outline-none transition-all font-bold text-[#1A1A1A] placeholder-gray-300"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-
-            {!isLogin && (
-              <div className="pt-2">
-                <label className="flex items-center gap-3 cursor-pointer p-4 rounded-2xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors">
-                  <input 
-                    type="checkbox" 
-                    className="w-5 h-5 text-[#C1704D] rounded border-gray-300 focus:ring-[#C1704D] cursor-pointer"
-                    checked={isAdmin}
-                    onChange={(e) => setIsAdmin(e.target.checked)}
-                  />
-                  <span className="text-xs font-black text-[#1A1A1A] uppercase tracking-widest">Sou Gestor da Loja</span>
-                </label>
-              </div>
-            )}
-
-            {!isLogin && isAdmin && (
-              <div className="animate-fade-in-down pt-2">
-                <label className="text-[10px] font-black text-[#C1704D] mb-2 uppercase tracking-widest flex items-center gap-2">
-                  <span className="w-2 h-2 bg-[#C1704D] rounded-full animate-pulse"></span>
-                  Chave de Segurança
-                </label>
-                <input 
-                  type="password" 
-                  required={isAdmin}
-                  className="w-full px-5 py-4 rounded-2xl bg-gradient-to-r from-[#1A1A1A] to-[#2a2a2a] text-[#EBCB6C] border border-[#1A1A1A] focus:ring-4 focus:ring-[#1A1A1A]/20 outline-none transition-all font-black tracking-widest placeholder-[#EBCB6C]/30 shadow-inner"
-                  placeholder="INSIRA O CÓDIGO SECRETO"
-                  value={adminKey}
-                  onChange={(e) => setAdminKey(e.target.value)}
-                />
-              </div>
-            )}
-
-            {error && (
-              <div className="bg-red-50/80 backdrop-blur-sm text-red-600 p-4 rounded-2xl text-xs font-black border border-red-200 uppercase tracking-widest shadow-sm flex items-center justify-center gap-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                {error}
-              </div>
-            )}
-
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-[#C1704D] to-[#A35C3E] hover:from-[#A35C3E] hover:to-[#C1704D] text-white font-black tracking-widest text-sm py-4.5 rounded-2xl transition-all duration-300 active:scale-95 shadow-[0_8px_25px_rgba(193,112,77,0.3)] disabled:opacity-70 mt-6 uppercase flex justify-center items-center gap-2"
-            >
-              {loading ? (
-                <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> PROCESSANDO...</>
-              ) : (isLogin ? 'Entrar na Conta' : 'Finalizar Registo')}
-            </button>
-          </form>
         </div>
       </div>
     </div>

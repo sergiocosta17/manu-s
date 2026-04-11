@@ -2,6 +2,97 @@ import React, { useState, useEffect } from 'react';
 import { useCart } from '../contexts/CartContext';
 import CheckoutModal from './CheckoutModal';
 
+// ============ ÍCONES ============
+const Icons = {
+  Cart: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+    </svg>
+  ),
+  Close: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  ),
+  Trash: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
+  ),
+  ArrowRight: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+    </svg>
+  ),
+  Clipboard: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+    </svg>
+  ),
+  Check: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+    </svg>
+  ),
+  CheckCircle: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  Fire: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
+    </svg>
+  ),
+  Sparkles: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+    </svg>
+  ),
+  Motorcycle: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+    </svg>
+  ),
+  Package: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+    </svg>
+  ),
+  Gift: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+    </svg>
+  ),
+  XCircle: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  LocationMarker: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  ),
+  Store: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+    </svg>
+  ),
+  Clock: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  Refresh: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+    </svg>
+  ),
+};
+
 export default function GlobalModals() {
   const {
     isCartOpen,
@@ -20,7 +111,6 @@ export default function GlobalModals() {
 
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
-  // ✅ POLLING: Atualiza status dos pedidos quando modal está aberto
   useEffect(() => {
     if (!isTrackingOpen) return;
     fetchMyOrders();
@@ -28,100 +118,106 @@ export default function GlobalModals() {
     return () => clearInterval(interval);
   }, [isTrackingOpen, fetchMyOrders]);
 
-  // ✅ FUNÇÃO ATUALIZADA: Retorna info do status baseado no tipo de entrega
   const getStatusInfo = (status, deliveryType = 'DELIVERY') => {
     const isPickup = deliveryType === 'PICKUP';
 
     const statusMap = {
       PLACED: {
         label: 'Pedido Recebido',
-        icon: '📋',
+        icon: <Icons.Clipboard className="w-4 h-4" />,
         color: 'text-blue-600',
         bg: 'bg-blue-50',
+        border: 'border-blue-200',
         step: 1,
         description: 'Aguardando confirmação do restaurante',
       },
       CONFIRMED: {
         label: 'Confirmado',
-        icon: '✅',
+        icon: <Icons.CheckCircle className="w-4 h-4" />,
         color: 'text-green-600',
         bg: 'bg-green-50',
+        border: 'border-green-200',
         step: 1,
         description: 'Pedido confirmado pelo restaurante',
       },
       PENDING: {
         label: 'Pedido Recebido',
-        icon: '📋',
+        icon: <Icons.Clipboard className="w-4 h-4" />,
         color: 'text-blue-600',
         bg: 'bg-blue-50',
+        border: 'border-blue-200',
         step: 1,
         description: 'Aguardando confirmação',
       },
       PREPARING: {
         label: 'Em Preparo',
-        icon: '🔥',
+        icon: <Icons.Fire className="w-4 h-4" />,
         color: 'text-orange-600',
         bg: 'bg-orange-50',
+        border: 'border-orange-200',
         step: 2,
         description: 'Seu pedido está sendo preparado',
       },
       READY: {
         label: 'Pronto',
-        icon: '✨',
-        color: 'text-yellow-600',
-        bg: 'bg-yellow-50',
+        icon: <Icons.Sparkles className="w-4 h-4" />,
+        color: 'text-amber-600',
+        bg: 'bg-amber-50',
+        border: 'border-amber-200',
         step: 3,
-        description: isPickup 
-          ? 'Pedido pronto para retirada!' 
-          : 'Pedido pronto! Saindo para entrega',
+        description: isPickup ? 'Pedido pronto para retirada!' : 'Pedido pronto! Saindo para entrega',
       },
-      // ✅ STATUS PARA ENTREGA
       OUT_FOR_DELIVERY: {
         label: 'Saiu para Entrega',
-        icon: '🛵',
+        icon: <Icons.Motorcycle className="w-4 h-4" />,
         color: 'text-purple-600',
         bg: 'bg-purple-50',
+        border: 'border-purple-200',
         step: 3,
         description: 'O entregador está a caminho',
       },
       DELIVERED: {
         label: 'Entregue',
-        icon: '🎉',
+        icon: <Icons.Gift className="w-4 h-4" />,
         color: 'text-green-600',
         bg: 'bg-green-50',
+        border: 'border-green-200',
         step: 4,
         description: 'Confirme o recebimento do seu pedido',
       },
-      // ✅ STATUS PARA RETIRADA
       READY_FOR_PICKUP: {
         label: 'Pronto para Retirada',
-        icon: '📦',
+        icon: <Icons.Package className="w-4 h-4" />,
         color: 'text-purple-600',
         bg: 'bg-purple-50',
+        border: 'border-purple-200',
         step: 3,
         description: 'Seu pedido está pronto! Venha retirar',
       },
       PICKED_UP: {
         label: 'Retirado',
-        icon: '🎉',
+        icon: <Icons.Gift className="w-4 h-4" />,
         color: 'text-green-600',
         bg: 'bg-green-50',
+        border: 'border-green-200',
         step: 4,
         description: 'Confirme a retirada do seu pedido',
       },
       COMPLETED: {
         label: 'Finalizado',
-        icon: '✅',
+        icon: <Icons.CheckCircle className="w-4 h-4" />,
         color: 'text-green-600',
         bg: 'bg-green-50',
+        border: 'border-green-200',
         step: 4,
         description: 'Pedido concluído com sucesso!',
       },
       CANCELLED: {
         label: 'Cancelado',
-        icon: '❌',
+        icon: <Icons.XCircle className="w-4 h-4" />,
         color: 'text-red-600',
         bg: 'bg-red-50',
+        border: 'border-red-200',
         step: 0,
         description: 'Este pedido foi cancelado',
       },
@@ -130,7 +226,6 @@ export default function GlobalModals() {
     return statusMap[status] || statusMap.PENDING;
   };
 
-  // ✅ FUNÇÃO: Verifica se precisa confirmar (entrega ou retirada)
   const needsConfirmation = (order) => {
     if (order.deliveryType === 'PICKUP') {
       return order.status === 'PICKED_UP';
@@ -138,25 +233,21 @@ export default function GlobalModals() {
     return order.status === 'DELIVERED';
   };
 
-  // ✅ FUNÇÃO: Retorna texto e mensagens baseado no tipo
   const getConfirmationTexts = (deliveryType) => {
     if (deliveryType === 'PICKUP') {
       return {
-        title: '📦 Pedido retirado!',
+        title: 'Pedido retirado!',
         subtitle: 'Por favor, confirme a retirada',
-        buttonText: '✓ CONFIRMAR RETIRADA',
+        buttonText: 'Confirmar Retirada',
+        icon: <Icons.Package className="w-5 h-5" />,
       };
     }
     return {
-      title: '🎉 Seu pedido chegou!',
+      title: 'Seu pedido chegou!',
       subtitle: 'Por favor, confirme o recebimento',
-      buttonText: '✓ CONFIRMAR RECEBIMENTO',
+      buttonText: 'Confirmar Recebimento',
+      icon: <Icons.Gift className="w-5 h-5" />,
     };
-  };
-
-  // ✅ FUNÇÃO: Retorna o label do tipo de pedido
-  const getDeliveryTypeLabel = (deliveryType) => {
-    return deliveryType === 'PICKUP' ? '📦 Retirada' : '🛵 Entrega';
   };
 
   const formatTime = (timestamp) => {
@@ -176,104 +267,131 @@ export default function GlobalModals() {
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm"
             onClick={() => setIsCartOpen(false)}
           />
-          <div className="relative w-full max-w-md bg-[#1A1A1A] h-full shadow-2xl flex flex-col animate-slide-in-right">
+          <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-slide-in-right">
+            
             {/* Header */}
-            <div className="p-6 border-b border-white/10 flex justify-between items-center">
-              <h2 className="text-2xl font-black text-white">Seu Carrinho</h2>
-              <button
-                onClick={() => setIsCartOpen(false)}
-                className="text-white/60 hover:text-white p-2"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+            <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] p-6">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Icons.Cart className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Seu Carrinho</h2>
+                    <p className="text-white/60 text-sm">{cartItems.length} {cartItems.length === 1 ? 'item' : 'itens'}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsCartOpen(false)}
+                  className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                >
+                  <Icons.Close className="w-5 h-5 text-white" />
+                </button>
+              </div>
             </div>
 
             {/* Itens */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 bg-[#faf8f5]">
               {cartItems.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-white/40 font-bold">Carrinho vazio</p>
+                <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                  <div className="w-20 h-20 bg-[#1e3a5f]/5 rounded-full flex items-center justify-center mb-4">
+                    <Icons.Cart className="w-10 h-10 text-[#1e3a5f]/30" />
+                  </div>
+                  <p className="text-[#1e3a5f]/40 font-bold text-lg">Carrinho vazio</p>
+                  <p className="text-[#1e3a5f]/30 text-sm mt-1">Adicione itens do cardápio</p>
                 </div>
               ) : (
-                cartItems.map((item, index) => (
-                  <div
-                    key={`${item.id}-${item.observation || index}`}
-                    className="bg-white/5 rounded-2xl p-4 flex gap-4"
-                  >
-                    {item.imageUrl && (
-                      <img
-                        src={item.imageUrl}
-                        alt={item.name}
-                        className="w-20 h-20 object-cover rounded-xl"
-                      />
-                    )}
-                    <div className="flex-1">
-                      <h3 className="text-white font-bold">{item.name}</h3>
-                      {item.observation && (
-                        <p className="text-white/40 text-xs mt-1">Obs: {item.observation}</p>
-                      )}
-                      <p className="text-[#EBCB6C] font-black mt-1">
-                        R$ {(item.promotionalPrice || item.price).toFixed(2).replace('.', ',')}
-                      </p>
-                      <div className="flex items-center gap-3 mt-2">
-                        <button
-                          onClick={() => updateQuantity(item.id, item.quantity - 1, item.observation)}
-                          className="w-8 h-8 rounded-lg bg-white/10 text-white font-bold hover:bg-white/20"
-                        >
-                          -
-                        </button>
-                        <span className="text-white font-bold">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(item.id, item.quantity + 1, item.observation)}
-                          className="w-8 h-8 rounded-lg bg-white/10 text-white font-bold hover:bg-white/20"
-                        >
-                          +
-                        </button>
-                        <button
-                          onClick={() => removeFromCart(item.id, item.observation)}
-                          className="ml-auto text-red-400 hover:text-red-300"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+                <div className="space-y-3">
+                  {cartItems.map((item, index) => (
+                    <div
+                      key={`${item.id}-${item.observation || index}`}
+                      className="bg-white rounded-2xl p-4 shadow-sm border border-[#1e3a5f]/5"
+                    >
+                      <div className="flex gap-4">
+                        {item.imageUrl && (
+                          <img
+                            src={item.imageUrl}
+                            alt={item.name}
+                            className="w-20 h-20 object-cover rounded-xl"
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-[#1e3a5f] font-bold truncate">{item.name}</h3>
+                          {item.observation && (
+                            <p className="text-[#1e3a5f]/40 text-xs mt-1 truncate">
+                              Obs: {item.observation}
+                            </p>
+                          )}
+                          <p className="text-[#d4a853] font-black text-lg mt-1">
+                            R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}
+                          </p>
+                          
+                          {/* Controles de quantidade */}
+                          <div className="flex items-center justify-between mt-3">
+                            <div className="flex items-center gap-2 bg-[#faf8f5] rounded-xl p-1">
+                              <button
+                                onClick={() => updateQuantity(item.id, item.quantity - 1, item.observation)}
+                                className="w-8 h-8 rounded-lg bg-white border border-[#1e3a5f]/10 text-[#1e3a5f] font-bold hover:bg-[#1e3a5f] hover:text-white transition-colors flex items-center justify-center"
+                              >
+                                −
+                              </button>
+                              <span className="text-[#1e3a5f] font-bold w-8 text-center">{item.quantity}</span>
+                              <button
+                                onClick={() => updateQuantity(item.id, item.quantity + 1, item.observation)}
+                                className="w-8 h-8 rounded-lg bg-white border border-[#1e3a5f]/10 text-[#1e3a5f] font-bold hover:bg-[#1e3a5f] hover:text-white transition-colors flex items-center justify-center"
+                              >
+                                +
+                              </button>
+                            </div>
+                            <button
+                              onClick={() => removeFromCart(item.id, item.observation)}
+                              className="p-2 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <Icons.Trash className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
 
             {/* Footer */}
             {cartItems.length > 0 && (
-              <div className="p-6 border-t border-white/10 space-y-4">
-                <div className="flex justify-between text-white/60">
-                  <span>Subtotal</span>
-                  <span>R$ {cartTotal.toFixed(2).replace('.', ',')}</span>
+              <div className="bg-white border-t border-[#1e3a5f]/10 p-6 space-y-4">
+                {/* Resumo */}
+                <div className="space-y-2">
+                  <div className="flex justify-between text-[#1e3a5f]/60 text-sm">
+                    <span>Subtotal</span>
+                    <span>R$ {cartTotal.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                  <div className="flex justify-between text-[#1e3a5f]/60 text-sm">
+                    <span>Taxa de entrega</span>
+                    <span>R$ {deliveryFee.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                  <div className="border-t border-[#1e3a5f]/10 pt-3 flex justify-between items-center">
+                    <span className="text-[#1e3a5f] font-bold">Total</span>
+                    <span className="text-[#d4a853] font-black text-2xl">
+                      R$ {orderTotal.toFixed(2).replace('.', ',')}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-white/60">
-                  <span>Taxa de entrega</span>
-                  <span>R$ {deliveryFee.toFixed(2).replace('.', ',')}</span>
-                </div>
-                <div className="flex justify-between text-white font-black text-xl">
-                  <span>Total</span>
-                  <span className="text-[#EBCB6C]">
-                    R$ {orderTotal.toFixed(2).replace('.', ',')}
-                  </span>
-                </div>
+
+                {/* Botão */}
                 <button
                   onClick={() => {
                     setIsCartOpen(false);
                     setIsCheckoutOpen(true);
                   }}
-                  className="w-full bg-[#EBCB6C] text-[#1A1A1A] font-black py-4 rounded-2xl hover:bg-[#d4b85e] transition-colors"
+                  className="w-full bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] hover:from-[#162d4a] hover:to-[#1e3a5f] text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-[#1e3a5f]/20 flex items-center justify-center gap-2"
                 >
-                  FINALIZAR PEDIDO
+                  Finalizar Pedido
+                  <Icons.ArrowRight className="w-5 h-5" />
                 </button>
               </div>
             )}
@@ -281,7 +399,7 @@ export default function GlobalModals() {
         </div>
       )}
 
-      {/* ✅ CHECKOUT MODAL */}
+      {/* CHECKOUT MODAL */}
       <CheckoutModal 
         isOpen={isCheckoutOpen} 
         onClose={() => setIsCheckoutOpen(false)} 
@@ -291,173 +409,193 @@ export default function GlobalModals() {
       {isTrackingOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm"
             onClick={() => setIsTrackingOpen(false)}
           />
-          <div className="relative w-full max-w-lg bg-[#FDF9EB] rounded-3xl shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            
             {/* Header */}
-            <div className="p-6 border-b border-[#E5DCC3] flex justify-between items-center sticky top-0 bg-[#FDF9EB] rounded-t-3xl z-10">
-              <div>
-                <h2 className="text-2xl font-black text-[#1A1A1A]">Acompanhar Pedidos</h2>
-                <p className="text-xs text-[#1A1A1A]/40 flex items-center gap-2 mt-1">
-                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                  Atualizando automaticamente
-                </p>
+            <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] p-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-xl font-bold text-white">Meus Pedidos</h2>
+                  <p className="text-white/60 text-sm flex items-center gap-2 mt-1">
+                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                    Atualizando em tempo real
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsTrackingOpen(false)}
+                  className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                >
+                  <Icons.Close className="w-5 h-5 text-white" />
+                </button>
               </div>
-              <button
-                onClick={() => setIsTrackingOpen(false)}
-                className="text-[#1A1A1A]/40 hover:text-[#1A1A1A] p-2"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
             </div>
 
-            <div className="p-6 space-y-6">
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4 bg-[#faf8f5]">
               {activeTrackingOrders.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-[#1A1A1A]/40 font-bold">Nenhum pedido ativo</p>
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="w-20 h-20 bg-[#1e3a5f]/5 rounded-full flex items-center justify-center mb-4">
+                    <Icons.Clipboard className="w-10 h-10 text-[#1e3a5f]/30" />
+                  </div>
+                  <p className="text-[#1e3a5f]/40 font-bold text-lg">Nenhum pedido ativo</p>
+                  <p className="text-[#1e3a5f]/30 text-sm mt-1">Seus pedidos aparecerão aqui</p>
                 </div>
               ) : (
-                activeTrackingOrders.map((order) => {
-                  // ✅ Passa o deliveryType para obter status correto
-                  const statusInfo = getStatusInfo(order.status, order.deliveryType);
-                  const showConfirmation = needsConfirmation(order);
-                  const confirmTexts = getConfirmationTexts(order.deliveryType);
-                  const isCancelled = order.status === 'CANCELLED';
-                  const isPickup = order.deliveryType === 'PICKUP';
+                <div className="space-y-4">
+                  {activeTrackingOrders.map((order) => {
+                    const statusInfo = getStatusInfo(order.status, order.deliveryType);
+                    const showConfirmation = needsConfirmation(order);
+                    const confirmTexts = getConfirmationTexts(order.deliveryType);
+                    const isCancelled = order.status === 'CANCELLED';
+                    const isPickup = order.deliveryType === 'PICKUP';
 
-                  return (
-                    <div
-                      key={order.id}
-                      className={`bg-white rounded-2xl p-6 border-2 transition-all ${
-                        showConfirmation 
-                          ? 'border-green-300 shadow-[0_0_20px_rgba(34,197,94,0.2)]' 
-                          : isCancelled
-                            ? 'border-red-200'
-                            : 'border-[#E5DCC3]'
-                      }`}
-                    >
-                      {/* Cabeçalho do pedido */}
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <span className="text-sm font-black text-[#1A1A1A]/40">
-                            PEDIDO #{order.id.slice(-6).toUpperCase()}
-                          </span>
-                          <p className="text-xs text-[#1A1A1A]/40 mt-1">
-                            {formatTime(order.createdAt)}
-                          </p>
-                          {/* ✅ Badge do tipo de pedido */}
-                          <span className={`inline-block mt-2 px-2 py-1 rounded-full text-xs font-bold ${
-                            isPickup 
-                              ? 'bg-purple-100 text-purple-700' 
-                              : 'bg-blue-100 text-blue-700'
-                          }`}>
-                            {getDeliveryTypeLabel(order.deliveryType)}
-                          </span>
+                    return (
+                      <div
+                        key={order.id}
+                        className={`bg-white rounded-2xl overflow-hidden shadow-sm border-2 transition-all ${
+                          showConfirmation 
+                            ? 'border-green-300 shadow-green-100' 
+                            : isCancelled
+                              ? 'border-red-200'
+                              : 'border-[#1e3a5f]/5'
+                        }`}
+                      >
+                        {/* Cabeçalho do pedido */}
+                        <div className="p-4 border-b border-[#1e3a5f]/5">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-[#1e3a5f]/40">
+                                  #{order.id.slice(-6).toUpperCase()}
+                                </span>
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 ${
+                                  isPickup 
+                                    ? 'bg-purple-100 text-purple-700' 
+                                    : 'bg-blue-100 text-blue-700'
+                                }`}>
+                                  {isPickup ? <Icons.Package className="w-3 h-3" /> : <Icons.Motorcycle className="w-3 h-3" />}
+                                  {isPickup ? 'Retirada' : 'Entrega'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-[#1e3a5f]/40 mt-1 flex items-center gap-1">
+                                <Icons.Clock className="w-3 h-3" />
+                                {formatTime(order.createdAt)}
+                              </p>
+                            </div>
+                            <span
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 ${statusInfo.bg} ${statusInfo.color} ${statusInfo.border} border`}
+                            >
+                              {statusInfo.icon}
+                              {statusInfo.label}
+                            </span>
+                          </div>
                         </div>
-                        <span
-                          className={`px-3 py-1.5 rounded-full text-xs font-black ${statusInfo.bg} ${statusInfo.color}`}
-                        >
-                          {statusInfo.icon} {statusInfo.label}
-                        </span>
-                      </div>
 
-                      {/* Timeline de status */}
-                      {!isCancelled && (
-                        <div className="mb-6">
-                          <div className="flex justify-between mb-2">
-                            {[1, 2, 3, 4].map((step) => (
-                              <div
-                                key={step}
-                                className={`w-1/4 h-2 rounded-full mx-0.5 transition-all duration-500 ${
-                                  step <= statusInfo.step
-                                    ? 'bg-gradient-to-r from-[#C1704D] to-[#EBCB6C]'
-                                    : 'bg-gray-200'
-                                }`}
-                              />
+                        {/* Timeline de status */}
+                        {!isCancelled && (
+                          <div className="px-4 py-3 bg-[#faf8f5]">
+                            <div className="flex gap-1 mb-2">
+                              {[1, 2, 3, 4].map((step) => (
+                                <div
+                                  key={step}
+                                  className={`flex-1 h-1.5 rounded-full transition-all duration-500 ${
+                                    step <= statusInfo.step
+                                      ? 'bg-gradient-to-r from-[#1e3a5f] to-[#d4a853]'
+                                      : 'bg-[#1e3a5f]/10'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                            <p className="text-xs text-[#1e3a5f]/60 text-center">
+                              {statusInfo.description}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Mensagem de cancelado */}
+                        {isCancelled && (
+                          <div className="px-4 py-3 bg-red-50">
+                            <p className="text-red-600 font-medium text-sm text-center flex items-center justify-center gap-2">
+                              <Icons.XCircle className="w-4 h-4" />
+                              {statusInfo.description}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Endereço de entrega */}
+                        {!isPickup && order.deliveryAddress && (
+                          <div className="px-4 py-3 bg-blue-50/50 border-t border-blue-100">
+                            <p className="text-xs font-bold text-blue-700 mb-1 flex items-center gap-1">
+                              <Icons.LocationMarker className="w-3 h-3" />
+                              Entregar em:
+                            </p>
+                            <p className="text-xs text-blue-900">
+                              {order.deliveryAddress.street}, {order.deliveryAddress.number}
+                              {order.deliveryAddress.complement && ` - ${order.deliveryAddress.complement}`}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Aviso de retirada */}
+                        {isPickup && order.status === 'READY_FOR_PICKUP' && (
+                          <div className="px-4 py-3 bg-purple-50 border-t border-purple-100">
+                            <p className="text-purple-700 font-bold text-sm text-center flex items-center justify-center gap-2">
+                              <Icons.Store className="w-4 h-4" />
+                              Retire seu pedido no balcão!
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Itens do pedido */}
+                        <div className="p-4">
+                          <div className="space-y-2 mb-3">
+                            {order.items.map((item, idx) => (
+                              <div key={idx} className="flex justify-between text-sm">
+                                <span className="text-[#1e3a5f]/70">
+                                  {item.quantity}x {item.name}
+                                </span>
+                                <span className="font-medium text-[#1e3a5f]">
+                                  R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}
+                                </span>
+                              </div>
                             ))}
                           </div>
-                          <p className="text-sm text-[#1A1A1A]/60 text-center">
-                            {statusInfo.description}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Mensagem de cancelado */}
-                      {isCancelled && (
-                        <div className="mb-4 p-4 bg-red-50 rounded-xl text-center">
-                          <p className="text-red-600 font-bold">{statusInfo.description}</p>
-                        </div>
-                      )}
-
-                      {/* ✅ Endereço de entrega (apenas para DELIVERY) */}
-                      {!isPickup && order.deliveryAddress && (
-                        <div className="bg-blue-50 rounded-xl p-3 mb-4">
-                          <p className="text-xs font-bold text-blue-700 mb-1">📍 Entregar em:</p>
-                          <p className="text-sm text-blue-900">
-                            {order.deliveryAddress.street}, {order.deliveryAddress.number}
-                            {order.deliveryAddress.complement && ` - ${order.deliveryAddress.complement}`}
-                            <br />
-                            {order.deliveryAddress.neighborhood}, {order.deliveryAddress.city}/{order.deliveryAddress.state}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* ✅ Aviso de retirada (apenas para PICKUP) */}
-                      {isPickup && order.status === 'READY_FOR_PICKUP' && (
-                        <div className="bg-purple-50 rounded-xl p-3 mb-4 text-center">
-                          <p className="text-purple-700 font-bold text-sm">
-                            📍 Retire seu pedido no balcão!
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Itens do pedido */}
-                      <div className="bg-[#FDF9EB] rounded-xl p-4 mb-4">
-                        <ul className="space-y-2">
-                          {order.items.map((item, idx) => (
-                            <li key={idx} className="flex justify-between text-sm">
-                              <span className="text-[#1A1A1A]/80">
-                                {item.quantity}x {item.name}
-                              </span>
-                              <span className="font-bold text-[#1A1A1A]">
-                                R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                        <div className="border-t border-[#E5DCC3] mt-3 pt-3 flex justify-between">
-                          <span className="font-black text-[#1A1A1A]">Total</span>
-                          <span className="font-black text-[#C1704D]">
-                            R$ {order.total.toFixed(2).replace('.', ',')}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* ✅ BOTÃO DE CONFIRMAR (ENTREGA OU RETIRADA) */}
-                      {showConfirmation && (
-                        <div className="space-y-3">
-                          <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-                            <p className="text-green-700 font-bold text-sm mb-1">
-                              {confirmTexts.title}
-                            </p>
-                            <p className="text-green-600 text-xs">
-                              {confirmTexts.subtitle}
-                            </p>
+                          <div className="border-t border-[#1e3a5f]/10 pt-3 flex justify-between">
+                            <span className="font-bold text-[#1e3a5f]">Total</span>
+                            <span className="font-black text-[#d4a853] text-lg">
+                              R$ {order.total.toFixed(2).replace('.', ',')}
+                            </span>
                           </div>
-                          <button
-                            onClick={() => handleConfirmDelivery(order.id)}
-                            className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white font-black py-4 rounded-xl shadow-lg active:scale-95 transition-transform"
-                          >
-                            {confirmTexts.buttonText}
-                          </button>
                         </div>
-                      )}
-                    </div>
-                  );
-                })
+
+                        {/* Botão de confirmar */}
+                        {showConfirmation && (
+                          <div className="p-4 bg-green-50 border-t border-green-200">
+                            <div className="text-center mb-3">
+                              <p className="text-green-700 font-bold text-sm flex items-center justify-center gap-2">
+                                {confirmTexts.icon}
+                                {confirmTexts.title}
+                              </p>
+                              <p className="text-green-600 text-xs">
+                                {confirmTexts.subtitle}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleConfirmDelivery(order.id)}
+                              className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-green-500/20 transition-all flex items-center justify-center gap-2"
+                            >
+                              <Icons.Check className="w-5 h-5" />
+                              {confirmTexts.buttonText}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>

@@ -9,15 +9,17 @@ import Promotions from './pages/Promotions';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminProducts from './pages/AdminProducts';
 import Header from './components/Header';
+import MobileFooter from './components/MobileFooter';
 import GlobalModals from './components/GlobalModals';
 
 function AppLayout() {
   return (
     <div className="relative">
       <Header />
-      <main className="pt-20">
+      <main className="pt-20 pb-20 md:pb-0">
         <Outlet />
       </main>
+      <MobileFooter />
       <GlobalModals />
     </div>
   );

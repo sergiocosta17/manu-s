@@ -2,6 +2,57 @@ import React, { useState, useEffect } from 'react';
 import { useCart } from '../contexts/CartContext';
 import PaymentModal from './PaymentModal';
 
+// ============ ÍCONES ============
+const Icons = {
+  Close: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  ),
+  ArrowRight: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+    </svg>
+  ),
+  Motorcycle: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+    </svg>
+  ),
+  Store: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+    </svg>
+  ),
+  LocationMarker: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  ),
+  Plus: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+    </svg>
+  ),
+  Check: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+    </svg>
+  ),
+  Phone: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+    </svg>
+  ),
+  Spinner: ({ className = "w-5 h-5" }) => (
+    <svg className={`${className} animate-spin`} fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+  ),
+};
+
 export default function CheckoutModal({ isOpen, onClose }) {
   const { cart, getCartTotal, clearCart } = useCart();
   
@@ -23,8 +74,6 @@ export default function CheckoutModal({ isOpen, onClose }) {
   const [cepError, setCepError] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [deliveryType, setDeliveryType] = useState('DELIVERY');
-  
-  // Estado para endereço da loja
   const [storeAddress, setStoreAddress] = useState(null);
   const [loadingStore, setLoadingStore] = useState(false);
 
@@ -84,15 +133,12 @@ export default function CheckoutModal({ isOpen, onClose }) {
     }
   };
 
-  // Busca endereço da loja (configurações do admin)
   const fetchStoreAddress = async () => {
     setLoadingStore(true);
     try {
       const response = await fetch('http://localhost:4000/graphql', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: `query { 
             storeSettings {
@@ -110,7 +156,6 @@ export default function CheckoutModal({ isOpen, onClose }) {
       }
     } catch (err) {
       console.error('Erro ao buscar endereço da loja:', err);
-      // Fallback caso a query não exista ainda
       setStoreAddress({
         storeName: 'Nossa Loja',
         storeAddress: 'Configure o endereço no painel admin',
@@ -121,13 +166,9 @@ export default function CheckoutModal({ isOpen, onClose }) {
     }
   };
 
-  // Função para buscar CEP via ViaCEP
   const fetchAddressByCep = async (cep) => {
     const cleanCep = cep.replace(/\D/g, '');
-    
-    if (cleanCep.length !== 8) {
-      return;
-    }
+    if (cleanCep.length !== 8) return;
 
     setLoadingCep(true);
     setCepError('');
@@ -159,12 +200,8 @@ export default function CheckoutModal({ isOpen, onClose }) {
     }
   };
 
-  // Handler para mudança no campo CEP
   const handleCepChange = (e) => {
-    let value = e.target.value;
-    
-    value = value.replace(/\D/g, '');
-    
+    let value = e.target.value.replace(/\D/g, '');
     if (value.length > 5) {
       value = value.slice(0, 5) + '-' + value.slice(5, 8);
     }
@@ -179,7 +216,6 @@ export default function CheckoutModal({ isOpen, onClose }) {
   };
 
   const handleContinueToPayment = () => {
-    // Para retirada, não precisa de endereço do cliente
     if (deliveryType === 'DELIVERY' && !selectedAddressId && !newAddress.street) {
       alert('Selecione ou adicione um endereço de entrega');
       return;
@@ -188,17 +224,11 @@ export default function CheckoutModal({ isOpen, onClose }) {
   };
 
   const getSelectedAddress = () => {
-    // Para retirada, retorna null (não precisa de endereço do cliente)
-    if (deliveryType === 'PICKUP') {
-      return null;
-    }
-    if (showNewAddress) {
-      return newAddress;
-    }
+    if (deliveryType === 'PICKUP') return null;
+    if (showNewAddress) return newAddress;
     return savedAddresses.find(a => a.id === selectedAddressId);
   };
 
-  // Reseta o formulário de novo endereço
   const resetNewAddressForm = () => {
     setNewAddress({
       label: '',
@@ -243,112 +273,113 @@ export default function CheckoutModal({ isOpen, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div 
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      <div className="relative bg-[#1A1A1A] rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="relative bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+        
         {/* Header */}
-        <div className="p-6 border-b border-white/10">
+        <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-black text-white">Finalizar Pedido</h2>
-              <p className="text-white/50 text-sm mt-1">Etapa 1 de 2 - Entrega</p>
+              <h2 className="text-xl font-bold text-white">Finalizar Pedido</h2>
+              <p className="text-white/60 text-sm mt-1">Etapa 1 de 2 • Entrega</p>
             </div>
             <button
               onClick={onClose}
               className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
             >
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <Icons.Close className="w-5 h-5 text-white" />
             </button>
           </div>
 
+          {/* Progress */}
           <div className="flex gap-2 mt-4">
-            <div className="flex-1 h-1 bg-[#C1704D] rounded-full" />
-            <div className="flex-1 h-1 bg-white/20 rounded-full" />
+            <div className="flex-1 h-1.5 bg-[#d4a853] rounded-full" />
+            <div className="flex-1 h-1.5 bg-white/20 rounded-full" />
           </div>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#faf8f5]">
+          
           {/* Tipo de Entrega */}
           <div>
-            <label className="block text-white font-bold mb-3">Tipo de Entrega *</label>
+            <label className="block text-[#1e3a5f] font-bold mb-3">Como deseja receber?</label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setDeliveryType('DELIVERY')}
                 className={`p-4 rounded-2xl border-2 transition-all ${
                   deliveryType === 'DELIVERY'
-                    ? 'border-[#C1704D] bg-[#C1704D]/10'
-                    : 'border-white/10 bg-white/5 hover:border-white/30'
+                    ? 'border-[#1e3a5f] bg-[#1e3a5f]/5 shadow-md'
+                    : 'border-[#1e3a5f]/10 bg-white hover:border-[#1e3a5f]/30'
                 }`}
               >
-                <div className="text-2xl mb-2">🛵</div>
-                <p className="text-white font-bold text-sm">Delivery</p>
-                <p className="text-white/50 text-xs">R$ 5,00</p>
+                <div className={`w-12 h-12 mx-auto mb-2 rounded-xl flex items-center justify-center ${
+                  deliveryType === 'DELIVERY' ? 'bg-[#1e3a5f] text-white' : 'bg-[#1e3a5f]/10 text-[#1e3a5f]'
+                }`}>
+                  <Icons.Motorcycle className="w-6 h-6" />
+                </div>
+                <p className="text-[#1e3a5f] font-bold text-sm">Delivery</p>
+                <p className="text-[#1e3a5f]/50 text-xs">R$ 5,00</p>
               </button>
               <button
                 onClick={() => setDeliveryType('PICKUP')}
                 className={`p-4 rounded-2xl border-2 transition-all ${
                   deliveryType === 'PICKUP'
-                    ? 'border-[#C1704D] bg-[#C1704D]/10'
-                    : 'border-white/10 bg-white/5 hover:border-white/30'
+                    ? 'border-[#1e3a5f] bg-[#1e3a5f]/5 shadow-md'
+                    : 'border-[#1e3a5f]/10 bg-white hover:border-[#1e3a5f]/30'
                 }`}
               >
-                <div className="text-2xl mb-2">🏪</div>
-                <p className="text-white font-bold text-sm">Retirada</p>
-                <p className="text-white/50 text-xs">Grátis</p>
+                <div className={`w-12 h-12 mx-auto mb-2 rounded-xl flex items-center justify-center ${
+                  deliveryType === 'PICKUP' ? 'bg-[#1e3a5f] text-white' : 'bg-[#1e3a5f]/10 text-[#1e3a5f]'
+                }`}>
+                  <Icons.Store className="w-6 h-6" />
+                </div>
+                <p className="text-[#1e3a5f] font-bold text-sm">Retirada</p>
+                <p className="text-green-600 text-xs font-medium">Grátis</p>
               </button>
             </div>
           </div>
 
-          {/* Endereço da Loja (para PICKUP) */}
+          {/* Endereço da Loja (PICKUP) */}
           {deliveryType === 'PICKUP' && (
-            <div className="bg-gradient-to-br from-[#C1704D]/20 to-[#C1704D]/5 rounded-2xl p-5 border border-[#C1704D]/30">
+            <div className="bg-gradient-to-br from-[#1e3a5f]/10 to-[#1e3a5f]/5 rounded-2xl p-5 border border-[#1e3a5f]/10">
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-[#C1704D]/20 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-6 h-6 text-[#C1704D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
+                <div className="w-12 h-12 rounded-xl bg-[#1e3a5f] flex items-center justify-center flex-shrink-0">
+                  <Icons.LocationMarker className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h4 className="text-white font-bold text-sm mb-1">Local de Retirada</h4>
+                  <h4 className="text-[#1e3a5f] font-bold text-sm mb-1">Local de Retirada</h4>
                   {loadingStore ? (
-                    <div className="flex items-center gap-2 text-white/50 text-sm">
-                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
+                    <div className="flex items-center gap-2 text-[#1e3a5f]/50 text-sm">
+                      <Icons.Spinner className="w-4 h-4" />
                       Carregando...
                     </div>
                   ) : storeAddress ? (
                     <>
-                      <p className="text-[#C1704D] font-bold">{storeAddress.storeName || 'Nossa Loja'}</p>
-                      <p className="text-white/70 text-sm mt-1">{storeAddress.storeAddress || 'Endereço não configurado'}</p>
+                      <p className="text-[#d4a853] font-bold">{storeAddress.storeName || 'Nossa Loja'}</p>
+                      <p className="text-[#1e3a5f]/70 text-sm mt-1">{storeAddress.storeAddress || 'Endereço não configurado'}</p>
                       {storeAddress.storePhone && (
-                        <p className="text-white/50 text-xs mt-2 flex items-center gap-1">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                          </svg>
+                        <p className="text-[#1e3a5f]/50 text-xs mt-2 flex items-center gap-1">
+                          <Icons.Phone className="w-3 h-3" />
                           {storeAddress.storePhone}
                         </p>
                       )}
                     </>
                   ) : (
-                    <p className="text-white/50 text-sm">Endereço da loja não configurado</p>
+                    <p className="text-[#1e3a5f]/50 text-sm">Endereço não configurado</p>
                   )}
                 </div>
               </div>
             </div>
           )}
 
-          {/* Endereços (apenas para DELIVERY) */}
+          {/* Endereços (DELIVERY) */}
           {deliveryType === 'DELIVERY' && (
             <div>
-              <label className="block text-white font-bold mb-3">Endereço de Entrega *</label>
+              <label className="block text-[#1e3a5f] font-bold mb-3">Endereço de Entrega</label>
 
               {savedAddresses.length > 0 && !showNewAddress && (
                 <div className="space-y-3 mb-4">
@@ -358,32 +389,32 @@ export default function CheckoutModal({ isOpen, onClose }) {
                       onClick={() => setSelectedAddressId(addr.id)}
                       className={`w-full p-4 rounded-2xl border-2 text-left transition-all ${
                         selectedAddressId === addr.id
-                          ? 'border-[#C1704D] bg-[#C1704D]/10'
-                          : 'border-white/10 bg-white/5 hover:border-white/30'
+                          ? 'border-[#1e3a5f] bg-[#1e3a5f]/5 shadow-md'
+                          : 'border-[#1e3a5f]/10 bg-white hover:border-[#1e3a5f]/30'
                       }`}
                     >
                       <div className="flex items-start gap-3">
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
-                          selectedAddressId === addr.id ? 'border-[#C1704D]' : 'border-white/30'
+                          selectedAddressId === addr.id ? 'border-[#1e3a5f]' : 'border-[#1e3a5f]/30'
                         }`}>
                           {selectedAddressId === addr.id && (
-                            <div className="w-2.5 h-2.5 bg-[#C1704D] rounded-full" />
+                            <div className="w-2.5 h-2.5 bg-[#1e3a5f] rounded-full" />
                           )}
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-white font-bold">{addr.label || 'Endereço'}</span>
+                            <span className="text-[#1e3a5f] font-bold">{addr.label || 'Endereço'}</span>
                             {addr.isDefault && (
-                              <span className="text-[10px] bg-[#C1704D]/20 text-[#C1704D] px-2 py-0.5 rounded-full font-bold">
+                              <span className="text-[10px] bg-[#d4a853]/20 text-[#d4a853] px-2 py-0.5 rounded-full font-bold">
                                 PADRÃO
                               </span>
                             )}
                           </div>
-                          <p className="text-white/70 text-sm mt-1">
+                          <p className="text-[#1e3a5f]/70 text-sm mt-1">
                             {addr.street}, {addr.number}
                             {addr.complement && ` - ${addr.complement}`}
                           </p>
-                          <p className="text-white/50 text-xs">
+                          <p className="text-[#1e3a5f]/50 text-xs">
                             {addr.neighborhood} - {addr.city}/{addr.state}
                           </p>
                         </div>
@@ -397,37 +428,34 @@ export default function CheckoutModal({ isOpen, onClose }) {
               {!showNewAddress ? (
                 <button
                   onClick={() => setShowNewAddress(true)}
-                  className="w-full p-4 rounded-2xl border-2 border-dashed border-white/20 hover:border-white/40 text-left transition-all"
+                  className="w-full p-4 rounded-2xl border-2 border-dashed border-[#1e3a5f]/20 hover:border-[#1e3a5f]/40 text-left transition-all bg-white"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                      </svg>
+                    <div className="w-10 h-10 rounded-xl bg-[#1e3a5f]/10 flex items-center justify-center">
+                      <Icons.Plus className="w-5 h-5 text-[#1e3a5f]" />
                     </div>
-                    <span className="text-white font-bold">Usar outro endereço</span>
+                    <span className="text-[#1e3a5f] font-bold">Usar outro endereço</span>
                   </div>
                 </button>
               ) : (
                 /* Formulário Novo Endereço */
-                <div className="space-y-4 p-4 bg-white/5 rounded-2xl">
+                <div className="space-y-4 p-4 bg-white rounded-2xl border border-[#1e3a5f]/10">
                   <div className="flex items-center justify-between">
-                    <span className="text-white font-bold">Novo Endereço</span>
+                    <span className="text-[#1e3a5f] font-bold">Novo Endereço</span>
                     <button
                       onClick={() => {
                         setShowNewAddress(false);
                         resetNewAddressForm();
                       }}
-                      className="text-white/50 hover:text-white text-sm"
+                      className="text-[#1e3a5f]/50 hover:text-[#1e3a5f] text-sm font-medium"
                     >
                       Cancelar
                     </button>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                    {/* CAMPO CEP COM BUSCA AUTOMÁTICA */}
                     <div>
-                      <label className="block text-white/70 text-xs mb-1">CEP *</label>
+                      <label className="block text-[#1e3a5f]/70 text-xs mb-1 font-medium">CEP *</label>
                       <div className="relative">
                         <input
                           type="text"
@@ -435,109 +463,101 @@ export default function CheckoutModal({ isOpen, onClose }) {
                           onChange={handleCepChange}
                           placeholder="00000-000"
                           maxLength={9}
-                          className={`w-full bg-white/10 border rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-white/30 focus:outline-none transition-colors ${
+                          className={`w-full bg-[#faf8f5] border rounded-xl px-3 py-2.5 text-[#1e3a5f] text-sm placeholder:text-[#1e3a5f]/30 focus:outline-none transition-colors ${
                             cepError 
-                              ? 'border-red-500 focus:border-red-500' 
+                              ? 'border-red-400 focus:border-red-500' 
                               : loadingCep 
-                                ? 'border-yellow-500' 
-                                : 'border-white/10 focus:border-[#C1704D]'
+                                ? 'border-amber-400' 
+                                : 'border-[#1e3a5f]/10 focus:border-[#1e3a5f]'
                           }`}
                         />
                         {loadingCep && (
                           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <svg className="w-4 h-4 animate-spin text-yellow-500" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
+                            <Icons.Spinner className="w-4 h-4 text-amber-500" />
                           </div>
                         )}
                         {!loadingCep && newAddress.street && newAddress.zipCode.length === 9 && (
                           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                            </svg>
+                            <Icons.Check className="w-4 h-4 text-green-500" />
                           </div>
                         )}
                       </div>
-                      {cepError && (
-                        <p className="text-red-400 text-xs mt-1">{cepError}</p>
-                      )}
+                      {cepError && <p className="text-red-500 text-xs mt-1">{cepError}</p>}
                     </div>
                     
-                    {/* Apelido sem valor padrão */}
                     <div>
-                      <label className="block text-white/70 text-xs mb-1">Apelido</label>
+                      <label className="block text-[#1e3a5f]/70 text-xs mb-1 font-medium">Apelido</label>
                       <input
                         type="text"
                         value={newAddress.label}
                         onChange={(e) => setNewAddress({ ...newAddress, label: e.target.value })}
                         placeholder="Ex: Casa, Trabalho..."
-                        className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-[#C1704D]"
+                        className="w-full bg-[#faf8f5] border border-[#1e3a5f]/10 rounded-xl px-3 py-2.5 text-[#1e3a5f] text-sm placeholder:text-[#1e3a5f]/30 focus:outline-none focus:border-[#1e3a5f]"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-3 gap-3">
                     <div className="col-span-2">
-                      <label className="block text-white/70 text-xs mb-1">Rua *</label>
+                      <label className="block text-[#1e3a5f]/70 text-xs mb-1 font-medium">Rua *</label>
                       <input
                         type="text"
                         value={newAddress.street}
                         onChange={(e) => setNewAddress({ ...newAddress, street: e.target.value })}
                         placeholder="Nome da rua"
                         disabled={loadingCep}
-                        className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-[#C1704D] disabled:opacity-50"
+                        className="w-full bg-[#faf8f5] border border-[#1e3a5f]/10 rounded-xl px-3 py-2.5 text-[#1e3a5f] text-sm placeholder:text-[#1e3a5f]/30 focus:outline-none focus:border-[#1e3a5f] disabled:opacity-50"
                       />
                     </div>
                     <div>
-                      <label className="block text-white/70 text-xs mb-1">Nº *</label>
+                      <label className="block text-[#1e3a5f]/70 text-xs mb-1 font-medium">Nº *</label>
                       <input
                         type="text"
                         value={newAddress.number}
                         onChange={(e) => setNewAddress({ ...newAddress, number: e.target.value })}
                         placeholder="123"
-                        className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-[#C1704D]"
+                        className="w-full bg-[#faf8f5] border border-[#1e3a5f]/10 rounded-xl px-3 py-2.5 text-[#1e3a5f] text-sm placeholder:text-[#1e3a5f]/30 focus:outline-none focus:border-[#1e3a5f]"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-white/70 text-xs mb-1">Complemento</label>
+                    <label className="block text-[#1e3a5f]/70 text-xs mb-1 font-medium">Complemento</label>
                     <input
                       type="text"
                       value={newAddress.complement}
                       onChange={(e) => setNewAddress({ ...newAddress, complement: e.target.value })}
                       placeholder="Apto, Bloco..."
-                      className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-[#C1704D]"
+                      className="w-full bg-[#faf8f5] border border-[#1e3a5f]/10 rounded-xl px-3 py-2.5 text-[#1e3a5f] text-sm placeholder:text-[#1e3a5f]/30 focus:outline-none focus:border-[#1e3a5f]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-white/70 text-xs mb-1">Bairro *</label>
+                    <label className="block text-[#1e3a5f]/70 text-xs mb-1 font-medium">Bairro *</label>
                     <input
                       type="text"
                       value={newAddress.neighborhood}
                       onChange={(e) => setNewAddress({ ...newAddress, neighborhood: e.target.value })}
                       placeholder="Bairro"
                       disabled={loadingCep}
-                      className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-[#C1704D] disabled:opacity-50"
+                      className="w-full bg-[#faf8f5] border border-[#1e3a5f]/10 rounded-xl px-3 py-2.5 text-[#1e3a5f] text-sm placeholder:text-[#1e3a5f]/30 focus:outline-none focus:border-[#1e3a5f] disabled:opacity-50"
                     />
                   </div>
 
                   <div className="grid grid-cols-3 gap-3">
                     <div className="col-span-2">
-                      <label className="block text-white/70 text-xs mb-1">Cidade *</label>
+                      <label className="block text-[#1e3a5f]/70 text-xs mb-1 font-medium">Cidade *</label>
                       <input
                         type="text"
                         value={newAddress.city}
                         onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
                         placeholder="Cidade"
                         disabled={loadingCep}
-                        className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-[#C1704D] disabled:opacity-50"
+                        className="w-full bg-[#faf8f5] border border-[#1e3a5f]/10 rounded-xl px-3 py-2.5 text-[#1e3a5f] text-sm placeholder:text-[#1e3a5f]/30 focus:outline-none focus:border-[#1e3a5f] disabled:opacity-50"
                       />
                     </div>
                     <div>
-                      <label className="block text-white/70 text-xs mb-1">UF *</label>
+                      <label className="block text-[#1e3a5f]/70 text-xs mb-1 font-medium">UF *</label>
                       <input
                         type="text"
                         value={newAddress.state}
@@ -545,7 +565,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
                         placeholder="PB"
                         maxLength={2}
                         disabled={loadingCep}
-                        className="w-full bg-white/10 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-[#C1704D] disabled:opacity-50"
+                        className="w-full bg-[#faf8f5] border border-[#1e3a5f]/10 rounded-xl px-3 py-2.5 text-[#1e3a5f] text-sm placeholder:text-[#1e3a5f]/30 focus:outline-none focus:border-[#1e3a5f] disabled:opacity-50"
                       />
                     </div>
                   </div>
@@ -555,21 +575,23 @@ export default function CheckoutModal({ isOpen, onClose }) {
           )}
 
           {/* Resumo */}
-          <div className="bg-white/5 rounded-2xl p-4">
-            <h3 className="text-white font-bold mb-3">Resumo</h3>
+          <div className="bg-white rounded-2xl p-4 border border-[#1e3a5f]/10">
+            <h3 className="text-[#1e3a5f] font-bold mb-3">Resumo</h3>
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between text-white/70">
+              <div className="flex justify-between text-[#1e3a5f]/60">
                 <span>Subtotal ({cart.length} {cart.length === 1 ? 'item' : 'itens'})</span>
                 <span>R$ {subtotal.toFixed(2).replace('.', ',')}</span>
               </div>
-              <div className="flex justify-between text-white/70">
+              <div className="flex justify-between text-[#1e3a5f]/60">
                 <span>Entrega</span>
-                <span>{shippingFee > 0 ? `R$ ${shippingFee.toFixed(2).replace('.', ',')}` : 'Grátis'}</span>
+                <span className={shippingFee === 0 ? 'text-green-600 font-medium' : ''}>
+                  {shippingFee > 0 ? `R$ ${shippingFee.toFixed(2).replace('.', ',')}` : 'Grátis'}
+                </span>
               </div>
-              <div className="border-t border-white/10 pt-2 mt-2">
-                <div className="flex justify-between text-white font-black text-lg">
-                  <span>Total</span>
-                  <span className="text-[#C1704D]">R$ {total.toFixed(2).replace('.', ',')}</span>
+              <div className="border-t border-[#1e3a5f]/10 pt-3 mt-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-[#1e3a5f] font-bold">Total</span>
+                  <span className="text-[#d4a853] font-black text-xl">R$ {total.toFixed(2).replace('.', ',')}</span>
                 </div>
               </div>
             </div>
@@ -577,23 +599,21 @@ export default function CheckoutModal({ isOpen, onClose }) {
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-white/10">
+        <div className="p-6 bg-white border-t border-[#1e3a5f]/10">
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="flex-1 py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold transition-colors"
+              className="flex-1 py-4 rounded-2xl bg-[#1e3a5f]/5 hover:bg-[#1e3a5f]/10 text-[#1e3a5f] font-bold transition-colors"
             >
               Voltar
             </button>
             <button
               onClick={handleContinueToPayment}
               disabled={deliveryType === 'DELIVERY' && !selectedAddressId && !newAddress.street}
-              className="flex-1 py-4 rounded-2xl bg-[#C1704D] hover:bg-[#A35C3E] text-white font-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] hover:from-[#162d4a] hover:to-[#1e3a5f] text-white font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-[#1e3a5f]/20"
             >
               Continuar
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-              </svg>
+              <Icons.ArrowRight className="w-5 h-5" />
             </button>
           </div>
         </div>

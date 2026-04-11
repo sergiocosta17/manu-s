@@ -127,38 +127,9 @@ export default function Profile() {
             query: `
               query GetMe {
                 me {
-                  id
-                  name
-                  email
-                  role
-                  phone
-                  birthDate
-                  avatarUrl
-                  storeName
-                  storeAddress {
-                    id
-                    label
-                    zipCode
-                    street
-                    number
-                    complement
-                    neighborhood
-                    city
-                    state
-                    isDefault
-                  }
-                  addresses {
-                    id
-                    label
-                    zipCode
-                    street
-                    number
-                    complement
-                    neighborhood
-                    city
-                    state
-                    isDefault
-                  }
+                  id name email role phone birthDate avatarUrl storeName
+                  storeAddress { id label zipCode street number complement neighborhood city state isDefault }
+                  addresses { id label zipCode street number complement neighborhood city state isDefault }
                 }
               }
             `
@@ -166,11 +137,7 @@ export default function Profile() {
         });
 
         const profileJson = await profileRes.json();
-
-        if (profileJson.errors) {
-          console.error('GraphQL Errors:', profileJson.errors);
-          throw new Error(profileJson.errors[0].message);
-        }
+        if (profileJson.errors) throw new Error(profileJson.errors[0].message);
 
         const user = profileJson.data.me;
 
@@ -202,9 +169,7 @@ export default function Profile() {
             birthDate: user.birthDate || '',
             avatarUrl: user.avatarUrl || ''
           });
-          if (user.addresses) {
-            setAddresses(user.addresses);
-          }
+          if (user.addresses) setAddresses(user.addresses);
         }
 
         if (!isAdmin) {
@@ -212,23 +177,7 @@ export default function Profile() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({
-              query: `
-                query GetOrders {
-                  orders {
-                    id
-                    total
-                    status
-                    createdAt
-                    items {
-                      quantity
-                      name
-                      product {
-                        name
-                      }
-                    }
-                  }
-                }
-              `
+              query: `query GetOrders { orders { id total status createdAt items { quantity name product { name } } } }`
             })
           });
           const ordersJson = await ordersRes.json();
@@ -279,52 +228,26 @@ export default function Profile() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({
-            query: `
-              mutation UpdateStore($input: UpdateStoreInput!) {
-                updateStore(input: $input) {
-                  id
-                  storeName
-                }
-              }
-            `,
+            query: `mutation UpdateStore($input: UpdateStoreInput!) { updateStore(input: $input) { id storeName } }`,
             variables: {
               input: {
                 storeName: adminData.storeName,
                 phone: adminData.phone,
                 avatarUrl: adminData.avatarUrl,
-                storeAddress: {
-                  label: adminAddressForm.label || 'Loja',
-                  zipCode: adminAddressForm.zipCode,
-                  street: adminAddressForm.street,
-                  number: adminAddressForm.number,
-                  complement: adminAddressForm.complement || null,
-                  neighborhood: adminAddressForm.neighborhood,
-                  city: adminAddressForm.city,
-                  state: adminAddressForm.state,
-                  isDefault: true
-                }
+                storeAddress: { ...adminAddressForm, isDefault: true }
               }
             }
           })
         });
-
         const json = await response.json();
         if (json.errors) throw new Error(json.errors[0].message);
         alert('Configurações da loja atualizadas!');
-
       } else {
         const response = await fetch('http://localhost:4000/graphql', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({
-            query: `
-              mutation UpdateProfile($input: UpdateProfileInput!) {
-                updateProfile(input: $input) {
-                  id
-                  name
-                }
-              }
-            `,
+            query: `mutation UpdateProfile($input: UpdateProfileInput!) { updateProfile(input: $input) { id name } }`,
             variables: {
               input: {
                 name: clientData.name,
@@ -335,13 +258,11 @@ export default function Profile() {
             }
           })
         });
-
         const json = await response.json();
         if (json.errors) throw new Error(json.errors[0].message);
         alert('Perfil atualizado!');
       }
     } catch (err) {
-      console.error('Update error:', err);
       alert('Erro ao salvar: ' + err.message);
     }
   };
@@ -349,29 +270,12 @@ export default function Profile() {
   const openAddressModal = (address = null) => {
     if (address) {
       setEditingAddressId(address.id);
-      setAddressForm({
-        label: address.label || '',
-        zipCode: address.zipCode || '',
-        street: address.street || '',
-        number: address.number || '',
-        complement: address.complement || '',
-        neighborhood: address.neighborhood || '',
-        city: address.city || '',
-        state: address.state || '',
-        isDefault: address.isDefault || false
-      });
+      setAddressForm({ ...address });
     } else {
       setEditingAddressId(null);
       setAddressForm({
-        label: '',
-        zipCode: '',
-        street: '',
-        number: '',
-        complement: '',
-        neighborhood: '',
-        city: '',
-        state: '',
-        isDefault: addresses.length === 0
+        label: '', zipCode: '', street: '', number: '', complement: '',
+        neighborhood: '', city: '', state: '', isDefault: addresses.length === 0
       });
     }
     setIsAddressModalOpen(true);
@@ -382,106 +286,31 @@ export default function Profile() {
     const token = localStorage.getItem('token');
 
     try {
-      if (editingAddressId) {
-        const response = await fetch('http://localhost:4000/graphql', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({
-            query: `
-              mutation UpdateAddress($addressId: ID!, $input: AddressInput!) {
-                updateAddress(addressId: $addressId, input: $input) {
-                  id
-                  addresses {
-                    id
-                    label
-                    zipCode
-                    street
-                    number
-                    complement
-                    neighborhood
-                    city
-                    state
-                    isDefault
-                  }
-                }
-              }
-            `,
-            variables: {
-              addressId: editingAddressId,
-              input: {
-                label: addressForm.label,
-                zipCode: addressForm.zipCode,
-                street: addressForm.street,
-                number: addressForm.number,
-                complement: addressForm.complement || null,
-                neighborhood: addressForm.neighborhood,
-                city: addressForm.city,
-                state: addressForm.state,
-                isDefault: addressForm.isDefault
-              }
-            }
-          })
-        });
+      const mutation = editingAddressId
+        ? `mutation UpdateAddress($addressId: ID!, $input: AddressInput!) { updateAddress(addressId: $addressId, input: $input) { id addresses { id label zipCode street number complement neighborhood city state isDefault } } }`
+        : `mutation AddAddress($input: AddressInput!) { addAddress(input: $input) { id addresses { id label zipCode street number complement neighborhood city state isDefault } } }`;
 
-        const json = await response.json();
-        if (json.errors) throw new Error(json.errors[0].message);
-        setAddresses(json.data.updateAddress.addresses);
+      const variables = editingAddressId
+        ? { addressId: editingAddressId, input: { ...addressForm, complement: addressForm.complement || null } }
+        : { input: { ...addressForm, complement: addressForm.complement || null } };
 
-      } else {
-        const response = await fetch('http://localhost:4000/graphql', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({
-            query: `
-              mutation AddAddress($input: AddressInput!) {
-                addAddress(input: $input) {
-                  id
-                  addresses {
-                    id
-                    label
-                    zipCode
-                    street
-                    number
-                    complement
-                    neighborhood
-                    city
-                    state
-                    isDefault
-                  }
-                }
-              }
-            `,
-            variables: {
-              input: {
-                label: addressForm.label,
-                zipCode: addressForm.zipCode,
-                street: addressForm.street,
-                number: addressForm.number,
-                complement: addressForm.complement || null,
-                neighborhood: addressForm.neighborhood,
-                city: addressForm.city,
-                state: addressForm.state,
-                isDefault: addressForm.isDefault
-              }
-            }
-          })
-        });
+      const response = await fetch('http://localhost:4000/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ query: mutation, variables })
+      });
 
-        const json = await response.json();
-        if (json.errors) throw new Error(json.errors[0].message);
-        setAddresses(json.data.addAddress.addresses);
-      }
-
+      const json = await response.json();
+      if (json.errors) throw new Error(json.errors[0].message);
+      setAddresses(editingAddressId ? json.data.updateAddress.addresses : json.data.addAddress.addresses);
       setIsAddressModalOpen(false);
     } catch (err) {
-      console.error('Address error:', err);
       alert('Erro ao salvar endereço: ' + err.message);
     }
   };
 
   const handleDeleteAddress = async (id) => {
     if (!window.confirm('Excluir este endereço?')) return;
-
     const token = localStorage.getItem('token');
 
     try {
@@ -489,40 +318,20 @@ export default function Profile() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
-          query: `
-            mutation DeleteAddress($addressId: ID!) {
-              deleteAddress(addressId: $addressId) {
-                id
-                addresses {
-                  id
-                  label
-                  zipCode
-                  street
-                  number
-                  complement
-                  neighborhood
-                  city
-                  state
-                  isDefault
-                }
-              }
-            }
-          `,
+          query: `mutation DeleteAddress($addressId: ID!) { deleteAddress(addressId: $addressId) { id addresses { id label zipCode street number complement neighborhood city state isDefault } } }`,
           variables: { addressId: id }
         })
       });
-
       const json = await response.json();
       if (json.errors) throw new Error(json.errors[0].message);
       setAddresses(json.data.deleteAddress.addresses);
     } catch (err) {
-      console.error('Delete error:', err);
       alert('Erro ao excluir: ' + err.message);
     }
   };
 
   const handleLogout = () => {
-    if (window.confirm('Terminar sessão?')) {
+    if (window.confirm('Deseja sair da sua conta?')) {
       localStorage.clear();
       navigate('/');
     }
@@ -530,28 +339,30 @@ export default function Profile() {
 
   const getStatusDisplay = (status) => {
     const map = {
-      PLACED: { label: 'Recebido', color: 'text-blue-500 bg-blue-50' },
-      CONFIRMED: { label: 'Confirmado', color: 'text-indigo-500 bg-indigo-50' },
-      PREPARING: { label: 'Em Produção', color: 'text-[#C1704D] bg-[#C1704D]/10' },
-      OUT_FOR_DELIVERY: { label: 'Saiu p/ Entrega', color: 'text-[#EBCB6C] bg-[#1A1A1A]' },
-      DELIVERED: { label: 'Entregue', color: 'text-green-500 bg-green-50' },
-      COMPLETED: { label: 'Concluído', color: 'text-green-600 bg-green-50' },
-      CANCELLED: { label: 'Cancelado', color: 'text-gray-500 bg-gray-100' }
+      PLACED: { label: 'Recebido', color: 'bg-blue-50 text-blue-600 border-blue-200' },
+      CONFIRMED: { label: 'Confirmado', color: 'bg-indigo-50 text-indigo-600 border-indigo-200' },
+      PREPARING: { label: 'Em Produção', color: 'bg-amber-50 text-amber-600 border-amber-200' },
+      OUT_FOR_DELIVERY: { label: 'Saiu p/ Entrega', color: 'bg-purple-50 text-purple-600 border-purple-200' },
+      DELIVERED: { label: 'Entregue', color: 'bg-green-50 text-green-600 border-green-200' },
+      COMPLETED: { label: 'Concluído', color: 'bg-green-50 text-green-600 border-green-200' },
+      CANCELLED: { label: 'Cancelado', color: 'bg-gray-100 text-gray-500 border-gray-200' }
     };
-    return map[status] || { label: status, color: 'text-gray-500 bg-gray-100' };
+    return map[status] || { label: status, color: 'bg-gray-100 text-gray-500 border-gray-200' };
   };
 
-  const formatDate = (timestamp) => new Date(Number(timestamp)).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const formatDate = (timestamp) => new Date(Number(timestamp)).toLocaleDateString('pt-BR', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
 
   const clientTabs = [
-    { id: 'INFO', label: 'Dados Pessoais', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg> },
-    { id: 'ADDRESSES', label: 'Meus Endereços', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> },
-    { id: 'ORDERS', label: 'Histórico de Compras', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg> },
-    { id: 'PAYMENTS', label: 'Formas de Pagamento', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg> }
+    { id: 'INFO', label: 'Dados Pessoais', icon: <UserIcon /> },
+    { id: 'ADDRESSES', label: 'Endereços', icon: <LocationIcon /> },
+    { id: 'ORDERS', label: 'Pedidos', icon: <OrderIcon /> },
+    { id: 'PAYMENTS', label: 'Pagamentos', icon: <CardIcon /> }
   ];
 
   const adminTabs = [
-    { id: 'STORE_INFO', label: 'Dados da Loja', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg> }
+    { id: 'STORE_INFO', label: 'Dados da Loja', icon: <StoreIcon /> }
   ];
 
   const tabs = isAdmin ? adminTabs : clientTabs;
@@ -559,182 +370,271 @@ export default function Profile() {
   const currentName = isAdmin ? adminData.storeName : clientData.name;
 
   return (
-    <div className="min-h-screen bg-[#FDF9EB] flex flex-col relative pb-24 md:pb-0 font-sans selection:bg-[#EBCB6C] selection:text-[#1A1A1A]">
+    <div className="min-h-screen bg-[#faf8f5] flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white">
+      
+      {/* Espaço para Header */}
+      <div className="h-20"></div>
 
       {loading ? (
-        <div className="flex-grow flex flex-col justify-center items-center opacity-50">
-          <svg className="w-12 h-12 animate-spin text-[#C1704D] mb-4" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
+        <div className="flex-grow flex flex-col justify-center items-center">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-[#1e3a5f]/10 rounded-full"></div>
+            <div className="w-16 h-16 border-4 border-[#1e3a5f] border-t-transparent rounded-full animate-spin absolute inset-0"></div>
+          </div>
+          <p className="mt-6 text-[#1e3a5f]/40 font-medium text-sm">Carregando perfil...</p>
         </div>
       ) : (
-        <main className="flex-grow w-full max-w-7xl mx-auto p-4 md:p-8 flex flex-col lg:flex-row gap-8">
+        <main className="flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10 flex flex-col lg:flex-row gap-6 lg:gap-8">
 
-          {/* SIDEBAR NAVEGAÇÃO */}
+          {/* Sidebar */}
           <aside className="w-full lg:w-80 flex-shrink-0">
-            <div className="bg-white/80 backdrop-blur-sm rounded-[2rem] shadow-sm border border-white/60 p-6 flex flex-col h-full">
-              <div className="flex items-center gap-4 mb-8 pb-8 border-b border-gray-100">
-                <div className="w-16 h-16 rounded-full bg-gray-100 border-2 border-[#EBCB6C] overflow-hidden flex-shrink-0">
-                  {currentAvatar ? <img src={currentAvatar} className="w-full h-full object-cover" alt="Avatar" /> : <svg className="w-full h-full p-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>}
+            <div className="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-[#1e3a5f]/5 p-6 lg:p-8 flex flex-col h-full">
+              
+              {/* Perfil Header */}
+              <div className="flex items-center gap-4 mb-8 pb-8 border-b border-[#1e3a5f]/10">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#1e3a5f]/10 to-[#1e3a5f]/5 border-2 border-[#d4a853]/30 overflow-hidden flex-shrink-0 shadow-lg">
+                  {currentAvatar ? (
+                    <img src={currentAvatar} className="w-full h-full object-cover" alt="Avatar" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[#1e3a5f]/30">
+                      <UserIcon className="w-8 h-8" />
+                    </div>
+                  )}
                 </div>
                 <div className="overflow-hidden">
-                  <h2 className="text-lg font-black text-[#1A1A1A] truncate">{currentName || 'Bem-vindo(a)'}</h2>
-                  <p className="text-xs font-bold text-[#C1704D] mt-1 uppercase">{isAdmin ? 'Gestor Principal' : 'Cliente Vip'}</p>
+                  <h2 className="text-lg font-bold text-[#1e3a5f] truncate">{currentName || 'Bem-vindo(a)'}</h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                    <p className="text-xs font-medium text-[#1e3a5f]/50">{isAdmin ? 'Administrador' : 'Cliente'}</p>
+                  </div>
                 </div>
               </div>
-              <nav className="flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 outline-none" style={{ scrollbarWidth: 'none' }}>
-                <style>{`nav::-webkit-scrollbar { display: none; }`}</style>
+
+              {/* Navegação */}
+              <nav className="flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 scrollbar-hide">
                 {tabs.map((tab) => (
-                  <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-3 px-5 py-4 rounded-2xl font-black text-sm outline-none whitespace-nowrap lg:whitespace-normal ${activeTab === tab.id ? 'bg-gradient-to-r from-[#1A1A1A] to-[#333333] text-[#EBCB6C] shadow-md lg:scale-[1.02]' : 'text-[#1A1A1A]/60 hover:bg-gray-50'}`}>
-                    {tab.icon} {tab.label}
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center gap-3 px-4 py-3.5 rounded-xl font-medium text-sm whitespace-nowrap lg:whitespace-normal transition-all ${
+                      activeTab === tab.id
+                        ? 'bg-[#1e3a5f] text-white shadow-lg shadow-[#1e3a5f]/20'
+                        : 'text-[#1e3a5f]/50 hover:bg-[#1e3a5f]/5 hover:text-[#1e3a5f]'
+                    }`}
+                  >
+                    <span className={activeTab === tab.id ? 'text-[#d4a853]' : ''}>{tab.icon}</span>
+                    {tab.label}
                   </button>
                 ))}
               </nav>
-              <div className="mt-8 lg:mt-auto pt-8 border-t border-gray-100">
-                <button onClick={handleLogout} className="w-full flex items-center justify-center gap-3 px-5 py-4 rounded-2xl font-black text-sm text-red-500 bg-red-50 hover:bg-red-100 active:scale-95 border border-red-100">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg> Sair
+
+              {/* Logout */}
+              <div className="mt-auto pt-8 border-t border-[#1e3a5f]/10 hidden lg:block">
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl font-medium text-sm text-red-500 bg-red-50 hover:bg-red-100 transition-all"
+                >
+                  <LogoutIcon />
+                  Sair da conta
                 </button>
               </div>
             </div>
           </aside>
 
-          <section className="flex-grow animate-fade-in w-full overflow-hidden">
+          {/* Conteúdo Principal */}
+          <section className="flex-grow">
 
-            {isAdmin && activeTab === 'STORE_INFO' && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-[2rem] shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-white/60 p-8 md:p-10 w-full">
-                <h3 className="text-2xl font-black text-[#1A1A1A] mb-8">Informações da Loja</h3>
-                <form className="space-y-6 max-w-2xl" onSubmit={handleUpdateProfile}>
-                  <div className="flex flex-col md:flex-row items-center gap-6 mb-8 border-b border-gray-100 pb-8">
-                    <div className="w-24 h-24 rounded-full bg-gray-100 border-2 border-dashed border-gray-300 shadow-sm overflow-hidden flex-shrink-0 relative">
-                      {adminData.avatarUrl ? <img src={adminData.avatarUrl} className="w-full h-full object-cover" alt="Logo" /> : <span className="flex items-center justify-center h-full text-3xl text-gray-400">📷</span>}
+            {/* Tab: Informações Pessoais / Loja */}
+            {(activeTab === 'INFO' || activeTab === 'STORE_INFO') && (
+              <div className="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-[#1e3a5f]/5 p-6 lg:p-10">
+                <div className="flex items-center justify-between mb-8 pb-6 border-b border-[#1e3a5f]/10">
+                  <div>
+                    <h3 className="text-xl lg:text-2xl font-bold text-[#1e3a5f]">
+                      {isAdmin ? 'Informações da Loja' : 'Informações Pessoais'}
+                    </h3>
+                    <p className="text-[#1e3a5f]/40 text-sm mt-1">Gerencie seus dados</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleUpdateProfile} className="space-y-6">
+                  {/* Avatar Upload */}
+                  <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-[#faf8f5] rounded-2xl border border-[#1e3a5f]/5">
+                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-[#1e3a5f]/10 to-[#1e3a5f]/5 border-2 border-dashed border-[#1e3a5f]/20 overflow-hidden flex-shrink-0 relative group">
+                      {(isAdmin ? adminData.avatarUrl : clientData.avatarUrl) ? (
+                        <img src={isAdmin ? adminData.avatarUrl : clientData.avatarUrl} className="w-full h-full object-cover" alt="Avatar" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-4xl text-[#1e3a5f]/20">📷</div>
+                      )}
+                      <div className="absolute inset-0 bg-[#1e3a5f]/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-white text-xs font-medium">Alterar</span>
+                      </div>
                     </div>
-                    <div className="flex-grow w-full text-center md:text-left">
-                      <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Logo da Loja</label>
-                      <label className="cursor-pointer inline-flex items-center gap-2 bg-gray-50 border border-gray-200 px-6 py-3 rounded-xl font-black text-xs hover:bg-gray-100 uppercase text-[#1A1A1A]">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                        Escolher da Galeria <input type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
+                    <div className="text-center sm:text-left">
+                      <p className="text-sm font-medium text-[#1e3a5f] mb-2">{isAdmin ? 'Logo da Loja' : 'Foto de Perfil'}</p>
+                      <label className="inline-flex items-center gap-2 bg-white border border-[#1e3a5f]/10 hover:border-[#1e3a5f]/20 px-4 py-2.5 rounded-xl font-medium text-sm text-[#1e3a5f] cursor-pointer transition-all hover:shadow-md">
+                        <UploadIcon />
+                        Escolher imagem
+                        <input type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
                       </label>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Nome da Loja</label>
-                      <input type="text" required className="w-full bg-white border border-[#E5DCC3] px-5 py-4 rounded-2xl font-bold text-[#1A1A1A] outline-none focus:border-[#C1704D]" value={adminData.storeName} onChange={e => setAdminData({ ...adminData, storeName: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Telefone</label>
-                      <input type="text" required className="w-full bg-white border border-[#E5DCC3] px-5 py-4 rounded-2xl font-bold text-[#1A1A1A] outline-none focus:border-[#C1704D]" placeholder="(00) 00000-0000" value={adminData.phone} onChange={e => handlePhoneChange(e, true)} />
-                    </div>
-                  </div>
-
-                  <h4 className="font-black text-sm text-[#1A1A1A] mt-8 mb-4 border-b border-gray-100 pb-2">Endereço de Retirada</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <div className="md:col-span-1">
-                      <label className="block text-[10px] font-black text-[#C1704D] mb-2 uppercase flex items-center gap-1">
-                        {isCepLoading && <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>} CEP *
-                      </label>
-                      <input required className="w-full bg-white border border-[#C1704D]/30 px-4 py-3.5 rounded-xl font-black text-[#C1704D] outline-none focus:border-[#C1704D] placeholder-[#C1704D]/30" placeholder="00000-000" value={adminAddressForm.zipCode} onChange={e => handleCepChange(e, 'ADMIN')} maxLength="9" />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Rua / Logradouro *</label>
-                      <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold text-[#1A1A1A] outline-none focus:bg-white focus:border-[#C1704D]" value={adminAddressForm.street} onChange={e => setAdminAddressForm({ ...adminAddressForm, street: e.target.value })} />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <div>
-                      <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Número *</label>
-                      <input id="adminAddressNumber" required className="w-full bg-white border border-[#E5DCC3] px-4 py-3.5 rounded-xl font-bold text-[#1A1A1A] outline-none focus:border-[#C1704D]" value={adminAddressForm.number} onChange={e => setAdminAddressForm({ ...adminAddressForm, number: e.target.value })} />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Bairro *</label>
-                      <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold text-[#1A1A1A] outline-none focus:bg-white focus:border-[#C1704D]" value={adminAddressForm.neighborhood} onChange={e => setAdminAddressForm({ ...adminAddressForm, neighborhood: e.target.value })} />
-                    </div>
-                  </div>
-
+                  {/* Campos do formulário */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                      <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Cidade *</label>
-                      <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold text-[#1A1A1A] outline-none focus:bg-white focus:border-[#C1704D]" value={adminAddressForm.city} onChange={e => setAdminAddressForm({ ...adminAddressForm, city: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Estado (UF) *</label>
-                      <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold text-[#1A1A1A] outline-none focus:bg-white focus:border-[#C1704D] uppercase" maxLength="2" value={adminAddressForm.state} onChange={e => setAdminAddressForm({ ...adminAddressForm, state: e.target.value })} />
-                    </div>
+                    <InputField
+                      label={isAdmin ? "Nome da Loja" : "Nome Completo"}
+                      value={isAdmin ? adminData.storeName : clientData.name}
+                      onChange={(e) => isAdmin ? setAdminData({ ...adminData, storeName: e.target.value }) : setClientData({ ...clientData, name: e.target.value })}
+                      required
+                    />
+                    <InputField
+                      label="Telefone"
+                      value={isAdmin ? adminData.phone : clientData.phone}
+                      onChange={(e) => handlePhoneChange(e, isAdmin)}
+                      placeholder="(00) 00000-0000"
+                    />
+                    {!isAdmin && (
+                      <>
+                        <InputField
+                          label="E-mail"
+                          value={clientData.email}
+                          disabled
+                          className="bg-[#faf8f5]"
+                        />
+                        <InputField
+                          label="Data de Nascimento"
+                          type="date"
+                          value={clientData.birthDate}
+                          onChange={(e) => setClientData({ ...clientData, birthDate: e.target.value })}
+                        />
+                      </>
+                    )}
                   </div>
 
-                  <button type="submit" className="bg-gradient-to-r from-[#1A1A1A] to-[#333333] text-[#EBCB6C] font-black py-4.5 px-8 rounded-2xl shadow-lg active:scale-95 w-full uppercase text-xs mt-4">Salvar Configurações</button>
+                  {/* Endereço da Loja (Admin) */}
+                  {isAdmin && (
+                    <div className="pt-6 border-t border-[#1e3a5f]/10">
+                      <h4 className="font-semibold text-[#1e3a5f] mb-5 flex items-center gap-2">
+                        <LocationIcon className="w-5 h-5 text-[#d4a853]" />
+                        Endereço de Retirada
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <InputField
+                          label="CEP"
+                          value={adminAddressForm.zipCode}
+                          onChange={(e) => handleCepChange(e, 'ADMIN')}
+                          placeholder="00000-000"
+                          maxLength="9"
+                          loading={isCepLoading}
+                          className="md:col-span-1"
+                        />
+                        <InputField
+                          label="Rua"
+                          value={adminAddressForm.street}
+                          onChange={(e) => setAdminAddressForm({ ...adminAddressForm, street: e.target.value })}
+                          className="md:col-span-2"
+                        />
+                        <InputField
+                          label="Número"
+                          id="adminAddressNumber"
+                          value={adminAddressForm.number}
+                          onChange={(e) => setAdminAddressForm({ ...adminAddressForm, number: e.target.value })}
+                        />
+                        <InputField
+                          label="Bairro"
+                          value={adminAddressForm.neighborhood}
+                          onChange={(e) => setAdminAddressForm({ ...adminAddressForm, neighborhood: e.target.value })}
+                        />
+                        <InputField
+                          label="Cidade"
+                          value={adminAddressForm.city}
+                          onChange={(e) => setAdminAddressForm({ ...adminAddressForm, city: e.target.value })}
+                        />
+                        <InputField
+                          label="Estado"
+                          value={adminAddressForm.state}
+                          onChange={(e) => setAdminAddressForm({ ...adminAddressForm, state: e.target.value })}
+                          maxLength="2"
+                          className="uppercase"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="w-full sm:w-auto bg-[#1e3a5f] hover:bg-[#162d4a] text-white font-medium py-4 px-8 rounded-xl transition-all shadow-lg shadow-[#1e3a5f]/20 hover:shadow-xl flex items-center justify-center gap-2"
+                  >
+                    <SaveIcon />
+                    Salvar alterações
+                  </button>
                 </form>
               </div>
             )}
 
-            {!isAdmin && activeTab === 'INFO' && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-[2rem] shadow-sm border border-white/60 p-8 md:p-10 w-full">
-                <h3 className="text-2xl font-black text-[#1A1A1A] mb-8">Informações Pessoais</h3>
-                <form className="space-y-6 max-w-2xl" onSubmit={handleUpdateProfile}>
-                  <div className="flex flex-col md:flex-row items-center gap-6 mb-8 border-b border-gray-100 pb-8">
-                    <div className="w-24 h-24 rounded-full bg-gray-100 border-2 border-dashed border-gray-300 shadow-sm overflow-hidden flex-shrink-0 relative">
-                      {clientData.avatarUrl ? <img src={clientData.avatarUrl} className="w-full h-full object-cover" alt="Avatar" /> : <span className="flex items-center justify-center h-full text-3xl text-gray-400">📷</span>}
-                    </div>
-                    <div className="flex-grow w-full text-center md:text-left">
-                      <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Sua Foto</label>
-                      <label className="cursor-pointer inline-flex items-center gap-2 bg-gray-50 border border-gray-200 px-6 py-3 rounded-xl font-black text-xs hover:bg-gray-100 uppercase text-[#1A1A1A]">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                        Escolher da Galeria <input type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
-                      </label>
-                    </div>
+            {/* Tab: Endereços */}
+            {activeTab === 'ADDRESSES' && (
+              <div className="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-[#1e3a5f]/5 p-6 lg:p-10">
+                <div className="flex items-center justify-between mb-8 pb-6 border-b border-[#1e3a5f]/10">
+                  <div>
+                    <h3 className="text-xl lg:text-2xl font-bold text-[#1e3a5f]">Meus Endereços</h3>
+                    <p className="text-[#1e3a5f]/40 text-sm mt-1">{addresses.length} endereço(s) salvo(s)</p>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Nome Completo</label>
-                      <input type="text" required className="w-full bg-white border border-[#E5DCC3] px-5 py-4 rounded-2xl font-bold text-[#1A1A1A] outline-none focus:border-[#C1704D]" value={clientData.name} onChange={e => setClientData({ ...clientData, name: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Data Nascimento</label>
-                      <input type="date" required className="w-full bg-white border border-[#E5DCC3] px-5 py-4 rounded-2xl font-bold text-[#1A1A1A] outline-none focus:border-[#C1704D]" value={clientData.birthDate} onChange={e => setClientData({ ...clientData, birthDate: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Telemóvel</label>
-                      <input type="text" required className="w-full bg-white border border-[#E5DCC3] px-5 py-4 rounded-2xl font-bold text-[#1A1A1A] outline-none focus:border-[#C1704D]" placeholder="(00) 00000-0000" value={clientData.phone} onChange={e => handlePhoneChange(e, false)} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">E-mail</label>
-                      <input type="email" className="w-full bg-gray-50 border border-gray-200 px-5 py-4 rounded-2xl font-bold text-[#1A1A1A]/60 outline-none cursor-not-allowed" value={clientData.email} disabled />
-                    </div>
-                  </div>
-                  <button type="submit" className="bg-gradient-to-r from-[#1A1A1A] to-[#333333] text-[#EBCB6C] font-black py-4.5 px-8 w-full rounded-2xl shadow-lg active:scale-95 uppercase text-xs mt-6">Salvar Alterações</button>
-                </form>
-              </div>
-            )}
-
-            {!isAdmin && activeTab === 'ADDRESSES' && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-[2rem] shadow-sm border border-white/60 p-8 md:p-10 w-full">
-                <div className="flex justify-between items-center mb-8">
-                  <h3 className="text-2xl font-black text-[#1A1A1A]">Meus Endereços</h3>
-                  <button onClick={() => openAddressModal()} className="bg-[#1A1A1A] text-[#EBCB6C] font-black text-[10px] px-4 py-2 rounded-xl hover:bg-[#333] uppercase flex items-center gap-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg> Novo
+                  <button
+                    onClick={() => openAddressModal()}
+                    className="bg-[#1e3a5f] hover:bg-[#162d4a] text-white font-medium py-2.5 px-5 rounded-xl transition-all shadow-md flex items-center gap-2 text-sm"
+                  >
+                    <PlusIcon />
+                    <span className="hidden sm:inline">Novo endereço</span>
                   </button>
                 </div>
+
                 {addresses.length === 0 ? (
-                  <div className="text-center py-12 bg-gray-50 rounded-3xl border border-gray-100 border-dashed">
-                    <p className="text-[#1A1A1A]/40 font-black text-xs uppercase">Nenhum endereço guardado.</p>
+                  <div className="text-center py-16 bg-[#faf8f5] rounded-2xl border border-dashed border-[#1e3a5f]/10">
+                    <LocationIcon className="w-12 h-12 text-[#1e3a5f]/20 mx-auto mb-4" />
+                    <p className="text-[#1e3a5f]/40 font-medium">Nenhum endereço cadastrado</p>
+                    <p className="text-[#1e3a5f]/30 text-sm mt-1">Adicione um endereço para facilitar suas entregas</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    {addresses.map(addr => (
-                      <div key={addr.id} className={`${addr.isDefault ? 'border-2 border-[#EBCB6C] bg-gradient-to-r from-white to-[#FDF9EB]/50' : 'border border-gray-200 bg-white'} p-6 rounded-3xl relative overflow-hidden group`}>
-                        {addr.isDefault && <div className="absolute top-4 right-4 bg-[#1A1A1A] text-[#EBCB6C] text-[9px] font-black px-3 py-1 rounded-full uppercase">Principal</div>}
-                        <h4 className="font-black text-[#1A1A1A] text-lg mb-1">{addr.label || 'Sem título'}</h4>
-                        <p className="text-sm font-semibold text-[#1A1A1A]/60 leading-relaxed mb-5 whitespace-pre-wrap">
-                          {addr.street}, {addr.number} {addr.complement ? ` - ${addr.complement}` : ''}<br />
-                          {addr.neighborhood} - {addr.city}, {addr.state}<br />
-                          <span className="text-[10px] uppercase opacity-60">CEP: {addr.zipCode}</span>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    {addresses.map((addr) => (
+                      <div
+                        key={addr.id}
+                        className={`p-5 rounded-2xl border-2 transition-all ${
+                          addr.isDefault
+                            ? 'border-[#d4a853] bg-gradient-to-br from-[#d4a853]/5 to-transparent'
+                            : 'border-[#1e3a5f]/10 bg-white hover:border-[#1e3a5f]/20'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-[#1e3a5f]">{addr.label || 'Endereço'}</span>
+                            {addr.isDefault && (
+                              <span className="bg-[#d4a853] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                Principal
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-sm text-[#1e3a5f]/60 leading-relaxed">
+                          {addr.street}, {addr.number}
+                          {addr.complement && ` - ${addr.complement}`}<br />
+                          {addr.neighborhood} • {addr.city}/{addr.state}<br />
+                          <span className="text-[#1e3a5f]/40">CEP: {addr.zipCode}</span>
                         </p>
-                        <div className={`flex gap-4 pt-4 border-t ${addr.isDefault ? 'border-[#EBCB6C]/30' : 'border-gray-100'}`}>
-                          <button onClick={() => openAddressModal(addr)} className="text-[10px] font-black text-[#1A1A1A] hover:text-[#C1704D] uppercase">Editar</button>
-                          <button onClick={() => handleDeleteAddress(addr.id)} className="text-[10px] font-black text-red-500 hover:text-red-700 uppercase">Remover</button>
+                        <div className="flex gap-3 mt-4 pt-4 border-t border-[#1e3a5f]/5">
+                          <button
+                            onClick={() => openAddressModal(addr)}
+                            className="text-sm font-medium text-[#1e3a5f] hover:text-[#1e3a5f]/70 transition-colors"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => handleDeleteAddress(addr.id)}
+                            className="text-sm font-medium text-red-500 hover:text-red-600 transition-colors"
+                          >
+                            Excluir
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -743,34 +643,53 @@ export default function Profile() {
               </div>
             )}
 
-            {!isAdmin && activeTab === 'ORDERS' && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-[2rem] shadow-sm border border-white/60 p-8 md:p-10 w-full">
-                <h3 className="text-2xl font-black text-[#1A1A1A] mb-8">Histórico de Compras</h3>
+            {/* Tab: Pedidos */}
+            {activeTab === 'ORDERS' && (
+              <div className="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-[#1e3a5f]/5 p-6 lg:p-10">
+                <div className="flex items-center justify-between mb-8 pb-6 border-b border-[#1e3a5f]/10">
+                  <div>
+                    <h3 className="text-xl lg:text-2xl font-bold text-[#1e3a5f]">Histórico de Pedidos</h3>
+                    <p className="text-[#1e3a5f]/40 text-sm mt-1">{orders.length} pedido(s)</p>
+                  </div>
+                </div>
+
                 {orders.length === 0 ? (
-                  <div className="text-center py-16 bg-gray-50 rounded-3xl border border-gray-100">
-                    <p className="text-[#1A1A1A]/40 font-black text-sm uppercase">Nenhum pedido realizado.</p>
+                  <div className="text-center py-16 bg-[#faf8f5] rounded-2xl border border-dashed border-[#1e3a5f]/10">
+                    <OrderIcon className="w-12 h-12 text-[#1e3a5f]/20 mx-auto mb-4" />
+                    <p className="text-[#1e3a5f]/40 font-medium">Nenhum pedido realizado</p>
+                    <p className="text-[#1e3a5f]/30 text-sm mt-1">Seus pedidos aparecerão aqui</p>
                   </div>
                 ) : (
-                  <div className="space-y-6">
-                    {orders.map(order => {
+                  <div className="space-y-4">
+                    {orders.map((order) => {
                       const status = getStatusDisplay(order.status);
                       return (
-                        <div key={order.id} className="border border-gray-100 bg-white p-5 md:p-6 rounded-3xl flex flex-col md:flex-row justify-between md:items-center gap-4 shadow-sm">
-                          <div>
-                            <div className="flex items-center gap-3 mb-3">
-                              <span className="font-black text-[#1A1A1A] text-sm">#{order.id.slice(-6).toUpperCase()}</span>
-                              <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${status.color}`}>{status.label}</span>
+                        <div
+                          key={order.id}
+                          className="p-5 rounded-2xl border border-[#1e3a5f]/10 hover:border-[#1e3a5f]/20 transition-all hover:shadow-md"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                            <div className="flex items-center gap-3">
+                              <span className="font-bold text-[#1e3a5f]">#{order.id.slice(-6).toUpperCase()}</span>
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium border ${status.color}`}>
+                                {status.label}
+                              </span>
                             </div>
-                            <p className="text-xs font-bold text-[#1A1A1A]/50 mb-4">{formatDate(order.createdAt)}</p>
-                            <div className="space-y-1">
-                              {order.items.map((i, idx) => (
-                                <p key={idx} className="text-sm font-semibold text-[#1A1A1A]"><span className="text-[#C1704D] font-black mr-2">{i.quantity}x</span> {i.product?.name || i.name || 'Removido'}</p>
-                              ))}
-                            </div>
+                            <span className="text-sm text-[#1e3a5f]/40">{formatDate(order.createdAt)}</span>
                           </div>
-                          <div className="md:text-right mt-2 md:mt-0 border-t md:border-0 border-gray-100 pt-4 md:pt-0">
-                            <p className="text-[10px] font-black text-[#1A1A1A]/40 uppercase mb-1">Total da Compra</p>
-                            <p className="text-2xl font-black text-[#C1704D]">R$ {order.total.toFixed(2).replace('.', ',')}</p>
+                          <div className="space-y-2 mb-4">
+                            {order.items.map((item, idx) => (
+                              <p key={idx} className="text-sm text-[#1e3a5f]/70">
+                                <span className="font-semibold text-[#1e3a5f]">{item.quantity}x</span>{' '}
+                                {item.product?.name || item.name}
+                              </p>
+                            ))}
+                          </div>
+                          <div className="pt-4 border-t border-[#1e3a5f]/5 flex justify-between items-center">
+                            <span className="text-sm text-[#1e3a5f]/40">Total</span>
+                            <span className="text-xl font-bold text-[#1e3a5f]">
+                              R$ {order.total.toFixed(2).replace('.', ',')}
+                            </span>
                           </div>
                         </div>
                       );
@@ -780,11 +699,19 @@ export default function Profile() {
               </div>
             )}
 
-            {!isAdmin && activeTab === 'PAYMENTS' && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-[2rem] shadow-sm border border-white/60 p-8 md:p-10 w-full">
-                <h3 className="text-2xl font-black text-[#1A1A1A] mb-8">Formas de Pagamento</h3>
-                <div className="text-center py-16 bg-gray-50 rounded-3xl border border-gray-100 border-dashed">
-                  <p className="text-[#1A1A1A]/40 font-black text-sm uppercase">Em breve você poderá gerenciar seus cartões aqui.</p>
+            {/* Tab: Pagamentos */}
+            {activeTab === 'PAYMENTS' && (
+              <div className="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-[#1e3a5f]/5 p-6 lg:p-10">
+                <div className="flex items-center justify-between mb-8 pb-6 border-b border-[#1e3a5f]/10">
+                  <div>
+                    <h3 className="text-xl lg:text-2xl font-bold text-[#1e3a5f]">Formas de Pagamento</h3>
+                    <p className="text-[#1e3a5f]/40 text-sm mt-1">Gerencie seus métodos de pagamento</p>
+                  </div>
+                </div>
+                <div className="text-center py-16 bg-[#faf8f5] rounded-2xl border border-dashed border-[#1e3a5f]/10">
+                  <CardIcon className="w-12 h-12 text-[#1e3a5f]/20 mx-auto mb-4" />
+                  <p className="text-[#1e3a5f]/40 font-medium">Em breve</p>
+                  <p className="text-[#1e3a5f]/30 text-sm mt-1">Você poderá salvar seus cartões aqui</p>
                 </div>
               </div>
             )}
@@ -792,139 +719,278 @@ export default function Profile() {
         </main>
       )}
 
+      {/* Modal de Endereço */}
       {isAddressModalOpen && (
-        <div className="fixed inset-0 bg-[#1A1A1A]/80 flex items-center justify-center z-50 p-4 md:p-6">
-          <div className="bg-[#FDF9EB] rounded-[2rem] p-8 md:p-10 w-full max-w-2xl shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-black text-[#1A1A1A] border-b border-[#E5DCC3]/50 pb-4 mb-8">{editingAddressId ? 'Editar Endereço' : 'Novo Endereço'}</h2>
-            <form onSubmit={handleSaveAddress} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="md:col-span-2">
-                  <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Identificação</label>
-                  <input required autoFocus className="w-full bg-white border border-[#E5DCC3] px-4 py-3.5 rounded-xl font-bold outline-none" placeholder="Ex: Casa, Trabalho" value={addressForm.label} onChange={e => setAddressForm({ ...addressForm, label: e.target.value })} />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-[#C1704D] mb-2 uppercase flex items-center gap-1">
-                    {isCepLoading && <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>} CEP *
-                  </label>
-                  <input required className="w-full bg-white border border-[#C1704D]/30 px-4 py-3.5 rounded-xl font-black text-[#C1704D] outline-none" placeholder="00000-000" value={addressForm.zipCode} onChange={e => handleCepChange(e, 'CLIENT')} maxLength="9" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-                <div className="md:col-span-3">
-                  <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Rua / Logradouro *</label>
-                  <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold outline-none" value={addressForm.street} onChange={e => setAddressForm({ ...addressForm, street: e.target.value })} />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Número *</label>
-                  <input id="addressNumber" required className="w-full bg-white border border-[#E5DCC3] px-4 py-3.5 rounded-xl font-bold outline-none" value={addressForm.number} onChange={e => setAddressForm({ ...addressForm, number: e.target.value })} />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Complemento</label>
-                  <input className="w-full bg-white border border-[#E5DCC3] px-4 py-3.5 rounded-xl font-bold outline-none" value={addressForm.complement} onChange={e => setAddressForm({ ...addressForm, complement: e.target.value })} />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Bairro *</label>
-                  <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold outline-none" value={addressForm.neighborhood} onChange={e => setAddressForm({ ...addressForm, neighborhood: e.target.value })} />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="md:col-span-2">
-                  <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">Cidade *</label>
-                  <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold outline-none" value={addressForm.city} onChange={e => setAddressForm({ ...addressForm, city: e.target.value })} />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-[#1A1A1A]/50 mb-2 uppercase">UF *</label>
-                  <input required className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl font-bold outline-none uppercase" maxLength="2" value={addressForm.state} onChange={e => setAddressForm({ ...addressForm, state: e.target.value })} />
-                </div>
-              </div>
-              <div className="flex items-center gap-3 pt-2">
-                <input
-                  type="checkbox"
-                  id="isDefault"
-                  checked={addressForm.isDefault}
-                  onChange={e => setAddressForm({ ...addressForm, isDefault: e.target.checked })}
-                  className="w-5 h-5 rounded border-gray-300 text-[#C1704D] focus:ring-[#C1704D]"
-                />
-                <label htmlFor="isDefault" className="text-sm font-bold text-[#1A1A1A]/70">Definir como endereço principal</label>
-              </div>
-              <div className="flex gap-4 pt-6 border-t border-[#E5DCC3]/50">
-                <button type="button" onClick={() => setIsAddressModalOpen(false)} className="w-1/3 bg-white border border-gray-200 py-4 rounded-xl font-black uppercase text-xs">Cancelar</button>
-                <button type="submit" className="w-2/3 bg-gradient-to-r from-[#1A1A1A] to-[#333333] text-[#EBCB6C] py-4 rounded-xl font-black uppercase text-xs">Gravar</button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <Modal onClose={() => setIsAddressModalOpen(false)} title={editingAddressId ? 'Editar Endereço' : 'Novo Endereço'}>
+          <form onSubmit={handleSaveAddress} className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <InputField
+                label="Identificação"
+                value={addressForm.label}
+                onChange={(e) => setAddressForm({ ...addressForm, label: e.target.value })}
+                placeholder="Ex: Casa, Trabalho"
+                className="md:col-span-2"
+                autoFocus
+              />
+              <InputField
+                label="CEP"
+                value={addressForm.zipCode}
+                onChange={(e) => handleCepChange(e, 'CLIENT')}
+                placeholder="00000-000"
+                maxLength="9"
+                loading={isCepLoading}
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+              <InputField
+                label="Rua"
+                value={addressForm.street}
+                onChange={(e) => setAddressForm({ ...addressForm, street: e.target.value })}
+                className="md:col-span-3"
+                required
+              />
+              <InputField
+                id="addressNumber"
+                label="Número"
+                value={addressForm.number}
+                onChange={(e) => setAddressForm({ ...addressForm, number: e.target.value })}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <InputField
+                label="Complemento"
+                value={addressForm.complement}
+                onChange={(e) => setAddressForm({ ...addressForm, complement: e.target.value })}
+                placeholder="Apto, Bloco..."
+              />
+              <InputField
+                label="Bairro"
+                value={addressForm.neighborhood}
+                onChange={(e) => setAddressForm({ ...addressForm, neighborhood: e.target.value })}
+                required
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <InputField
+                label="Cidade"
+                value={addressForm.city}
+                onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
+                className="md:col-span-2"
+                required
+              />
+              <InputField
+                label="Estado"
+                value={addressForm.state}
+                onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
+                maxLength="2"
+                className="uppercase"
+                required
+              />
+            </div>
+            <label className="flex items-center gap-3 cursor-pointer p-4 rounded-xl bg-[#faf8f5] border border-[#1e3a5f]/10 hover:bg-[#f5f3f0] transition-all">
+              <input
+                type="checkbox"
+                checked={addressForm.isDefault}
+                onChange={(e) => setAddressForm({ ...addressForm, isDefault: e.target.checked })}
+                className="w-5 h-5 rounded border-[#1e3a5f]/20 text-[#1e3a5f] focus:ring-[#1e3a5f]"
+              />
+              <span className="text-sm font-medium text-[#1e3a5f]/70">Definir como endereço principal</span>
+            </label>
+            <div className="flex gap-4 pt-4">
+              <button
+                type="button"
+                onClick={() => setIsAddressModalOpen(false)}
+                className="flex-1 sm:flex-none px-6 py-3 rounded-xl font-medium text-[#1e3a5f] bg-[#faf8f5] hover:bg-[#f0eeeb] transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="flex-1 sm:flex-none px-8 py-3 rounded-xl font-medium text-white bg-[#1e3a5f] hover:bg-[#162d4a] transition-all shadow-lg shadow-[#1e3a5f]/20"
+              >
+                Salvar
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
+      {/* Modal de Crop */}
       {cropModalOpen && (
-        <div className="fixed inset-0 bg-[#1A1A1A]/90 backdrop-blur-md flex items-center justify-center z-50 p-4 md:p-6">
-          <div className="bg-[#FDF9EB] rounded-[2rem] w-full max-w-md shadow-2xl flex flex-col h-[80vh] md:h-[600px] animate-fade-in">
-            <div className="p-6 border-b border-[#E5DCC3]/50 flex justify-between items-center bg-white/50">
-              <h2 className="text-xl font-black">Ajustar Foto</h2>
-              <button onClick={() => setCropModalOpen(false)} className="text-gray-500 w-8 h-8 rounded-full bg-gray-200/50 flex items-center justify-center">✕</button>
-            </div>
-            <div className="relative flex-grow bg-[#1A1A1A]">
-              {imageToCrop && <Cropper image={imageToCrop} crop={crop} zoom={zoom} aspect={1} cropShape="round" showGrid={false} onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={(a, pixels) => setCroppedAreaPixels(pixels)} />}
-            </div>
-            <div className="p-6 bg-white/80 space-y-5">
-              <div className="flex items-center gap-4">
-                <span className="text-[10px] font-black uppercase">Zoom</span>
-                <input type="range" value={zoom} min={1} max={3} step={0.1} onChange={(e) => setZoom(parseFloat(e.target.value))} className="flex-grow accent-[#C1704D]" />
-              </div>
-              <button onClick={handleSaveCrop} className="w-full bg-[#C1704D] text-white font-black py-4.5 rounded-xl uppercase text-xs">Confirmar Recorte</button>
-            </div>
+        <Modal onClose={() => setCropModalOpen(false)} title="Ajustar Foto" noPadding>
+          <div className="relative h-80 bg-[#1e3a5f]">
+            {imageToCrop && (
+              <Cropper
+                image={imageToCrop}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={(a, pixels) => setCroppedAreaPixels(pixels)}
+              />
+            )}
           </div>
-        </div>
+          <div className="p-6 space-y-5">
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium text-[#1e3a5f]/50">Zoom</span>
+              <input
+                type="range"
+                value={zoom}
+                min={1}
+                max={3}
+                step={0.1}
+                onChange={(e) => setZoom(parseFloat(e.target.value))}
+                className="flex-grow accent-[#1e3a5f]"
+              />
+            </div>
+            <button
+              onClick={handleSaveCrop}
+              className="w-full bg-[#1e3a5f] hover:bg-[#162d4a] text-white font-medium py-4 rounded-xl transition-all shadow-lg"
+            >
+              Confirmar
+            </button>
+          </div>
+        </Modal>
       )}
 
-      <footer className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#1A1A1A]/95 backdrop-blur-lg p-2 px-6 border-t border-white/10 pb-safe">
-        <div className="flex justify-between items-center w-full max-w-md mx-auto">
-          {isAdmin ? (
-            <>
-              <button onClick={() => navigate('/promotions')} className="flex flex-col items-center gap-1.5 text-white/40 hover:text-white p-2 transition-all">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
-                <span className="text-[9px] font-black tracking-[0.2em]">OFERTAS</span>
-              </button>
-
-              <button onClick={() => navigate('/admin')} className="flex flex-col items-center gap-1.5 text-white/40 hover:text-white p-2 transition-all">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                <span className="text-[9px] font-black tracking-[0.2em]">PAINEL</span>
-              </button>
-
-              <button onClick={() => navigate('/admin/products')} className="flex flex-col items-center gap-1.5 text-white/40 hover:text-white p-2 transition-all">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-                <span className="text-[9px] font-black tracking-[0.2em]">PRODUTOS</span>
-              </button>
-
-              <button onClick={() => window.scrollTo(0, 0)} className="flex flex-col items-center gap-1.5 text-[#EBCB6C] p-2 transition-all relative">
-                <div className="bg-[#EBCB6C] text-[#1A1A1A] p-3 rounded-full shadow-[0_4px_15px_rgba(235,203,108,0.4)] border-4 border-[#1A1A1A] -mt-6">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                </div>
-                <span className="text-[9px] font-black tracking-[0.2em] mt-1">CONFIG</span>
-              </button>
-            </>
-          ) : (
-            <>
-              <button onClick={() => navigate('/menu')} className="flex flex-col items-center gap-1.5 text-white/40 hover:text-white p-2 transition-all">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-                <span className="text-[9px] font-black tracking-[0.2em]">LOJA</span>
-              </button>
-              <button onClick={() => navigate('/promotions')} className="flex flex-col items-center gap-1.5 text-white/40 hover:text-white p-2 transition-all">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
-                <span className="text-[9px] font-black tracking-[0.2em]">OFERTAS</span>
-              </button>
-              <button onClick={() => window.scrollTo(0, 0)} className="flex flex-col items-center gap-1.5 text-[#EBCB6C] p-2 transition-all relative">
-                <div className="bg-[#EBCB6C] text-[#1A1A1A] p-3 rounded-full shadow-[0_4px_15px_rgba(235,203,108,0.4)] border-4 border-[#1A1A1A] -mt-6">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                </div>
-                <span className="text-[9px] font-black tracking-[0.2em] mt-1">PERFIL</span>
-              </button>
-            </>
-          )}
+      {/* Footer Mobile */}
+      <footer className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-[#1e3a5f]/10 pb-safe">
+        <div className="flex justify-around items-center py-2 px-4">
+          <NavBtn onClick={() => navigate('/menu')} icon={<HomeIcon />} label="Início" />
+          <NavBtn onClick={() => navigate('/promotions')} icon={<TagIcon />} label="Ofertas" />
+          <NavBtn onClick={() => {}} icon={<UserIcon />} label="Perfil" active />
+          <NavBtn onClick={handleLogout} icon={<LogoutIcon />} label="Sair" danger />
         </div>
       </footer>
     </div>
   );
 }
+
+// ============ COMPONENTES AUXILIARES ============
+
+const Modal = ({ onClose, title, children, noPadding }) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm" onClick={onClose}></div>
+    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-fade-in">
+      <div className="flex items-center justify-between p-6 border-b border-[#1e3a5f]/10">
+        <h2 className="text-xl font-bold text-[#1e3a5f]">{title}</h2>
+        <button
+          onClick={onClose}
+          className="w-10 h-10 rounded-xl bg-[#faf8f5] hover:bg-[#f0eeeb] flex items-center justify-center text-[#1e3a5f]/50 hover:text-[#1e3a5f] transition-all"
+        >
+          <CloseIcon />
+        </button>
+      </div>
+      <div className={noPadding ? '' : 'p-6'}>{children}</div>
+    </div>
+  </div>
+);
+
+const InputField = ({ label, loading, className = '', ...props }) => (
+  <div className={className}>
+    <label className="block text-xs font-medium text-[#1e3a5f]/50 mb-2 flex items-center gap-2">
+      {label}
+      {loading && (
+        <svg className="w-3 h-3 animate-spin text-[#1e3a5f]" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+      )}
+    </label>
+    <input
+      className={`w-full px-4 py-3.5 rounded-xl bg-[#faf8f5] border border-[#1e3a5f]/10 focus:border-[#1e3a5f]/30 focus:bg-white focus:ring-4 focus:ring-[#1e3a5f]/5 outline-none transition-all text-[#1e3a5f] placeholder-[#1e3a5f]/30 disabled:opacity-50 disabled:cursor-not-allowed ${props.className || ''}`}
+      {...props}
+    />
+  </div>
+);
+
+const NavBtn = ({ onClick, icon, label, active, danger }) => (
+  <button
+    onClick={onClick}
+    className={`flex flex-col items-center gap-1 p-2 transition-all ${
+      danger ? 'text-red-400' : active ? 'text-[#1e3a5f]' : 'text-[#1e3a5f]/40 hover:text-[#1e3a5f]/60'
+    }`}
+  >
+    {icon}
+    <span className="text-[9px] font-semibold uppercase tracking-wider">{label}</span>
+  </button>
+);
+
+// ============ ÍCONES ============
+
+const UserIcon = ({ className = "w-6 h-6" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+  </svg>
+);
+
+const LocationIcon = ({ className = "w-6 h-6" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+  </svg>
+);
+
+const OrderIcon = ({ className = "w-6 h-6" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+  </svg>
+);
+
+const CardIcon = ({ className = "w-6 h-6" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+  </svg>
+);
+
+const StoreIcon = ({ className = "w-6 h-6" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+  </svg>
+);
+
+const LogoutIcon = ({ className = "w-6 h-6" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+  </svg>
+);
+
+const HomeIcon = ({ className = "w-6 h-6" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+  </svg>
+);
+
+const TagIcon = ({ className = "w-6 h-6" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+  </svg>
+);
+
+const PlusIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
+  </svg>
+);
+
+const UploadIcon = ({ className = "w-4 h-4" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+  </svg>
+);
+
+const SaveIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+  </svg>
+);
+
+const CloseIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+  </svg>
+);
