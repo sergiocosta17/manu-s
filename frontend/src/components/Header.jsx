@@ -46,7 +46,7 @@ export default function Header() {
   const handleLogout = () => {
     if (window.confirm('Deseja sair da sua conta?')) {
       localStorage.clear();
-      navigate('/');
+      navigate('/menu');
     }
   };
 
@@ -56,8 +56,6 @@ export default function Header() {
   };
 
   const isActive = (path) => location.pathname === path;
-
-  if (!isLoggedIn) return null;
 
   const activeOrdersCount = activeTrackingOrders?.length || 0;
   const hasItemsInCart = cartItemsCount > 0;
@@ -131,201 +129,247 @@ export default function Header() {
           {/* Ações Desktop */}
           <div className="hidden md:flex items-center gap-3">
             
-            {/* Meus Pedidos - Cliente */}
-            {!isAdmin && (
-              <button
-                onClick={() => setIsTrackingOpen?.(true)}
-                className={`relative flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-medium text-sm ${
-                  activeOrdersCount > 0
-                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-lg shadow-green-500/20'
-                    : 'bg-[#faf8f5] hover:bg-[#f0eeeb] text-[#1e3a5f] border border-[#1e3a5f]/10'
-                }`}
-              >
-                {activeOrdersCount > 0 && (
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
-                  </span>
+            {/* ====== USUÁRIO LOGADO ====== */}
+            {isLoggedIn ? (
+              <>
+                {/* Meus Pedidos - Cliente */}
+                {!isAdmin && (
+                  <button
+                    onClick={() => setIsTrackingOpen?.(true)}
+                    className={`relative flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-medium text-sm ${
+                      activeOrdersCount > 0
+                        ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-lg shadow-green-500/20'
+                        : 'bg-[#faf8f5] hover:bg-[#f0eeeb] text-[#1e3a5f] border border-[#1e3a5f]/10'
+                    }`}
+                  >
+                    {activeOrdersCount > 0 && (
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
+                      </span>
+                    )}
+                    <DeliveryIcon className="w-4 h-4" />
+                    <span>Acompanhar</span>
+                    {activeOrdersCount > 0 && (
+                      <span className="bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        {activeOrdersCount}
+                      </span>
+                    )}
+                  </button>
                 )}
-                <DeliveryIcon className="w-4 h-4" />
-                <span>Acompanhar</span>
-                {activeOrdersCount > 0 && (
-                  <span className="bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    {activeOrdersCount}
-                  </span>
+
+                {/* Carrinho - Cliente */}
+                {!isAdmin && (
+                  <button 
+                    onClick={() => setIsCartOpen?.(true)}
+                    className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all ${
+                      hasItemsInCart
+                        ? 'bg-[#1e3a5f] hover:bg-[#162d4a] text-white shadow-md hover:shadow-lg'
+                        : 'bg-[#faf8f5] hover:bg-[#f0eeeb] text-[#1e3a5f] border border-[#1e3a5f]/10'
+                    }`}
+                  >
+                    <CartIcon className="w-5 h-5" />
+                    <span className="text-sm font-medium">
+                      {hasItemsInCart 
+                        ? `R$ ${cartTotalValue.toFixed(2).replace('.', ',')}`
+                        : 'Carrinho'
+                      }
+                    </span>
+                    {hasItemsInCart && (
+                      <span className="absolute -top-1.5 -right-1.5 bg-[#d4a853] text-[#1e3a5f] text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-md">
+                        {cartItemsCount}
+                      </span>
+                    )}
+                  </button>
                 )}
-              </button>
+
+                {/* Perfil */}
+                <button 
+                  onClick={() => navigate('/profile')}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all ${
+                    isActive('/profile')
+                      ? 'bg-[#1e3a5f] text-white shadow-md'
+                      : 'bg-[#faf8f5] hover:bg-[#f0eeeb] text-[#1e3a5f] border border-[#1e3a5f]/10'
+                  }`}
+                >
+                  <UserIcon className="w-5 h-5" />
+                  <span className="text-sm font-medium">Perfil</span>
+                </button>
+
+                {/* Logout */}
+                <button 
+                  onClick={handleLogout}
+                  className="w-10 h-10 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition-all border border-red-100"
+                  title="Sair"
+                >
+                  <LogoutIcon className="w-5 h-5" />
+                </button>
+              </>
+            ) : (
+              /* ====== USUÁRIO NÃO LOGADO ====== */
+              <>
+                <button 
+                  onClick={() => navigate('/login')}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all bg-[#faf8f5] hover:bg-[#f0eeeb] text-[#1e3a5f] border border-[#1e3a5f]/10 font-medium text-sm"
+                >
+                  <UserIcon className="w-5 h-5" />
+                  <span>Entrar</span>
+                </button>
+                
+                <button 
+                  onClick={() => navigate('/login?mode=register')}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all bg-[#1e3a5f] hover:bg-[#162d4a] text-white shadow-md hover:shadow-lg font-medium text-sm"
+                >
+                  <span>Criar Conta</span>
+                </button>
+              </>
             )}
-
-            {/* Carrinho - Cliente */}
-            {!isAdmin && (
-              <button 
-                onClick={() => setIsCartOpen?.(true)}
-                className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all ${
-                  hasItemsInCart
-                    ? 'bg-[#1e3a5f] hover:bg-[#162d4a] text-white shadow-md hover:shadow-lg'
-                    : 'bg-[#faf8f5] hover:bg-[#f0eeeb] text-[#1e3a5f] border border-[#1e3a5f]/10'
-                }`}
-              >
-                <CartIcon className="w-5 h-5" />
-                <span className="text-sm font-medium">
-                  {hasItemsInCart 
-                    ? `R$ ${cartTotalValue.toFixed(2).replace('.', ',')}`
-                    : 'Carrinho'
-                  }
-                </span>
-                {hasItemsInCart && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-[#d4a853] text-[#1e3a5f] text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-md">
-                    {cartItemsCount}
-                  </span>
-                )}
-              </button>
-            )}
-
-            {/* Perfil */}
-            <button 
-              onClick={() => navigate('/profile')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all ${
-                isActive('/profile')
-                  ? 'bg-[#1e3a5f] text-white shadow-md'
-                  : 'bg-[#faf8f5] hover:bg-[#f0eeeb] text-[#1e3a5f] border border-[#1e3a5f]/10'
-              }`}
-            >
-              <UserIcon className="w-5 h-5" />
-              <span className="text-sm font-medium">Perfil</span>
-            </button>
-
-            {/* Logout */}
-            <button 
-              onClick={handleLogout}
-              className="w-10 h-10 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition-all border border-red-100"
-              title="Sair"
-            >
-              <LogoutIcon className="w-5 h-5" />
-            </button>
           </div>
 
           {/* Ações Mobile */}
           <div className="flex md:hidden items-center gap-2">
             
-            {/* Menu Admin Mobile */}
-            {isAdmin && (
-              <div className="relative" ref={adminMenuRef}>
-                <button
-                  onClick={() => setIsAdminMenuOpen(!isAdminMenuOpen)}
-                  className={`p-2.5 rounded-xl transition-all ${
-                    isAdminMenuOpen
-                      ? 'bg-[#1e3a5f] text-white'
-                      : 'bg-[#faf8f5] text-[#1e3a5f] border border-[#1e3a5f]/10'
-                  }`}
-                >
-                  {isAdminMenuOpen ? (
-                    <CloseIcon className="w-5 h-5" />
-                  ) : (
-                    <MenuHamburgerIcon className="w-5 h-5" />
-                  )}
-                </button>
+            {/* ====== USUÁRIO LOGADO - MOBILE ====== */}
+            {isLoggedIn ? (
+              <>
+                {/* Menu Admin Mobile */}
+                {isAdmin && (
+                  <div className="relative" ref={adminMenuRef}>
+                    <button
+                      onClick={() => setIsAdminMenuOpen(!isAdminMenuOpen)}
+                      className={`p-2.5 rounded-xl transition-all ${
+                        isAdminMenuOpen
+                          ? 'bg-[#1e3a5f] text-white'
+                          : 'bg-[#faf8f5] text-[#1e3a5f] border border-[#1e3a5f]/10'
+                      }`}
+                    >
+                      {isAdminMenuOpen ? (
+                        <CloseIcon className="w-5 h-5" />
+                      ) : (
+                        <MenuHamburgerIcon className="w-5 h-5" />
+                      )}
+                    </button>
 
-                {/* Dropdown Menu Admin */}
-                {isAdminMenuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-[#1e3a5f]/10 overflow-hidden animate-fade-in z-50">
-                    <div className="p-2">
-                      {adminMenuItems.map((item) => (
-                        <button
-                          key={item.path}
-                          onClick={() => handleAdminNavigate(item.path)}
-                          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left ${
-                            isActive(item.path)
-                              ? 'bg-[#1e3a5f] text-white'
-                              : 'text-[#1e3a5f] hover:bg-[#faf8f5]'
-                          }`}
-                        >
-                          {item.icon}
-                          <span className="font-medium text-sm">{item.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                    
-                    {/* Divider */}
-                    <div className="border-t border-[#1e3a5f]/10 mx-2"></div>
-                    
-                    {/* Perfil e Logout no Menu */}
-                    <div className="p-2">
-                      <button
-                        onClick={() => handleAdminNavigate('/profile')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left ${
-                          isActive('/profile')
-                            ? 'bg-[#1e3a5f] text-white'
-                            : 'text-[#1e3a5f] hover:bg-[#faf8f5]'
-                        }`}
-                      >
-                        <UserIcon className="w-5 h-5" />
-                        <span className="font-medium text-sm">Perfil</span>
-                      </button>
-                      
-                      <button
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left text-red-500 hover:bg-red-50"
-                      >
-                        <LogoutIcon className="w-5 h-5" />
-                        <span className="font-medium text-sm">Sair</span>
-                      </button>
-                    </div>
+                    {/* Dropdown Menu Admin */}
+                    {isAdminMenuOpen && (
+                      <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-[#1e3a5f]/10 overflow-hidden animate-fade-in z-50">
+                        <div className="p-2">
+                          {adminMenuItems.map((item) => (
+                            <button
+                              key={item.path}
+                              onClick={() => handleAdminNavigate(item.path)}
+                              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left ${
+                                isActive(item.path)
+                                  ? 'bg-[#1e3a5f] text-white'
+                                  : 'text-[#1e3a5f] hover:bg-[#faf8f5]'
+                              }`}
+                            >
+                              {item.icon}
+                              <span className="font-medium text-sm">{item.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                        
+                        {/* Divider */}
+                        <div className="border-t border-[#1e3a5f]/10 mx-2"></div>
+                        
+                        {/* Perfil e Logout no Menu */}
+                        <div className="p-2">
+                          <button
+                            onClick={() => handleAdminNavigate('/profile')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left ${
+                              isActive('/profile')
+                                ? 'bg-[#1e3a5f] text-white'
+                                : 'text-[#1e3a5f] hover:bg-[#faf8f5]'
+                            }`}
+                          >
+                            <UserIcon className="w-5 h-5" />
+                            <span className="font-medium text-sm">Perfil</span>
+                          </button>
+                          
+                          <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left text-red-500 hover:bg-red-50"
+                          >
+                            <LogoutIcon className="w-5 h-5" />
+                            <span className="font-medium text-sm">Sair</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* Meus Pedidos - Mobile (só cliente) */}
-            {!isAdmin && (
-              <button
-                onClick={() => setIsTrackingOpen?.(true)}
-                className={`relative p-2.5 rounded-xl transition-all ${
-                  activeOrdersCount > 0
-                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/20'
-                    : 'bg-[#faf8f5] text-[#1e3a5f] border border-[#1e3a5f]/10'
-                }`}
-              >
-                <DeliveryIcon className="w-5 h-5" />
-                {activeOrdersCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-4 w-4 bg-white text-green-600 text-[9px] font-bold items-center justify-center">
-                      {activeOrdersCount}
-                    </span>
-                  </span>
+                {/* Meus Pedidos - Mobile (só cliente) */}
+                {!isAdmin && (
+                  <button
+                    onClick={() => setIsTrackingOpen?.(true)}
+                    className={`relative p-2.5 rounded-xl transition-all ${
+                      activeOrdersCount > 0
+                        ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/20'
+                        : 'bg-[#faf8f5] text-[#1e3a5f] border border-[#1e3a5f]/10'
+                    }`}
+                  >
+                    <DeliveryIcon className="w-5 h-5" />
+                    {activeOrdersCount > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-4 w-4 bg-white text-green-600 text-[9px] font-bold items-center justify-center">
+                          {activeOrdersCount}
+                        </span>
+                      </span>
+                    )}
+                  </button>
                 )}
-              </button>
-            )}
 
-            {/* Carrinho Mobile (só cliente) */}
-            {!isAdmin && (
-              <button 
-                onClick={() => setIsCartOpen?.(true)}
-                className={`relative p-2.5 rounded-xl transition-all ${
-                  hasItemsInCart
-                    ? 'bg-[#1e3a5f] text-white'
-                    : 'bg-[#faf8f5] text-[#1e3a5f] border border-[#1e3a5f]/10'
-                }`}
-              >
-                <CartIcon className="w-5 h-5" />
-                {hasItemsInCart && (
-                  <span className="absolute -top-1 -right-1 bg-[#d4a853] text-[#1e3a5f] text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                    {cartItemsCount}
-                  </span>
+                {/* Carrinho Mobile (só cliente) */}
+                {!isAdmin && (
+                  <button 
+                    onClick={() => setIsCartOpen?.(true)}
+                    className={`relative p-2.5 rounded-xl transition-all ${
+                      hasItemsInCart
+                        ? 'bg-[#1e3a5f] text-white'
+                        : 'bg-[#faf8f5] text-[#1e3a5f] border border-[#1e3a5f]/10'
+                    }`}
+                  >
+                    <CartIcon className="w-5 h-5" />
+                    {hasItemsInCart && (
+                      <span className="absolute -top-1 -right-1 bg-[#d4a853] text-[#1e3a5f] text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                        {cartItemsCount}
+                      </span>
+                    )}
+                  </button>
                 )}
-              </button>
-            )}
 
-            {/* Logout Mobile (só cliente) */}
-            {!isAdmin && (
-              <button 
-                onClick={handleLogout}
-                className="p-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 transition-all border border-red-100"
-                title="Sair"
-              >
-                <LogoutIcon className="w-5 h-5" />
-              </button>
+                {/* Logout Mobile (só cliente) */}
+                {!isAdmin && (
+                  <button 
+                    onClick={handleLogout}
+                    className="p-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 transition-all border border-red-100"
+                    title="Sair"
+                  >
+                    <LogoutIcon className="w-5 h-5" />
+                  </button>
+                )}
+              </>
+            ) : (
+              /* ====== USUÁRIO NÃO LOGADO - MOBILE ====== */
+              <>
+                <button 
+                  onClick={() => navigate('/login')}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all bg-[#faf8f5] hover:bg-[#f0eeeb] text-[#1e3a5f] border border-[#1e3a5f]/10 font-medium text-sm"
+                >
+                  <UserIcon className="w-5 h-5" />
+                  <span>Entrar</span>
+                </button>
+                
+                <button 
+                  onClick={() => navigate('/login?mode=register')}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all bg-[#1e3a5f] hover:bg-[#162d4a] text-white shadow-md font-medium text-sm"
+                >
+                  <span>Criar Conta</span>
+                </button>
+              </>
             )}
           </div>
         </div>
