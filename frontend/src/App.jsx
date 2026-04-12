@@ -11,6 +11,7 @@ import AdminProducts from './pages/AdminProducts';
 import Header from './components/Header';
 import MobileFooter from './components/MobileFooter';
 import GlobalModals from './components/GlobalModals';
+import ProductPage from './pages/ProductPage';
 
 function AppLayout() {
   return (
@@ -32,6 +33,7 @@ function App() {
         <Route path="/" element={<Login />} />
         <Route element={<AppLayout />}>
           <Route path="/menu" element={<Menu />} />
+          <Route path="/product/:id" element={<ProductPage />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/promotions" element={<Promotions />} />
           <Route path="/admin" element={<AdminDashboard />} />

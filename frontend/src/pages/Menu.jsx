@@ -210,9 +210,17 @@ export default function Menu() {
     }
   };
 
-  // Função auxiliar para verificar se tem preço promocional válido
   const hasValidPromoPrice = (product) => {
     return product.promotionalPrice && Number(product.promotionalPrice) > 0;
+  };
+
+  const handleProductClick = (productId) => {
+    navigate(`/product/${productId}`);
+  };
+
+  const handleAddToCart = (e, product) => {
+    e.stopPropagation();
+    addToCart(product);
   };
 
   const safeProducts = Array.isArray(products) ? products : [];
@@ -226,7 +234,7 @@ export default function Menu() {
 
       <main className="flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
         
-        {/* Banner Section - Só exibe se houver banners cadastrados */}
+        {/* Banner Section */}
         {banners.length > 0 && (
           <div className="relative w-full max-w-5xl mx-auto h-56 md:h-80 rounded-2xl md:rounded-3xl overflow-hidden mb-10 md:mb-14 shadow-[0_20px_60px_rgba(30,58,95,0.15)] group">
             {banners.map((b, idx) => (
@@ -325,9 +333,10 @@ export default function Menu() {
               {filteredProducts.map((p) => (
                 <div
                   key={p.id}
-                  className="bg-white rounded-2xl md:rounded-3xl shadow-sm hover:shadow-xl hover:shadow-[#1e3a5f]/8 border border-[#1e3a5f]/5 flex flex-col overflow-hidden transition-all duration-500 group hover:-translate-y-1 relative"
+                  onClick={() => handleProductClick(p.id)}
+                  className="bg-white rounded-2xl md:rounded-3xl shadow-sm hover:shadow-xl hover:shadow-[#1e3a5f]/8 border border-[#1e3a5f]/5 flex flex-col overflow-hidden transition-all duration-500 group hover:-translate-y-1 relative cursor-pointer"
                 >
-                  {/* Badge de Oferta - CORRIGIDO */}
+                  {/* Badge de Oferta */}
                   {hasValidPromoPrice(p) && (
                     <div className="absolute top-3 left-3 z-10 bg-gradient-to-r from-red-500 to-orange-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-lg">
                       Oferta
@@ -347,9 +356,6 @@ export default function Menu() {
                         <Icons.Burger className="w-16 h-16 text-[#1e3a5f]/20 group-hover:scale-125 transition-transform duration-500" />
                       </div>
                     )}
-                    
-                    {/* Overlay no hover */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#1e3a5f]/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   </div>
                   
                   {/* Conteúdo */}
@@ -381,8 +387,9 @@ export default function Menu() {
                       
                       {!isAdmin && (
                         <button
-                          onClick={() => addToCart(p)}
+                          onClick={(e) => handleAddToCart(e, p)}
                           className="bg-[#1e3a5f] hover:bg-[#162d4a] text-white w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 shadow-lg shadow-[#1e3a5f]/20 hover:shadow-xl hover:shadow-[#1e3a5f]/30 active:scale-95 group/btn"
+                          title="Adicionar ao carrinho"
                         >
                           <Icons.Plus className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
                         </button>
@@ -632,6 +639,23 @@ export default function Menu() {
           </div>
         </div>
       )}
+
+      <style>{`
+        @keyframes slide-left {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
+        }
+        .animate-slide-left {
+          animation: slide-left 0.3s ease-out;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   );
 }

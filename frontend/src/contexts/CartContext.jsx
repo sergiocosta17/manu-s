@@ -1,5 +1,4 @@
-// src/contexts/CartContext.jsx
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 
 const CartContext = createContext();
 
@@ -16,16 +15,26 @@ export function CartProvider({ children }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
   const [myOrders, setMyOrders] = useState([]);
+  
+  // Ref para evitar chamadas duplicadas do StrictMode
+  const addingRef = useRef(false);
 
-  const addToCart = (product, quantity = 1, observation = '') => {
+  const addToCart = useCallback((product, quantity = 1, observation = '') => {
+    // Previne chamada dupla do StrictMode
+    if (addingRef.current) return;
+    addingRef.current = true;
+    
     setCart((prevCart) => {
       const existingIndex = prevCart.findIndex(
         (item) => item.id === product.id && item.observation === observation
       );
       
       if (existingIndex > -1) {
-        const updated = [...prevCart];
-        updated[existingIndex].quantity += quantity;
+        const updated = prevCart.map((item, index) => 
+          index === existingIndex 
+            ? { ...item, quantity: item.quantity + quantity }
+            : item
+        );
         return updated;
       }
       
@@ -34,24 +43,31 @@ export function CartProvider({ children }) {
         {
           id: product.id,
           name: product.name,
-          price: product.promotionalPrice || product.price,
+          price: Number(product.promotionalPrice) > 0 
+            ? Number(product.promotionalPrice) 
+            : Number(product.price),
           imageUrl: product.imageUrl,
           quantity,
           observation,
         },
       ];
     });
-  };
+    
+    // Libera após um pequeno delay
+    setTimeout(() => {
+      addingRef.current = false;
+    }, 100);
+  }, []);
 
-  const removeFromCart = (productId, observation = '') => {
+  const removeFromCart = useCallback((productId, observation = '') => {
     setCart((prevCart) => 
       prevCart.filter(
         (item) => !(item.id === productId && item.observation === observation)
       )
     );
-  };
+  }, []);
 
-  const updateQuantity = (productId, quantity, observation = '') => {
+  const updateQuantity = useCallback((productId, quantity, observation = '') => {
     if (quantity <= 0) {
       removeFromCart(productId, observation);
       return;
@@ -63,11 +79,11 @@ export function CartProvider({ children }) {
           : item
       )
     );
-  };
+  }, [removeFromCart]);
 
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     setCart([]);
-  };
+  }, []);
 
   const cartItemsCount = cart.reduce((total, item) => total + item.quantity, 0);
 
@@ -76,9 +92,9 @@ export function CartProvider({ children }) {
     0
   );
 
-  const getCartTotal = () => {
+  const getCartTotal = useCallback(() => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
-  };
+  }, [cart]);
 
   // ✅ Buscar pedidos do usuário
   const fetchMyOrders = useCallback(async () => {
@@ -140,15 +156,14 @@ export function CartProvider({ children }) {
     }
   }, []);
 
-  // ✅ Pedidos ativos para rastreamento - Filtro corrigido
+  // ✅ Pedidos ativos para rastreamento
   const activeTrackingOrders = myOrders.filter((order) => {
-    // Status que indicam pedido finalizado ou cancelado
     const finishedStatuses = ['COMPLETED', 'CANCELLED'];
     return !finishedStatuses.includes(order.status);
   });
 
-  // ✅ Confirmar entrega/retirada pelo cliente - Corrigido
-  const handleConfirmDelivery = async (orderId) => {
+  // ✅ Confirmar entrega/retirada pelo cliente
+  const handleConfirmDelivery = useCallback(async (orderId) => {
     try {
       const response = await fetch('http://localhost:4000/graphql', {
         method: 'POST',
@@ -164,7 +179,6 @@ export function CartProvider({ children }) {
       const result = await response.json();
       
       if (result.data?.confirmDelivery) {
-        // ✅ Atualiza o estado local imediatamente para remover o pedido da lista
         setMyOrders((prevOrders) =>
           prevOrders.map((order) =>
             order.id === orderId
@@ -173,7 +187,6 @@ export function CartProvider({ children }) {
           )
         );
         
-        // Também faz fetch para garantir sincronização
         await fetchMyOrders();
       } else if (result.errors) {
         console.error('Erro ao confirmar:', result.errors);
@@ -181,7 +194,7 @@ export function CartProvider({ children }) {
     } catch (err) {
       console.error('Erro ao confirmar entrega:', err);
     }
-  };
+  }, [fetchMyOrders]);
 
   const cartItems = cart;
   const setActiveTrackingOrders = setMyOrders;
