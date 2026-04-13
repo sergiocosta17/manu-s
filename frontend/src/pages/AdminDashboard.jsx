@@ -7,22 +7,21 @@ export default function AdminDashboard() {
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('OVERVIEW'); // Aba ativa: OVERVIEW, ORDERS, BANNERS
-  const [expandedHistory, setExpandedHistory] = useState({}); // Controle de expansão do histórico por mês
-  const [revenueFilter, setRevenueFilter] = useState('DAY'); // Filtro de faturamento: DAY, WEEK, MONTH, YEAR, ALL
+  const [activeTab, setActiveTab] = useState('OVERVIEW');
+  const [expandedHistory, setExpandedHistory] = useState({});
+  const [revenueFilter, setRevenueFilter] = useState('DAY');
   
-  // Estados do modal de criação de banner
+  // Estados do modal de criação/edição de banner
   const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
+  const [editingBanner, setEditingBanner] = useState(null);
   const [bannerForm, setBannerForm] = useState({ title: '', subtitle: '', imageUrl: '' });
 
   const navigate = useNavigate();
 
-  // Carrega dados iniciais (pedidos e banners)
   useEffect(() => { 
     fetchData(); 
   }, []);
 
-  // Busca pedidos e banners da API GraphQL
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -49,7 +48,6 @@ export default function AdminDashboard() {
       
       if (result.errors) throw new Error(result.errors[0].message);
       
-      // Ordena pedidos do mais recente para o mais antigo
       setOrders(result.data.orders.sort((a, b) => Number(b.createdAt) - Number(a.createdAt)));
       setBanners(result.data.banners || []);
     } catch (err) {
@@ -60,7 +58,6 @@ export default function AdminDashboard() {
   };
 
   // ORDERS
-  // Atualiza o status de um pedido (mutation GraphQL)
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
       const response = await fetch('http://localhost:4000/graphql', {
@@ -85,7 +82,6 @@ export default function AdminDashboard() {
   };
 
   // BANNERS
-  // Processa upload de imagem, redimensiona e converte para base64
   const handleBannerImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -107,25 +103,68 @@ export default function AdminDashboard() {
     reader.readAsDataURL(file);
   };
 
-  // Salva um novo banner via GraphQL
+  // Abre modal para criar novo banner
+  const openCreateBannerModal = () => {
+    setEditingBanner(null);
+    setBannerForm({ title: '', subtitle: '', imageUrl: '' });
+    setIsBannerModalOpen(true);
+  };
+
+  // Abre modal para editar banner existente
+  const openEditBannerModal = (banner) => {
+    setEditingBanner(banner);
+    setBannerForm({
+      title: banner.title || '',
+      subtitle: banner.subtitle || '',
+      imageUrl: banner.imageUrl || ''
+    });
+    setIsBannerModalOpen(true);
+  };
+
+  // Fecha o modal e limpa estados
+  const closeBannerModal = () => {
+    setIsBannerModalOpen(false);
+    setEditingBanner(null);
+    setBannerForm({ title: '', subtitle: '', imageUrl: '' });
+  };
+
+  // Salva banner (criar ou atualizar)
   const handleSaveBanner = async (e) => {
     e.preventDefault();
     try {
-      await fetch('http://localhost:4000/graphql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({
-          query: `mutation CreateBanner($input: BannerInput!) { createBanner(input: $input) { id } }`,
-          variables: { input: bannerForm }
-        })
-      });
-      setIsBannerModalOpen(false);
-      setBannerForm({ title: '', subtitle: '', imageUrl: '' });
+      if (editingBanner) {
+        const response = await fetch('http://localhost:4000/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+          body: JSON.stringify({
+            query: `mutation UpdateBanner($id: ID!, $input: BannerInput!) { 
+              updateBanner(id: $id, input: $input) { id title subtitle imageUrl } 
+            }`,
+            variables: { id: editingBanner.id, input: bannerForm }
+          })
+        });
+        const result = await response.json();
+        if (result.errors) throw new Error(result.errors[0].message);
+      } else {
+        // Criar novo banner
+        const response = await fetch('http://localhost:4000/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+          body: JSON.stringify({
+            query: `mutation CreateBanner($input: BannerInput!) { createBanner(input: $input) { id } }`,
+            variables: { input: bannerForm }
+          })
+        });
+        const result = await response.json();
+        if (result.errors) throw new Error(result.errors[0].message);
+      }
+      closeBannerModal();
       fetchData();
-    } catch (err) { alert('Erro ao guardar banner.'); }
+    } catch (err) { 
+      alert('Erro ao salvar banner: ' + err.message); 
+    }
   };
 
-  // Exclui um banner após confirmação
   const handleDeleteBanner = async (id) => {
     if (!window.confirm('Excluir este banner?')) return;
     try {
@@ -139,15 +178,12 @@ export default function AdminDashboard() {
   };
 
   // HELPERS
-  // Alterna expansão do histórico de um mês específico
   const toggleHistory = (monthYear) => setExpandedHistory(prev => ({ ...prev, [monthYear]: !prev[monthYear] }));
   
-  // Formata timestamp para data/hora legível
   const formatDate = (timestamp) => new Date(Number(timestamp)).toLocaleString('pt-BR', { 
     day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
   });
 
-  // Mapeia status do pedido para cores e labels
   const getStatusDisplay = (status) => {
     const statusMap = {
       PLACED: { label: 'Novo', color: 'bg-red-50 text-red-600 border-red-200', dot: 'bg-red-500' },
@@ -163,7 +199,6 @@ export default function AdminDashboard() {
     return statusMap[status] || { label: status, color: 'bg-gray-100 text-gray-500 border-gray-200', dot: 'bg-gray-400' };
   };
 
-  // Agrupa pedidos por mês/ano para exibição
   const groupedOrders = orders.reduce((acc, order) => {
     const monthYear = new Date(Number(order.createdAt)).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
     const key = monthYear.charAt(0).toUpperCase() + monthYear.slice(1);
@@ -172,7 +207,6 @@ export default function AdminDashboard() {
     return acc;
   }, {});
 
-  // Calcula faturamento baseado no filtro selecionado (somente pedidos entregues/finalizados)
   const getFilteredRevenue = () => {
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -191,16 +225,12 @@ export default function AdminDashboard() {
     }
   };
 
-  // Pedidos que ainda não foram finalizados ou cancelados
   const pendingOrders = orders.filter(o => 
     ['PENDING', 'PLACED', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY'].includes(o.status)
   );
   
-  // Total de pedidos entregues/finalizados
   const deliveredOrders = orders.filter(o => o.status === 'DELIVERED' || o.status === 'COMPLETED').length;
 
-  // RENDER ORDER CARD
-  // Renderiza um card individual de pedido com ações contextuais
   const renderOrderCard = (order) => {
     const statusDisplay = getStatusDisplay(order.status);
     const isCompleted = order.status === 'DELIVERED' || order.status === 'COMPLETED' || order.status === 'CANCELLED';
@@ -217,7 +247,6 @@ export default function AdminDashboard() {
               : 'border-[#1e3a5f]/10 shadow-sm hover:shadow-lg hover:shadow-[#1e3a5f]/5 hover:-translate-y-1'
         }`}
       >
-        {/* Header do Card */}
         <div className={`px-5 py-4 border-b flex justify-between items-center ${
           isNew ? 'bg-gradient-to-r from-red-50 to-orange-50 border-red-100' : 'bg-[#faf8f5] border-[#1e3a5f]/5'
         }`}>
@@ -230,9 +259,7 @@ export default function AdminDashboard() {
           </span>
         </div>
         
-        {/* Body do Card */}
         <div className="p-5 flex-grow flex flex-col">
-          {/* Cliente e Horário */}
           <div className="flex justify-between items-start mb-4">
             <div>
               <p className="text-xs text-[#1e3a5f]/40 font-medium mb-1">Cliente</p>
@@ -244,7 +271,6 @@ export default function AdminDashboard() {
             </div>
           </div>
           
-          {/* Itens do pedido */}
           <div className="bg-[#faf8f5] rounded-xl p-4 mb-5 flex-grow border border-[#1e3a5f]/5">
             <ul className="space-y-2">
               {order.items.map((item, idx) => (
@@ -258,7 +284,6 @@ export default function AdminDashboard() {
             </ul>
           </div>
           
-          {/* Total */}
           <div className="flex justify-between items-center mb-5">
             <span className="text-xs font-medium text-[#1e3a5f]/40">Total</span>
             <p className={`font-bold text-2xl ${isCompleted ? 'text-[#1e3a5f]/40' : 'text-[#1e3a5f]'}`}>
@@ -267,7 +292,6 @@ export default function AdminDashboard() {
             </p>
           </div>
           
-          {/* Ações contextuais baseadas no status */}
           <div className="space-y-2 mt-auto">
             {(order.status === 'PLACED' || order.status === 'PENDING' || order.status === 'CONFIRMED') && (
               <button 
@@ -310,16 +334,13 @@ export default function AdminDashboard() {
     );
   };
 
-  // RENDER
   return (
     <div className="min-h-screen bg-[#faf8f5] flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white">
       
-      {/* Espaço reservado para o header fixo */}
       <div className="h-20"></div>
 
       <main className="flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
         
-        {/* Cabeçalho da página com título e botão atualizar */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -340,7 +361,6 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        {/* Navegação por abas (Visão Geral, Pedidos, Banners) */}
         <nav className="mb-8 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {[
             { key: 'OVERVIEW', label: 'Visão Geral', icon: <ChartIcon /> },
@@ -388,10 +408,8 @@ export default function AdminDashboard() {
             {/* OVERVIEW TAB */}
             {activeTab === 'OVERVIEW' && (
               <div className="space-y-6">
-                {/* Cards de métricas (Faturamento, Pedidos Ativos, Entregas) */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                   
-                  {/* Card Faturamento */}
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#1e3a5f]/5 relative overflow-hidden group hover:shadow-lg transition-all">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#d4a853]/10 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
                     
@@ -421,7 +439,6 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* Card Pedidos Ativos */}
                   <div className="bg-[#1e3a5f] rounded-2xl p-6 shadow-lg shadow-[#1e3a5f]/20 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
                     <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#d4a853]/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2"></div>
@@ -444,7 +461,6 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   
-                  {/* Card Entregas Realizadas */}
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#1e3a5f]/5 relative overflow-hidden group hover:shadow-lg transition-all">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-500/10 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
                     
@@ -461,7 +477,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Lista rápida de pedidos ativos (apenas na visão geral) */}
                 {pendingOrders.length > 0 && (
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#1e3a5f]/5">
                     <div className="flex items-center justify-between mb-6">
@@ -484,7 +499,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* ORDERS TAB*/}
+            {/* ORDERS TAB */}
             {activeTab === 'ORDERS' && (
               <div className="space-y-8">
                 {Object.keys(groupedOrders).length === 0 ? (
@@ -501,7 +516,6 @@ export default function AdminDashboard() {
 
                     return (
                       <div key={monthYear}>
-                        {/* Cabeçalho do mês/ano */}
                         <div className="flex items-center gap-4 mb-6">
                           <div className="bg-white border border-[#1e3a5f]/10 text-[#1e3a5f] px-4 py-2 rounded-xl font-semibold text-sm">
                             {monthYear}
@@ -510,7 +524,6 @@ export default function AdminDashboard() {
                         </div>
 
                         <div className="space-y-8">
-                          {/* Seção: Novos Pedidos */}
                           {pendingList.length > 0 && (
                             <div>
                               <h4 className="text-sm font-semibold text-red-500 mb-4 flex items-center gap-2">
@@ -523,7 +536,6 @@ export default function AdminDashboard() {
                             </div>
                           )}
 
-                          {/* Seção: Em Andamento */}
                           {activeList.length > 0 && (
                             <div>
                               <h4 className="text-sm font-semibold text-amber-600 mb-4 flex items-center gap-2">
@@ -536,7 +548,6 @@ export default function AdminDashboard() {
                             </div>
                           )}
 
-                          {/* Seção: Histórico */}
                           {completedList.length > 0 && (
                             <div>
                               <button 
@@ -567,21 +578,19 @@ export default function AdminDashboard() {
             {/* BANNERS TAB */}
             {activeTab === 'BANNERS' && (
               <div className="space-y-6">
-                {/* Header da seção de banners */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#1e3a5f]/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <h3 className="text-lg font-bold text-[#1e3a5f]">Banners Promocionais</h3>
                     <p className="text-sm text-[#1e3a5f]/50 mt-1">Gerencie o carrossel da página inicial</p>
                   </div>
                   <button 
-                    onClick={() => setIsBannerModalOpen(true)} 
+                    onClick={openCreateBannerModal} 
                     className="bg-[#1e3a5f] hover:bg-[#162d4a] text-white font-medium px-5 py-3 rounded-xl shadow-lg shadow-[#1e3a5f]/20 flex items-center gap-2 text-sm transition-all"
                   >
                     <PlusIcon className="w-4 h-4" /> Novo Banner
                   </button>
                 </div>
 
-                {/* Grid de banners existentes */}
                 {banners.length === 0 ? (
                   <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-[#1e3a5f]/5">
                     <ImageIcon className="w-12 h-12 text-[#1e3a5f]/20 mx-auto mb-4" />
@@ -598,12 +607,22 @@ export default function AdminDashboard() {
                             {b.title && <h4 className="text-white font-bold text-lg truncate">{b.title}</h4>}
                             {b.subtitle && <p className="text-white/70 text-sm truncate">{b.subtitle}</p>}
                           </div>
-                          <button 
-                            onClick={() => handleDeleteBanner(b.id)} 
-                            className="absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white w-9 h-9 rounded-xl flex items-center justify-center shadow-lg transition-colors"
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
+                          <div className="absolute top-4 right-4 flex gap-2">
+                            <button 
+                              onClick={() => openEditBannerModal(b)} 
+                              className="bg-white hover:bg-gray-100 text-[#1e3a5f] w-9 h-9 rounded-xl flex items-center justify-center shadow-lg transition-colors"
+                              title="Editar banner"
+                            >
+                              <EditIcon className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteBanner(b.id)} 
+                              className="bg-red-500 hover:bg-red-600 text-white w-9 h-9 rounded-xl flex items-center justify-center shadow-lg transition-colors"
+                              title="Excluir banner"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -615,16 +634,22 @@ export default function AdminDashboard() {
         )}
       </main>
 
-      {/* MODAL DE CRIAÇÃO DE BANNER */}
+      {/* MODAL DE CRIAÇÃO/EDIÇÃO DE BANNER */}
       {isBannerModalOpen && (
-        <Modal onClose={() => setIsBannerModalOpen(false)} title="Novo Banner">
+        <Modal onClose={closeBannerModal} title={editingBanner ? "Editar Banner" : "Novo Banner"}>
           <form onSubmit={handleSaveBanner} className="space-y-5">
-            {/* Área de upload de imagem */}
             <div className={`border-2 border-dashed rounded-2xl h-48 flex items-center justify-center relative overflow-hidden transition-all ${
               bannerForm.imageUrl ? 'border-[#1e3a5f]/20' : 'border-[#1e3a5f]/10 hover:border-[#1e3a5f]/20'
             }`}>
               {bannerForm.imageUrl ? (
-                <img src={bannerForm.imageUrl} className="w-full h-full object-cover" alt="Preview" />
+                <>
+                  <img src={bannerForm.imageUrl} className="w-full h-full object-cover" alt="Preview" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span className="bg-white text-[#1e3a5f] px-4 py-2 rounded-lg font-medium text-sm">
+                      Trocar imagem
+                    </span>
+                  </div>
+                </>
               ) : (
                 <div className="text-center">
                   <ImageIcon className="w-10 h-10 text-[#1e3a5f]/20 mx-auto mb-2" />
@@ -635,7 +660,7 @@ export default function AdminDashboard() {
                 type="file" 
                 accept="image/*" 
                 onChange={handleBannerImageUpload} 
-                required 
+                required={!editingBanner}
                 className="absolute inset-0 opacity-0 cursor-pointer" 
               />
             </div>
@@ -657,7 +682,7 @@ export default function AdminDashboard() {
             <div className="flex gap-3 pt-4">
               <button 
                 type="button" 
-                onClick={() => setIsBannerModalOpen(false)} 
+                onClick={closeBannerModal} 
                 className="flex-1 py-3.5 rounded-xl font-medium bg-[#faf8f5] hover:bg-[#f0eeeb] text-[#1e3a5f] transition-colors"
               >
                 Cancelar
@@ -666,7 +691,7 @@ export default function AdminDashboard() {
                 type="submit" 
                 className="flex-1 py-3.5 rounded-xl font-medium bg-[#1e3a5f] hover:bg-[#162d4a] text-white shadow-lg shadow-[#1e3a5f]/20 transition-all"
               >
-                Publicar
+                {editingBanner ? 'Salvar' : 'Publicar'}
               </button>
             </div>
           </form>
@@ -688,8 +713,6 @@ export default function AdminDashboard() {
 }
 
 // COMPONENTES AUXILIARES
-
-// Modal reutilizável
 const Modal = ({ onClose, title, children }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm" onClick={onClose}></div>
@@ -708,7 +731,6 @@ const Modal = ({ onClose, title, children }) => (
   </div>
 );
 
-// Campo de input estilizado
 const InputField = ({ label, className = '', ...props }) => (
   <div className={className}>
     {label && <label className="block text-xs font-medium text-[#1e3a5f]/50 mb-2">{label}</label>}
@@ -719,7 +741,6 @@ const InputField = ({ label, className = '', ...props }) => (
   </div>
 );
 
-// Botão da barra de navegação mobile
 const NavBtn = ({ onClick, icon, label, active }) => (
   <button
     onClick={onClick}
@@ -733,7 +754,6 @@ const NavBtn = ({ onClick, icon, label, active }) => (
 );
 
 // ÍCONES SVG
-
 const SettingsIcon = ({ className = "w-5 h-5" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
@@ -798,6 +818,13 @@ const RefreshIcon = ({ className = "w-5 h-5" }) => (
 const TrashIcon = ({ className = "w-5 h-5" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+  </svg>
+);
+
+// NOVO: Ícone de editar
+const EditIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
   </svg>
 );
 

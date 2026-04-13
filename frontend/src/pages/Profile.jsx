@@ -304,33 +304,74 @@ export default function Profile() {
   };
 
   // Salva endereço (criação ou edição)
-  const handleSaveAddress = async (e) => {
-    e.preventDefault();
-    const token = localStorage.getItem('token');
+const handleSaveAddress = async (e) => {
+  e.preventDefault();
+  const token = localStorage.getItem('token');
 
-    try {
-      const mutation = editingAddressId
-        ? `mutation UpdateAddress($addressId: ID!, $input: AddressInput!) { updateAddress(addressId: $addressId, input: $input) { id addresses { id label zipCode street number complement neighborhood city state isDefault } } }`
-        : `mutation AddAddress($input: AddressInput!) { addAddress(input: $input) { id addresses { id label zipCode street number complement neighborhood city state isDefault } } }`;
+  try {
+    const mutation = editingAddressId
+      ? `mutation UpdateAddress($addressId: ID!, $input: AddressInput!) { 
+          updateAddress(addressId: $addressId, input: $input) { 
+            id 
+            addresses { id label zipCode street number complement neighborhood city state isDefault } 
+          } 
+        }`
+      : `mutation AddAddress($input: AddressInput!) { 
+          addAddress(input: $input) { 
+            id 
+            addresses { id label zipCode street number complement neighborhood city state isDefault } 
+          } 
+        }`;
 
-      const variables = editingAddressId
-        ? { addressId: editingAddressId, input: { ...addressForm, complement: addressForm.complement || null } }
-        : { input: { ...addressForm, complement: addressForm.complement || null } };
+    // Remove campos que não pertencem ao AddressInput
+    const { id, __typename, ...cleanAddressData } = addressForm;
 
-      const response = await fetch('http://localhost:4000/graphql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ query: mutation, variables })
-      });
+    // Cria objeto limpo com apenas os campos aceitos
+    const addressInput = {
+      label: cleanAddressData.label || '',
+      zipCode: cleanAddressData.zipCode || '',
+      street: cleanAddressData.street || '',
+      number: cleanAddressData.number || '',
+      complement: cleanAddressData.complement || null,
+      neighborhood: cleanAddressData.neighborhood || '',
+      city: cleanAddressData.city || '',
+      state: cleanAddressData.state || '',
+      isDefault: cleanAddressData.isDefault || false
+    };
 
-      const json = await response.json();
-      if (json.errors) throw new Error(json.errors[0].message);
-      setAddresses(editingAddressId ? json.data.updateAddress.addresses : json.data.addAddress.addresses);
-      setIsAddressModalOpen(false);
-    } catch (err) {
-      alert('Erro ao salvar endereço: ' + err.message);
+    // Monta as variáveis corretamente
+    const variables = editingAddressId
+      ? { addressId: editingAddressId, input: addressInput }
+      : { input: addressInput };
+
+    const response = await fetch('http://localhost:4000/graphql', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json', 
+        'Authorization': `Bearer ${token}` 
+      },
+      body: JSON.stringify({ query: mutation, variables })
+    });
+
+    const json = await response.json();
+    
+    if (json.errors) {
+      throw new Error(json.errors[0].message);
     }
-  };
+    
+    // Atualiza a lista de endereços
+    const updatedAddresses = editingAddressId 
+      ? json.data.updateAddress.addresses 
+      : json.data.addAddress.addresses;
+    
+    setAddresses(updatedAddresses);
+    setIsAddressModalOpen(false);
+    
+  } catch (err) {
+    alert('Erro ao salvar endereço: ' + err.message);
+  }
+};
+
 
   // Exclui endereço
   const handleDeleteAddress = async (id) => {
