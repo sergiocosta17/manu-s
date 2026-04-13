@@ -1,25 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+// Painel administrativo para gerenciar pedidos, banners e visualizar métricas
 export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('OVERVIEW');
-  const [expandedHistory, setExpandedHistory] = useState({});
-  const [revenueFilter, setRevenueFilter] = useState('DAY');
+  const [activeTab, setActiveTab] = useState('OVERVIEW'); // Aba ativa: OVERVIEW, ORDERS, BANNERS
+  const [expandedHistory, setExpandedHistory] = useState({}); // Controle de expansão do histórico por mês
+  const [revenueFilter, setRevenueFilter] = useState('DAY'); // Filtro de faturamento: DAY, WEEK, MONTH, YEAR, ALL
   
-  // Banner Modal
+  // Estados do modal de criação de banner
   const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
   const [bannerForm, setBannerForm] = useState({ title: '', subtitle: '', imageUrl: '' });
 
   const navigate = useNavigate();
 
+  // Carrega dados iniciais (pedidos e banners)
   useEffect(() => { 
     fetchData(); 
   }, []);
 
+  // Busca pedidos e banners da API GraphQL
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -46,6 +49,7 @@ export default function AdminDashboard() {
       
       if (result.errors) throw new Error(result.errors[0].message);
       
+      // Ordena pedidos do mais recente para o mais antigo
       setOrders(result.data.orders.sort((a, b) => Number(b.createdAt) - Number(a.createdAt)));
       setBanners(result.data.banners || []);
     } catch (err) {
@@ -55,7 +59,8 @@ export default function AdminDashboard() {
     }
   };
 
-  // ==================== ORDERS ====================
+  // ORDERS
+  // Atualiza o status de um pedido (mutation GraphQL)
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
       const response = await fetch('http://localhost:4000/graphql', {
@@ -73,13 +78,14 @@ export default function AdminDashboard() {
       });
       const result = await response.json();
       if (result.errors) throw new Error(result.errors[0].message);
-      fetchData();
+      fetchData(); 
     } catch (err) {
       alert('Erro ao atualizar status: ' + err.message);
     }
   };
 
-  // ==================== BANNERS ====================
+  // BANNERS
+  // Processa upload de imagem, redimensiona e converte para base64
   const handleBannerImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -101,6 +107,7 @@ export default function AdminDashboard() {
     reader.readAsDataURL(file);
   };
 
+  // Salva um novo banner via GraphQL
   const handleSaveBanner = async (e) => {
     e.preventDefault();
     try {
@@ -118,6 +125,7 @@ export default function AdminDashboard() {
     } catch (err) { alert('Erro ao guardar banner.'); }
   };
 
+  // Exclui um banner após confirmação
   const handleDeleteBanner = async (id) => {
     if (!window.confirm('Excluir este banner?')) return;
     try {
@@ -130,13 +138,16 @@ export default function AdminDashboard() {
     } catch (err) {}
   };
 
-  // ==================== HELPERS ====================
+  // HELPERS
+  // Alterna expansão do histórico de um mês específico
   const toggleHistory = (monthYear) => setExpandedHistory(prev => ({ ...prev, [monthYear]: !prev[monthYear] }));
   
+  // Formata timestamp para data/hora legível
   const formatDate = (timestamp) => new Date(Number(timestamp)).toLocaleString('pt-BR', { 
     day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
   });
 
+  // Mapeia status do pedido para cores e labels
   const getStatusDisplay = (status) => {
     const statusMap = {
       PLACED: { label: 'Novo', color: 'bg-red-50 text-red-600 border-red-200', dot: 'bg-red-500' },
@@ -152,6 +163,7 @@ export default function AdminDashboard() {
     return statusMap[status] || { label: status, color: 'bg-gray-100 text-gray-500 border-gray-200', dot: 'bg-gray-400' };
   };
 
+  // Agrupa pedidos por mês/ano para exibição
   const groupedOrders = orders.reduce((acc, order) => {
     const monthYear = new Date(Number(order.createdAt)).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
     const key = monthYear.charAt(0).toUpperCase() + monthYear.slice(1);
@@ -160,6 +172,7 @@ export default function AdminDashboard() {
     return acc;
   }, {});
 
+  // Calcula faturamento baseado no filtro selecionado (somente pedidos entregues/finalizados)
   const getFilteredRevenue = () => {
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -178,13 +191,16 @@ export default function AdminDashboard() {
     }
   };
 
+  // Pedidos que ainda não foram finalizados ou cancelados
   const pendingOrders = orders.filter(o => 
     ['PENDING', 'PLACED', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY'].includes(o.status)
   );
   
+  // Total de pedidos entregues/finalizados
   const deliveredOrders = orders.filter(o => o.status === 'DELIVERED' || o.status === 'COMPLETED').length;
 
-  // ==================== RENDER ORDER CARD ====================
+  // RENDER ORDER CARD
+  // Renderiza um card individual de pedido com ações contextuais
   const renderOrderCard = (order) => {
     const statusDisplay = getStatusDisplay(order.status);
     const isCompleted = order.status === 'DELIVERED' || order.status === 'COMPLETED' || order.status === 'CANCELLED';
@@ -228,7 +244,7 @@ export default function AdminDashboard() {
             </div>
           </div>
           
-          {/* Itens */}
+          {/* Itens do pedido */}
           <div className="bg-[#faf8f5] rounded-xl p-4 mb-5 flex-grow border border-[#1e3a5f]/5">
             <ul className="space-y-2">
               {order.items.map((item, idx) => (
@@ -251,7 +267,7 @@ export default function AdminDashboard() {
             </p>
           </div>
           
-          {/* Ações */}
+          {/* Ações contextuais baseadas no status */}
           <div className="space-y-2 mt-auto">
             {(order.status === 'PLACED' || order.status === 'PENDING' || order.status === 'CONFIRMED') && (
               <button 
@@ -294,16 +310,16 @@ export default function AdminDashboard() {
     );
   };
 
-  // ==================== RENDER ====================
+  // RENDER
   return (
     <div className="min-h-screen bg-[#faf8f5] flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white">
       
-      {/* Espaço para Header */}
+      {/* Espaço reservado para o header fixo */}
       <div className="h-20"></div>
 
       <main className="flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
         
-        {/* Page Header */}
+        {/* Cabeçalho da página com título e botão atualizar */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -324,7 +340,7 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        {/* Tabs de Navegação */}
+        {/* Navegação por abas (Visão Geral, Pedidos, Banners) */}
         <nav className="mb-8 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {[
             { key: 'OVERVIEW', label: 'Visão Geral', icon: <ChartIcon /> },
@@ -369,13 +385,13 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <>
-            {/* ==================== OVERVIEW TAB ==================== */}
+            {/* OVERVIEW TAB */}
             {activeTab === 'OVERVIEW' && (
               <div className="space-y-6">
-                {/* Cards de Métricas */}
+                {/* Cards de métricas (Faturamento, Pedidos Ativos, Entregas) */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                   
-                  {/* Faturamento */}
+                  {/* Card Faturamento */}
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#1e3a5f]/5 relative overflow-hidden group hover:shadow-lg transition-all">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#d4a853]/10 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
                     
@@ -405,7 +421,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* Pedidos Ativos */}
+                  {/* Card Pedidos Ativos */}
                   <div className="bg-[#1e3a5f] rounded-2xl p-6 shadow-lg shadow-[#1e3a5f]/20 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
                     <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#d4a853]/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2"></div>
@@ -428,7 +444,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   
-                  {/* Entregas Realizadas */}
+                  {/* Card Entregas Realizadas */}
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#1e3a5f]/5 relative overflow-hidden group hover:shadow-lg transition-all">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-500/10 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
                     
@@ -445,7 +461,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Lista Rápida de Pedidos Ativos */}
+                {/* Lista rápida de pedidos ativos (apenas na visão geral) */}
                 {pendingOrders.length > 0 && (
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#1e3a5f]/5">
                     <div className="flex items-center justify-between mb-6">
@@ -468,7 +484,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* ==================== ORDERS TAB ==================== */}
+            {/* ORDERS TAB*/}
             {activeTab === 'ORDERS' && (
               <div className="space-y-8">
                 {Object.keys(groupedOrders).length === 0 ? (
@@ -485,7 +501,7 @@ export default function AdminDashboard() {
 
                     return (
                       <div key={monthYear}>
-                        {/* Header do Mês */}
+                        {/* Cabeçalho do mês/ano */}
                         <div className="flex items-center gap-4 mb-6">
                           <div className="bg-white border border-[#1e3a5f]/10 text-[#1e3a5f] px-4 py-2 rounded-xl font-semibold text-sm">
                             {monthYear}
@@ -494,7 +510,7 @@ export default function AdminDashboard() {
                         </div>
 
                         <div className="space-y-8">
-                          {/* Novos Pedidos */}
+                          {/* Seção: Novos Pedidos */}
                           {pendingList.length > 0 && (
                             <div>
                               <h4 className="text-sm font-semibold text-red-500 mb-4 flex items-center gap-2">
@@ -507,7 +523,7 @@ export default function AdminDashboard() {
                             </div>
                           )}
 
-                          {/* Em Andamento */}
+                          {/* Seção: Em Andamento */}
                           {activeList.length > 0 && (
                             <div>
                               <h4 className="text-sm font-semibold text-amber-600 mb-4 flex items-center gap-2">
@@ -520,7 +536,7 @@ export default function AdminDashboard() {
                             </div>
                           )}
 
-                          {/* Histórico */}
+                          {/* Seção: Histórico */}
                           {completedList.length > 0 && (
                             <div>
                               <button 
@@ -548,10 +564,10 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* ==================== BANNERS TAB ==================== */}
+            {/* BANNERS TAB */}
             {activeTab === 'BANNERS' && (
               <div className="space-y-6">
-                {/* Header */}
+                {/* Header da seção de banners */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#1e3a5f]/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <h3 className="text-lg font-bold text-[#1e3a5f]">Banners Promocionais</h3>
@@ -565,7 +581,7 @@ export default function AdminDashboard() {
                   </button>
                 </div>
 
-                {/* Grid de Banners */}
+                {/* Grid de banners existentes */}
                 {banners.length === 0 ? (
                   <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-[#1e3a5f]/5">
                     <ImageIcon className="w-12 h-12 text-[#1e3a5f]/20 mx-auto mb-4" />
@@ -599,11 +615,11 @@ export default function AdminDashboard() {
         )}
       </main>
 
-      {/* ==================== MODAL BANNER ==================== */}
+      {/* MODAL DE CRIAÇÃO DE BANNER */}
       {isBannerModalOpen && (
         <Modal onClose={() => setIsBannerModalOpen(false)} title="Novo Banner">
           <form onSubmit={handleSaveBanner} className="space-y-5">
-            {/* Upload de Imagem */}
+            {/* Área de upload de imagem */}
             <div className={`border-2 border-dashed rounded-2xl h-48 flex items-center justify-center relative overflow-hidden transition-all ${
               bannerForm.imageUrl ? 'border-[#1e3a5f]/20' : 'border-[#1e3a5f]/10 hover:border-[#1e3a5f]/20'
             }`}>
@@ -657,7 +673,7 @@ export default function AdminDashboard() {
         </Modal>
       )}
 
-      {/* ==================== FOOTER MOBILE ==================== */}
+      {/* FOOTER DE NAVEGAÇÃO MOBILE */}
       <footer className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-[#1e3a5f]/10 pb-safe">
         <div className="flex justify-around items-center py-2 px-4">
           <NavBtn onClick={() => navigate('/menu')} icon={<HomeIcon />} label="Loja" />
@@ -671,8 +687,9 @@ export default function AdminDashboard() {
   );
 }
 
-// ============ COMPONENTES AUXILIARES ============
+// COMPONENTES AUXILIARES
 
+// Modal reutilizável
 const Modal = ({ onClose, title, children }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm" onClick={onClose}></div>
@@ -691,6 +708,7 @@ const Modal = ({ onClose, title, children }) => (
   </div>
 );
 
+// Campo de input estilizado
 const InputField = ({ label, className = '', ...props }) => (
   <div className={className}>
     {label && <label className="block text-xs font-medium text-[#1e3a5f]/50 mb-2">{label}</label>}
@@ -701,6 +719,7 @@ const InputField = ({ label, className = '', ...props }) => (
   </div>
 );
 
+// Botão da barra de navegação mobile
 const NavBtn = ({ onClick, icon, label, active }) => (
   <button
     onClick={onClick}
@@ -713,7 +732,7 @@ const NavBtn = ({ onClick, icon, label, active }) => (
   </button>
 );
 
-// ============ ÍCONES ============
+// ÍCONES SVG
 
 const SettingsIcon = ({ className = "w-5 h-5" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">

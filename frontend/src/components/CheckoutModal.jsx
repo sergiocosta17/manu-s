@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useCart } from '../contexts/CartContext';
 import PaymentModal from './PaymentModal';
 
-// ============ ÍCONES ============
+// ÍCONES SVG
+// Componentes funcionais para ícones usados na interface
 const Icons = {
   Close: ({ className = "w-5 h-5" }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -54,8 +55,9 @@ const Icons = {
 };
 
 export default function CheckoutModal({ isOpen, onClose }) {
-  const { cart, getCartTotal, clearCart } = useCart();
+  const { cart, getCartTotal, clearCart } = useCart(); // Contexto do carrinho
   
+  // Estados locais
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [showNewAddress, setShowNewAddress] = useState(false);
@@ -73,21 +75,24 @@ export default function CheckoutModal({ isOpen, onClose }) {
   const [loadingCep, setLoadingCep] = useState(false);
   const [cepError, setCepError] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [deliveryType, setDeliveryType] = useState('DELIVERY');
+  const [deliveryType, setDeliveryType] = useState('DELIVERY'); // 'DELIVERY' ou 'PICKUP'
   const [storeAddress, setStoreAddress] = useState(null);
   const [loadingStore, setLoadingStore] = useState(false);
 
+  // Cálculo de valores
   const shippingFee = deliveryType === 'DELIVERY' ? 5.0 : 0;
   const subtotal = getCartTotal();
   const total = subtotal + shippingFee;
 
+  // Efeito executado quando o modal é aberto
   useEffect(() => {
     if (isOpen) {
-      fetchUserAddresses();
-      fetchStoreAddress();
+      fetchUserAddresses(); // Busca endereços salvos do usuário
+      fetchStoreAddress();  // Busca dados da loja para retirada
     }
   }, [isOpen]);
 
+  // Busca os endereços do usuário autenticado via GraphQL
   const fetchUserAddresses = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -121,6 +126,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
       const result = await response.json();
       if (result.data?.me?.addresses) {
         setSavedAddresses(result.data.me.addresses);
+        // Seleciona o endereço padrão ou o primeiro da lista
         const defaultAddr = result.data.me.addresses.find(a => a.isDefault);
         if (defaultAddr) {
           setSelectedAddressId(defaultAddr.id);
@@ -133,6 +139,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
     }
   };
 
+  // Busca configurações da loja (endereço para retirada) via GraphQL
   const fetchStoreAddress = async () => {
     setLoadingStore(true);
     try {
@@ -166,6 +173,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
     }
   };
 
+  // Consulta API ViaCEP para preencher automaticamente o endereço
   const fetchAddressByCep = async (cep) => {
     const cleanCep = cep.replace(/\D/g, '');
     if (cleanCep.length !== 8) return;
@@ -200,6 +208,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
     }
   };
 
+  // Handler para campo CEP com máscara e disparo da consulta
   const handleCepChange = (e) => {
     let value = e.target.value.replace(/\D/g, '');
     if (value.length > 5) {
@@ -215,6 +224,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
     }
   };
 
+  // Avança para a etapa de pagamento, validando endereço se delivery
   const handleContinueToPayment = () => {
     if (deliveryType === 'DELIVERY' && !selectedAddressId && !newAddress.street) {
       alert('Selecione ou adicione um endereço de entrega');
@@ -223,12 +233,14 @@ export default function CheckoutModal({ isOpen, onClose }) {
     setShowPaymentModal(true);
   };
 
+  // Obtém o objeto de endereço atualmente selecionado/preenchido
   const getSelectedAddress = () => {
     if (deliveryType === 'PICKUP') return null;
     if (showNewAddress) return newAddress;
     return savedAddresses.find(a => a.id === selectedAddressId);
   };
 
+  // Limpa o formulário de novo endereço
   const resetNewAddressForm = () => {
     setNewAddress({
       label: '',
@@ -243,8 +255,10 @@ export default function CheckoutModal({ isOpen, onClose }) {
     setCepError('');
   };
 
+  // Se modal fechado, não renderiza nada
   if (!isOpen) return null;
 
+  // Se estiver na etapa de pagamento, renderiza PaymentModal
   if (showPaymentModal) {
     return (
       <PaymentModal
@@ -270,6 +284,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
     );
   }
 
+  // Renderização principal do modal de checkout
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div 
@@ -279,7 +294,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
 
       <div className="relative bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
         
-        {/* Header */}
+        {/* Header com título e progresso */}
         <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -294,17 +309,17 @@ export default function CheckoutModal({ isOpen, onClose }) {
             </button>
           </div>
 
-          {/* Progress */}
+          {/* Barra de progresso */}
           <div className="flex gap-2 mt-4">
             <div className="flex-1 h-1.5 bg-[#d4a853] rounded-full" />
             <div className="flex-1 h-1.5 bg-white/20 rounded-full" />
           </div>
         </div>
 
-        {/* Content */}
+        {/* Conteúdo rolável */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#faf8f5]">
           
-          {/* Tipo de Entrega */}
+          {/* Seletor de tipo de entrega */}
           <div>
             <label className="block text-[#1e3a5f] font-bold mb-3">Como deseja receber?</label>
             <div className="grid grid-cols-2 gap-3">
@@ -343,7 +358,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
             </div>
           </div>
 
-          {/* Endereço da Loja (PICKUP) */}
+          {/* Informações da loja para retirada */}
           {deliveryType === 'PICKUP' && (
             <div className="bg-gradient-to-br from-[#1e3a5f]/10 to-[#1e3a5f]/5 rounded-2xl p-5 border border-[#1e3a5f]/10">
               <div className="flex items-start gap-4">
@@ -376,11 +391,12 @@ export default function CheckoutModal({ isOpen, onClose }) {
             </div>
           )}
 
-          {/* Endereços (DELIVERY) */}
+          {/* Seleção/criação de endereço (apenas para DELIVERY) */}
           {deliveryType === 'DELIVERY' && (
             <div>
               <label className="block text-[#1e3a5f] font-bold mb-3">Endereço de Entrega</label>
 
+              {/* Lista de endereços salvos */}
               {savedAddresses.length > 0 && !showNewAddress && (
                 <div className="space-y-3 mb-4">
                   {savedAddresses.map((addr) => (
@@ -424,7 +440,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
                 </div>
               )}
 
-              {/* Botão Adicionar Novo */}
+              {/* Botão para adicionar novo endereço */}
               {!showNewAddress ? (
                 <button
                   onClick={() => setShowNewAddress(true)}
@@ -438,7 +454,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
                   </div>
                 </button>
               ) : (
-                /* Formulário Novo Endereço */
+                /* Formulário para novo endereço */
                 <div className="space-y-4 p-4 bg-white rounded-2xl border border-[#1e3a5f]/10">
                   <div className="flex items-center justify-between">
                     <span className="text-[#1e3a5f] font-bold">Novo Endereço</span>
@@ -453,6 +469,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
                     </button>
                   </div>
 
+                  {/* Campos do endereço */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[#1e3a5f]/70 text-xs mb-1 font-medium">CEP *</label>
@@ -574,7 +591,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
             </div>
           )}
 
-          {/* Resumo */}
+          {/* Resumo do pedido */}
           <div className="bg-white rounded-2xl p-4 border border-[#1e3a5f]/10">
             <h3 className="text-[#1e3a5f] font-bold mb-3">Resumo</h3>
             <div className="space-y-2 text-sm">
@@ -598,7 +615,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer com ações de navegação */}
         <div className="p-6 bg-white border-t border-[#1e3a5f]/10">
           <div className="flex gap-3">
             <button

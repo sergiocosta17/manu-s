@@ -1,4 +1,4 @@
-/* Animações customizadas */
+/* Animação de deslizar da direita para esquerda (usada em sidebars e modais laterais) */
 @keyframes slide-left {
   from {
     transform: translateX(100%);
@@ -14,6 +14,7 @@
   animation: slide-left 0.3s ease-out;
 }
 
+/* Animação de fade-in com leve deslocamento vertical (usada em dropdowns e modais) */
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -29,22 +30,22 @@
   animation: fade-in 0.4s ease-out;
 }
 
-/* Esconder scrollbar mas manter funcionalidade */
+/* Esconde a barra de rolagem mas mantém a funcionalidade de scroll */
 .scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  -ms-overflow-style: none; 
+  scrollbar-width: none; 
 }
 
 .scrollbar-hide::-webkit-scrollbar {
-  display: none;
+  display: none; 
 }
 
-/* Safe area para dispositivos com notch */
+/* Espaçamento seguro para dispositivos com notch (safe area) */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
 }
-/* Safe area para dispositivos com notch */
+
+/* Versão alternativa com fallback para navegadores que não suportam env() */
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-

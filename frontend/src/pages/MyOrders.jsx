@@ -2,18 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 
+// Página de histórico e acompanhamento de pedidos do cliente
 export default function MyOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('ALL');
+  const [filter, setFilter] = useState('ALL'); // ALL, ACTIVE, COMPLETED
   const navigate = useNavigate();
   
   const { setIsTrackingOpen, activeTrackingOrders } = useCart?.() || {};
 
+  // Carrega os pedidos ao montar o componente
   useEffect(() => {
     fetchOrders();
   }, []);
 
+  // Busca todos os pedidos do usuário via GraphQL
   const fetchOrders = async () => {
     setLoading(true);
     try {
@@ -36,6 +39,7 @@ export default function MyOrders() {
       const result = await response.json();
       if (result.errors) throw new Error(result.errors[0].message);
       
+      // Ordena pedidos do mais recente para o mais antigo
       const sorted = (result.data?.orders || []).sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
       setOrders(sorted);
     } catch (err) {
@@ -45,6 +49,7 @@ export default function MyOrders() {
     }
   };
 
+  // Mapeia status para exibição visual (cores, ícones, progresso)
   const getStatusDisplay = (status) => {
     const map = {
       PLACED: { label: 'Recebido', color: 'bg-blue-50 text-blue-600 border-blue-200', icon: '📥', progress: 1 },
@@ -58,12 +63,15 @@ export default function MyOrders() {
     return map[status] || { label: status, color: 'bg-gray-100 text-gray-500 border-gray-200', icon: '?', progress: 0 };
   };
 
+  // Formata timestamp para data/hora legível
   const formatDate = (timestamp) => new Date(Number(timestamp)).toLocaleDateString('pt-BR', {
     day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
   });
 
+  // Verifica se o pedido está ativo (não finalizado nem cancelado)
   const isActive = (status) => ['PLACED', 'CONFIRMED', 'PREPARING', 'OUT_FOR_DELIVERY'].includes(status);
 
+  // Filtra pedidos conforme aba selecionada
   const filteredOrders = filter === 'ALL' 
     ? orders 
     : filter === 'ACTIVE' 
@@ -73,12 +81,12 @@ export default function MyOrders() {
   return (
     <div className="min-h-screen bg-[#faf8f5] flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white">
       
-      {/* Espaço para Header */}
+      {/* Espaço para Header fixo */}
       <div className="h-20"></div>
 
       <main className="flex-grow w-full max-w-5xl mx-auto px-4 md:px-8 py-6 md:py-10">
         
-        {/* Page Header */}
+        {/* Cabeçalho da página */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -90,7 +98,7 @@ export default function MyOrders() {
             <p className="text-[#1e3a5f]/50 text-sm">Acompanhe o histórico de todos os seus pedidos</p>
           </div>
           
-          {/* Pedidos Ativos Badge */}
+          {/* Badge de pedidos ativos (atalho para modal de rastreamento) */}
           {activeTrackingOrders?.length > 0 && (
             <button
               onClick={() => setIsTrackingOpen?.(true)}
@@ -105,7 +113,7 @@ export default function MyOrders() {
           )}
         </div>
 
-        {/* Filtros */}
+        {/* Filtros: Todos, Em Andamento, Finalizados */}
         <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
           {[
             { key: 'ALL', label: 'Todos', count: orders.length },
@@ -133,7 +141,7 @@ export default function MyOrders() {
           ))}
         </div>
 
-        {/* Conteúdo */}
+        {/* Conteúdo principal */}
         {loading ? (
           <div className="flex flex-col justify-center items-center py-32">
             <div className="relative">
@@ -175,7 +183,7 @@ export default function MyOrders() {
                       : 'border-[#1e3a5f]/5'
                   }`}
                 >
-                  {/* Header do Pedido */}
+                  {/* Cabeçalho do pedido */}
                   <div className={`px-6 py-4 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                     isOrderActive ? 'bg-gradient-to-r from-[#1e3a5f]/5 to-transparent border-[#1e3a5f]/10' : 'bg-[#faf8f5] border-[#1e3a5f]/5'
                   }`}>
@@ -195,7 +203,7 @@ export default function MyOrders() {
                     </span>
                   </div>
                   
-                  {/* Progress Bar para pedidos ativos */}
+                  {/* Barra de progresso para pedidos ativos */}
                   {isOrderActive && (
                     <div className="px-6 py-4 bg-[#faf8f5]/50 border-b border-[#1e3a5f]/5">
                       <div className="flex items-center justify-between mb-3">
@@ -227,7 +235,7 @@ export default function MyOrders() {
                     </div>
                   )}
                   
-                  {/* Itens do Pedido */}
+                  {/* Lista de itens do pedido */}
                   <div className="p-6">
                     <div className="space-y-3 mb-5">
                       {order.items.map((item, idx) => (
@@ -250,7 +258,7 @@ export default function MyOrders() {
                       ))}
                     </div>
                     
-                    {/* Total */}
+                    {/* Total do pedido */}
                     <div className="flex justify-between items-center pt-5 border-t border-[#1e3a5f]/10">
                       <span className="text-[#1e3a5f]/50 font-medium">Total do Pedido</span>
                       <span className="text-2xl font-bold text-[#1e3a5f]">
@@ -265,7 +273,7 @@ export default function MyOrders() {
         )}
       </main>
 
-      {/* Footer Mobile */}
+      {/* Barra de navegação inferior (mobile) */}
       <footer className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-[#1e3a5f]/10 pb-safe">
         <div className="flex justify-around items-center py-2 px-4">
           <NavBtn onClick={() => navigate('/menu')} icon={<HomeIcon />} label="Início" />
@@ -278,8 +286,9 @@ export default function MyOrders() {
   );
 }
 
-// ============ COMPONENTES AUXILIARES ============
+// COMPONENTES AUXILIARES
 
+// Botão da barra de navegação mobile
 const NavBtn = ({ onClick, icon, label, active }) => (
   <button
     onClick={onClick}
@@ -292,7 +301,7 @@ const NavBtn = ({ onClick, icon, label, active }) => (
   </button>
 );
 
-// ============ ÍCONES ============
+// ÍCONES SVG
 
 const OrderIcon = ({ className = "w-6 h-6" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 
-// ============ ÍCONES ============
+// ÍCONES SVG
+// Componentes funcionais para ícones usados na página de detalhes do produto
 const Icons = {
   ArrowLeft: ({ className = "w-5 h-5" }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -41,7 +42,7 @@ const Icons = {
   ),
 };
 
-// Query GraphQL para buscar produto
+// Query GraphQL para buscar um produto específico por ID
 const GET_PRODUCT = `
   query GetProduct($id: ID!) {
     product(id: $id) {
@@ -56,7 +57,7 @@ const GET_PRODUCT = `
   }
 `;
 
-// Mapeamento de categorias para exibição
+// Mapeamento de categorias para labels amigáveis
 const categoryLabels = {
   BURGER: 'Burger',
   CHICKEN: 'Frango',
@@ -66,6 +67,7 @@ const categoryLabels = {
   DESSERT: 'Sobremesa',
 };
 
+// Página de detalhes de um produto
 export default function ProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -77,13 +79,13 @@ export default function ProductPage() {
   const [quantity, setQuantity] = useState(1);
   const [addedToCart, setAddedToCart] = useState(false);
   
-  // Ref para prevenir cliques duplos
+  // Ref para prevenir múltiplos cliques no botão de adicionar
   const isAddingRef = useRef(false);
 
-  // ✅ CORREÇÃO: Usando 'userRole' conforme seu Login.jsx
+  // Verifica se o usuário é administrador (esconde botão de compra)
   const isAdmin = localStorage.getItem('userRole') === 'ADMIN';
 
-  // Buscar produto
+  // Busca os dados do produto ao montar o componente ou quando o ID muda
   useEffect(() => {
     const fetchProduct = async () => {
       setLoading(true);
@@ -125,14 +127,14 @@ export default function ProductPage() {
     }
   }, [id]);
 
-  // Verificar se tem preço promocional válido
+  // Verifica se o produto possui preço promocional válido
   const hasValidPromoPrice = (p) => {
     if (!p || p.promotionalPrice === null || p.promotionalPrice === undefined) return false;
     const promo = Number(p.promotionalPrice);
     return !isNaN(promo) && promo > 0;
   };
 
-  // Preço atual (promocional ou normal)
+  // Retorna o preço atual (promocional se válido, senão preço normal)
   const getCurrentPrice = () => {
     if (!product) return 0;
     return hasValidPromoPrice(product) 
@@ -140,12 +142,12 @@ export default function ProductPage() {
       : Number(product.price);
   };
 
-  // Total
+  // Calcula o total baseado na quantidade selecionada
   const getTotal = () => {
     return getCurrentPrice() * quantity;
   };
 
-  // Desconto em porcentagem
+  // Calcula o percentual de desconto (se houver preço promocional)
   const getDiscountPercent = () => {
     if (!hasValidPromoPrice(product)) return 0;
     const original = Number(product.price);
@@ -153,7 +155,7 @@ export default function ProductPage() {
     return Math.round(((original - promo) / original) * 100);
   };
 
-  // Adicionar ao carrinho - Com proteção contra cliques duplos
+  // Adiciona o produto ao carrinho com proteção contra cliques duplos
   const handleAddToCart = () => {
     if (!product || isAddingRef.current || addedToCart) return;
     
@@ -161,23 +163,24 @@ export default function ProductPage() {
     addToCart(product, quantity);
     setAddedToCart(true);
 
+    // Reseta o estado após 2 segundos
     setTimeout(() => {
       setAddedToCart(false);
       isAddingRef.current = false;
     }, 2000);
   };
 
-  // Incrementar quantidade
+  // Incrementa a quantidade (máximo 10)
   const incrementQuantity = () => {
     setQuantity((prev) => Math.min(prev + 1, 10));
   };
 
-  // Decrementar quantidade
+  // Decrementa a quantidade (mínimo 1)
   const decrementQuantity = () => {
     setQuantity((prev) => Math.max(prev - 1, 1));
   };
 
-  // Loading state
+  // Estado de carregamento
   if (loading) {
     return (
       <div className="min-h-screen bg-[#faf8f5] flex items-center justify-center">
@@ -192,7 +195,7 @@ export default function ProductPage() {
     );
   }
 
-  // Error state
+  // Estado de erro ou produto não encontrado
   if (error || !product) {
     return (
       <div className="min-h-screen bg-[#faf8f5] flex items-center justify-center p-4">
@@ -213,7 +216,7 @@ export default function ProductPage() {
     );
   }
 
-  // Variáveis para renderização condicional do preço
+  // Prepara variáveis para renderização dos preços
   const showPromoPrice = hasValidPromoPrice(product);
   const displayPrice = Number(product.price || 0).toFixed(2).replace('.', ',');
   const displayPromoPrice = showPromoPrice 
@@ -243,7 +246,7 @@ export default function ProductPage() {
 
       <main className="max-w-5xl mx-auto px-4 py-6 md:py-10">
         <div className="grid md:grid-cols-2 gap-8 md:gap-12">
-          {/* Imagem do Produto */}
+          {/* Coluna da imagem do produto */}
           <div className="relative">
             <div className="aspect-square bg-white rounded-3xl overflow-hidden shadow-lg border border-[#1e3a5f]/5 relative">
               {product.imageUrl ? (
@@ -258,7 +261,7 @@ export default function ProductPage() {
                 </div>
               )}
 
-              {/* Badge de Oferta */}
+              {/* Badge de oferta (se preço promocional) */}
               {showPromoPrice && (
                 <div className="absolute top-4 left-4 bg-gradient-to-r from-red-500 to-orange-500 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
                   <Icons.Fire className="w-4 h-4" />
@@ -268,16 +271,16 @@ export default function ProductPage() {
             </div>
           </div>
 
-          {/* Informações do Produto */}
+          {/* Coluna de informações e ações */}
           <div className="flex flex-col">
-            {/* Categoria */}
+            {/* Categoria do produto */}
             {product.category && (
               <span className="inline-block self-start px-3 py-1 bg-[#1e3a5f]/5 text-[#1e3a5f]/60 text-xs font-medium rounded-full mb-3">
                 {categoryLabels[product.category] || product.category}
               </span>
             )}
 
-            {/* Nome */}
+            {/* Nome do produto */}
             <h1 className="text-2xl md:text-3xl font-bold text-[#1e3a5f] mb-4">
               {product.name}
             </h1>
@@ -287,7 +290,7 @@ export default function ProductPage() {
               {product.description || 'Delicioso smash burger artesanal, preparado com ingredientes selecionados e muito carinho.'}
             </p>
 
-            {/* Preço */}
+            {/* Bloco de preço */}
             <div className="bg-white rounded-2xl p-5 border border-[#1e3a5f]/5 mb-6">
               <div className="flex items-end gap-3">
                 {showPromoPrice ? (
@@ -312,7 +315,7 @@ export default function ProductPage() {
               )}
             </div>
 
-            {/* Seletor de Quantidade e Botão - Apenas para clientes (não admin) */}
+            {/* Seletor de quantidade e botão - apenas para clientes (não admin) */}
             {!isAdmin && (
               <>
                 <div className="bg-white rounded-2xl p-5 border border-[#1e3a5f]/5 mb-6">
@@ -346,7 +349,7 @@ export default function ProductPage() {
                   </div>
                 </div>
 
-                {/* Botão de Adicionar */}
+                {/* Botão de adicionar ao carrinho */}
                 <button
                   onClick={handleAddToCart}
                   disabled={addedToCart}

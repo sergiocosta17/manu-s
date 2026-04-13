@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+// Página de administração para gerenciar o catálogo de produtos
 export default function AdminProducts() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,6 +19,7 @@ export default function AdminProducts() {
   
   const navigate = useNavigate();
 
+  // Lista de categorias disponíveis para filtro e seleção
   const categories = [
     { value: 'ALL', label: 'Todos' },
     { value: 'BURGER', label: 'Burgers' },
@@ -28,8 +30,10 @@ export default function AdminProducts() {
     { value: 'DESSERT', label: 'Doces' }
   ];
 
+  // Carrega produtos ao montar o componente
   useEffect(() => { fetchProducts(); }, []);
 
+  // Busca todos os produtos via GraphQL
   const fetchProducts = async () => {
     setLoading(true);
     try {
@@ -54,6 +58,7 @@ export default function AdminProducts() {
     }
   };
 
+  // Processa upload de imagem, redimensiona e converte para base64
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -91,6 +96,7 @@ export default function AdminProducts() {
     reader.readAsDataURL(file);
   };
 
+  // Submete formulário para criar ou atualizar produto
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -128,6 +134,7 @@ export default function AdminProducts() {
     }
   };
 
+  // Exclui um produto após confirmação
   const handleDelete = async (id) => {
     if (!window.confirm('Excluir este produto?')) return;
     try {
@@ -145,6 +152,7 @@ export default function AdminProducts() {
     } catch (err) {}
   };
 
+  // Abre modal para edição de produto existente
   const openEdit = (product) => {
     setEditingProduct(product);
     setProductForm({ 
@@ -158,15 +166,18 @@ export default function AdminProducts() {
     setIsModalOpen(true);
   };
 
+  // Abre modal para criação de novo produto
   const openCreate = () => {
     setEditingProduct(null);
     setProductForm({ name: '', price: '', promotionalPrice: '', description: '', category: activeCategory === 'ALL' ? 'BURGER' : activeCategory, imageUrl: '' });
     setIsModalOpen(true);
   };
 
+  // Filtra produtos pela categoria ativa
   const filteredProducts = products
     .filter(p => activeCategory === 'ALL' || p.category === activeCategory);
 
+  // Estatísticas para exibição nos cards
   const stats = {
     total: products.length,
     promos: products.filter(p => p.promotionalPrice).length,
@@ -176,12 +187,12 @@ export default function AdminProducts() {
   return (
     <div className="min-h-screen bg-[#faf8f5] flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white">
       
-      {/* Espaço para Header */}
+      {/* Espaço reservado para o header fixo */}
       <div className="h-20"></div>
 
       <main className="flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
         
-        {/* Page Header */}
+        {/* Cabeçalho da página */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -202,7 +213,7 @@ export default function AdminProducts() {
           </button>
         </div>
 
-        {/* Stats Cards */}
+        {/* Cards de estatísticas */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-2xl p-5 border border-[#1e3a5f]/5">
             <p className="text-[#1e3a5f]/40 text-xs font-medium mb-1">Total de Produtos</p>
@@ -224,7 +235,7 @@ export default function AdminProducts() {
           </div>
         </div>
 
-        {/* Categorias */}
+        {/* Filtro por categorias */}
         <nav className="mb-8 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {categories.map((cat) => (
             <button 
@@ -241,7 +252,7 @@ export default function AdminProducts() {
           ))}
         </nav>
 
-        {/* Conteúdo */}
+        {/* Conteúdo principal: grid de produtos ou estados de loading/vazio */}
         {loading ? (
           <div className="flex flex-col justify-center items-center py-32">
             <div className="relative">
@@ -263,7 +274,7 @@ export default function AdminProducts() {
                 key={p.id} 
                 className="bg-white rounded-2xl shadow-sm border border-[#1e3a5f]/5 overflow-hidden flex flex-col group hover:shadow-lg hover:-translate-y-1 transition-all relative"
               >
-                {/* Badges */}
+                {/* (Oferta, Indisponível, Destaque) */}
                 <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
                   {p.promotionalPrice && (
                     <span className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md">
@@ -282,7 +293,7 @@ export default function AdminProducts() {
                   )}
                 </div>
                 
-                {/* Imagem */}
+                {/* Imagem do produto */}
                 <div className="h-40 bg-gradient-to-br from-[#f5f3f0] to-[#ebe8e4] relative overflow-hidden">
                   {p.imageUrl ? (
                     <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -293,7 +304,7 @@ export default function AdminProducts() {
                   )}
                 </div>
                 
-                {/* Conteúdo */}
+                {/* Informações do produto */}
                 <div className="p-5 flex-grow flex flex-col">
                   <span className="text-[9px] font-semibold text-[#1e3a5f]/30 uppercase tracking-wider mb-1">
                     {categories.find(c => c.value === p.category)?.label}
@@ -312,6 +323,7 @@ export default function AdminProducts() {
                       <p className="text-xl font-bold text-[#1e3a5f]">R$ {p.price.toFixed(2)}</p>
                     )}
                   </div>
+                  {/* Ações: Editar e Excluir */}
                   <div className="flex gap-2">
                     <button 
                       onClick={() => openEdit(p)} 
@@ -334,12 +346,12 @@ export default function AdminProducts() {
         )}
       </main>
 
-      {/* Modal de Produto */}
+      {/* Modal de criação/edição de produto */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm" onClick={() => setIsModalOpen(false)}></div>
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-fade-in">
-            {/* Header */}
+            {/* Cabeçalho do modal */}
             <div className="flex items-center justify-between p-6 border-b border-[#1e3a5f]/10 sticky top-0 bg-white z-10">
               <h2 className="text-xl font-bold text-[#1e3a5f]">
                 {editingProduct ? 'Editar Produto' : 'Novo Produto'}
@@ -352,9 +364,9 @@ export default function AdminProducts() {
               </button>
             </div>
             
-            {/* Form */}
+            {/* Formulário */}
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              {/* Upload de Imagem */}
+              {/* Upload de imagem */}
               <div>
                 <label className="block text-xs font-medium text-[#1e3a5f]/50 mb-2">Imagem do Produto</label>
                 <div className={`border-2 border-dashed rounded-2xl transition-all relative ${
@@ -467,7 +479,7 @@ export default function AdminProducts() {
         </div>
       )}
 
-      {/* Footer Mobile */}
+      {/* Rodapé de navegação mobile */}
       <footer className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-[#1e3a5f]/10 pb-safe">
         <div className="flex justify-around items-center py-2 px-4">
           <NavBtn onClick={() => navigate('/menu')} icon={<HomeIcon />} label="Loja" />
@@ -480,8 +492,9 @@ export default function AdminProducts() {
   );
 }
 
-// ============ COMPONENTES AUXILIARES ============
+// COMPONENTES AUXILIARES
 
+// Botão da barra de navegação mobile
 const NavBtn = ({ onClick, icon, label, active }) => (
   <button
     onClick={onClick}
@@ -494,7 +507,7 @@ const NavBtn = ({ onClick, icon, label, active }) => (
   </button>
 );
 
-// ============ ÍCONES ============
+// ÍCONES SVG
 
 const BoxIcon = ({ className = "w-6 h-6" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">

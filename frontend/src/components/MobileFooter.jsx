@@ -1,13 +1,15 @@
-// src/components/MobileFooter.jsx
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
+// Componente de rodapé fixo para navegação em dispositivos móveis
 export default function MobileFooter() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Verifica se a rota atual corresponde ao caminho fornecido
   const isActive = (path) => location.pathname === path;
 
+  // Itens do menu de navegação mobile (Início, Ofertas, Perfil)
   const menuItems = [
     {
       path: '/menu',

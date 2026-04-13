@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 
+// Componente Header principal com navegação responsiva e estados de autenticação
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
@@ -13,6 +14,7 @@ export default function Header() {
   const isAdmin = userRole === 'ADMIN';
   const isLoggedIn = !!localStorage.getItem('token');
 
+  // Extrai funções e dados do contexto do carrinho
   const { 
     cartItemsCount = 0, 
     cartTotalValue = 0,
@@ -21,13 +23,14 @@ export default function Header() {
     setIsTrackingOpen 
   } = useCart?.() || {};
 
+  // Efeito para detectar scroll e aplicar estilo de fundo
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Fechar menu ao clicar fora
+  // Fecha o menu dropdown ao clicar fora dele
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (adminMenuRef.current && !adminMenuRef.current.contains(event.target)) {
@@ -38,11 +41,12 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fechar menu ao mudar de rota
+  // Fecha o menu dropdown ao navegar para outra rota
   useEffect(() => {
     setIsAdminMenuOpen(false);
   }, [location.pathname]);
 
+  // Realiza logout, limpando o localStorage e redirecionando
   const handleLogout = () => {
     if (window.confirm('Deseja sair da sua conta?')) {
       localStorage.clear();
@@ -50,17 +54,19 @@ export default function Header() {
     }
   };
 
+  // Navega para rota administrativa e fecha o menu dropdown
   const handleAdminNavigate = (path) => {
     navigate(path);
     setIsAdminMenuOpen(false);
   };
 
+  // Verifica se a rota atual corresponde ao caminho fornecido
   const isActive = (path) => location.pathname === path;
 
   const activeOrdersCount = activeTrackingOrders?.length || 0;
   const hasItemsInCart = cartItemsCount > 0;
 
-  // Itens do menu admin
+  // Itens do menu administrativo
   const adminMenuItems = [
     { path: '/menu', label: 'Cardápio', icon: <HomeIcon className="w-5 h-5" /> },
     { path: '/promotions', label: 'Ofertas', icon: <TagIcon className="w-5 h-5" /> },
@@ -79,7 +85,7 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 md:px-8">
         <div className="flex items-center justify-between h-20">
           
-          {/* Logo */}
+          {/* Logo com fallback para texto caso imagem não carregue */}
           <button 
             onClick={() => navigate('/menu')} 
             className="flex items-center gap-3 group"
@@ -100,7 +106,7 @@ export default function Header() {
             </div>
           </button>
 
-          {/* Navegação Desktop */}
+          {/* Navegação para desktop (telas médias e maiores) */}
           <nav className="hidden md:flex items-center gap-1">
             <NavLink onClick={() => navigate('/menu')} active={isActive('/menu')}>
               <HomeIcon className="w-4 h-4" />
@@ -126,13 +132,13 @@ export default function Header() {
             )}
           </nav>
 
-          {/* Ações Desktop */}
+          {/* Ações do usuário (desktop) */}
           <div className="hidden md:flex items-center gap-3">
             
-            {/* ====== USUÁRIO LOGADO ====== */}
+            {/* USUÁRIO LOGADO */}
             {isLoggedIn ? (
               <>
-                {/* Meus Pedidos - Cliente */}
+                {/* Botão "Acompanhar Pedidos" - apenas cliente */}
                 {!isAdmin && (
                   <button
                     onClick={() => setIsTrackingOpen?.(true)}
@@ -158,7 +164,7 @@ export default function Header() {
                   </button>
                 )}
 
-                {/* Carrinho - Cliente */}
+                {/* Botão Carrinho - apenas cliente */}
                 {!isAdmin && (
                   <button 
                     onClick={() => setIsCartOpen?.(true)}
@@ -183,7 +189,7 @@ export default function Header() {
                   </button>
                 )}
 
-                {/* Perfil */}
+                {/* Botão Perfil */}
                 <button 
                   onClick={() => navigate('/profile')}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all ${
@@ -196,7 +202,7 @@ export default function Header() {
                   <span className="text-sm font-medium">Perfil</span>
                 </button>
 
-                {/* Logout */}
+                {/* Botão Logout */}
                 <button 
                   onClick={handleLogout}
                   className="w-10 h-10 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition-all border border-red-100"
@@ -206,7 +212,7 @@ export default function Header() {
                 </button>
               </>
             ) : (
-              /* ====== USUÁRIO NÃO LOGADO ====== */
+              /* USUÁRIO NÃO LOGADO */
               <>
                 <button 
                   onClick={() => navigate('/login')}
@@ -226,13 +232,13 @@ export default function Header() {
             )}
           </div>
 
-          {/* Ações Mobile */}
+          {/* Ações Mobile (hamburger e botões compactos) */}
           <div className="flex md:hidden items-center gap-2">
             
-            {/* ====== USUÁRIO LOGADO - MOBILE ====== */}
+            {/* USUÁRIO LOGADO - MOBILE*/}
             {isLoggedIn ? (
               <>
-                {/* Menu Admin Mobile */}
+                {/* Menu Admin Mobile (dropdown com ícone de hamburger) */}
                 {isAdmin && (
                   <div className="relative" ref={adminMenuRef}>
                     <button
@@ -250,7 +256,7 @@ export default function Header() {
                       )}
                     </button>
 
-                    {/* Dropdown Menu Admin */}
+                    {/* Dropdown do menu administrativo (mobile) */}
                     {isAdminMenuOpen && (
                       <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-[#1e3a5f]/10 overflow-hidden animate-fade-in z-50">
                         <div className="p-2">
@@ -270,10 +276,10 @@ export default function Header() {
                           ))}
                         </div>
                         
-                        {/* Divider */}
+                        {/* Dividir entre navegação e ações de perfil */}
                         <div className="border-t border-[#1e3a5f]/10 mx-2"></div>
                         
-                        {/* Perfil e Logout no Menu */}
+                        {/* Perfil e Logout dentro do dropdown */}
                         <div className="p-2">
                           <button
                             onClick={() => handleAdminNavigate('/profile')}
@@ -300,7 +306,7 @@ export default function Header() {
                   </div>
                 )}
 
-                {/* Meus Pedidos - Mobile (só cliente) */}
+                {/* Meus Pedidos - Mobile (apenas cliente) */}
                 {!isAdmin && (
                   <button
                     onClick={() => setIsTrackingOpen?.(true)}
@@ -322,7 +328,7 @@ export default function Header() {
                   </button>
                 )}
 
-                {/* Carrinho Mobile (só cliente) */}
+                {/* Carrinho Mobile (apenas cliente) */}
                 {!isAdmin && (
                   <button 
                     onClick={() => setIsCartOpen?.(true)}
@@ -341,7 +347,7 @@ export default function Header() {
                   </button>
                 )}
 
-                {/* Logout Mobile (só cliente) */}
+                {/* Logout Mobile (apenas cliente) */}
                 {!isAdmin && (
                   <button 
                     onClick={handleLogout}
@@ -353,7 +359,7 @@ export default function Header() {
                 )}
               </>
             ) : (
-              /* ====== USUÁRIO NÃO LOGADO - MOBILE ====== */
+              /* USUÁRIO NÃO LOGADO - MOBILE*/
               <>
                 <button 
                   onClick={() => navigate('/login')}
@@ -375,7 +381,7 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Overlay para fechar menu */}
+      {/* Overlay escuro para fechar o dropdown ao clicar fora (mobile) */}
       {isAdminMenuOpen && (
         <div 
           className="fixed inset-0 z-40 md:hidden" 
@@ -383,7 +389,7 @@ export default function Header() {
         />
       )}
 
-      {/* CSS para animação */}
+      {/* Estilos de animação CSS para o dropdown */}
       <style>{`
         @keyframes fade-in {
           from { opacity: 0; transform: translateY(-10px); }
@@ -397,8 +403,9 @@ export default function Header() {
   );
 }
 
-// ============ COMPONENTES AUXILIARES ============
+// COMPONENTES AUXILIARES
 
+// Link de navegação reutilizável com estilo ativo/inativo
 const NavLink = ({ onClick, active, children }) => (
   <button
     onClick={onClick}
@@ -412,7 +419,7 @@ const NavLink = ({ onClick, active, children }) => (
   </button>
 );
 
-// ============ ÍCONES ============
+// ÍCONES SVG
 
 const HomeIcon = ({ className = "w-5 h-5" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">

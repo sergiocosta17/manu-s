@@ -1,4 +1,3 @@
-// resolvers.js
 const Product = require('../models/Product');
 const Order = require('../models/Order');
 const User = require('../models/User');
@@ -9,7 +8,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config/env');
 
-// Helpers
+// Helpers de autenticação/autorização
 const requireAuth = (user) => {
   if (!user) throw new Error('Não autenticado');
   return user;
@@ -23,49 +22,49 @@ const requireAdmin = (user) => {
 
 const resolvers = {
   Query: {
-    // ==================== AUTH ====================
+    // AUTH 
     me: async (_, __, { user }) => {
       requireAuth(user);
-      return await User.findById(user.userId);
+      return await User.findById(user.userId); // Retorna dados do usuário logado
     },
 
-    // ==================== PRODUCTS ====================
+    // PRODUCTS
     products: async (_, { category, onlyAvailable = true }) => {
       const filter = {};
       if (category) filter.category = category;
-      if (onlyAvailable) filter.isAvailable = true;
+      if (onlyAvailable) filter.isAvailable = true; // Filtra apenas produtos disponíveis
       return await Product.find(filter).sort({ createdAt: -1 });
     },
 
     product: async (_, { id }) => {
-      return await Product.findById(id);
+      return await Product.findById(id); // Busca produto por ID
     },
 
     featuredProducts: async () => {
-      return await Product.find({ isFeatured: true, isAvailable: true });
+      return await Product.find({ isFeatured: true, isAvailable: true }); // Produtos em destaque
     },
 
     productsOnSale: async () => {
       return await Product.find({ 
-        promotionalPrice: { $ne: null, $exists: true },
+        promotionalPrice: { $ne: null, $exists: true }, // Produtos com preço promocional
         isAvailable: true 
       });
     },
 
-    // ==================== BANNERS ====================
+    // BANNERS
     banners: async (_, { location }) => {
       const filter = { isActive: true };
-      if (location) filter.location = location;
+      if (location) filter.location = location; // Filtra por localização (HOME, etc)
       return await Banner.find(filter).sort({ order: 1 });
     },
 
-    // ==================== ORDERS ====================
+    // ORDERS 
     orders: async (_, { status, limit = 50, offset = 0 }, { user }) => {
       requireAuth(user);
       const filter = {};
       
       if (user.role !== 'ADMIN') {
-        filter.user = user.userId;
+        filter.user = user.userId; // Cliente vê apenas seus pedidos
       }
       
       if (status) filter.status = status;
@@ -86,6 +85,7 @@ const resolvers = {
       
       if (!order) throw new Error('Pedido não encontrado');
       
+      // Verifica se o usuário tem permissão para ver este pedido
       if (user.role !== 'ADMIN' && order.user._id.toString() !== user.userId) {
         throw new Error('Não autorizado');
       }
@@ -96,7 +96,7 @@ const resolvers = {
     activeOrders: async (_, __, { user }) => {
       requireAuth(user);
       const filter = {
-        status: { $nin: ['COMPLETED', 'CANCELLED'] }
+        status: { $nin: ['COMPLETED', 'CANCELLED'] } // Pedidos em andamento
       };
       
       if (user.role !== 'ADMIN') {
@@ -113,7 +113,7 @@ const resolvers = {
       requireAuth(user);
       const filter = {
         user: user.userId,
-        status: { $in: ['COMPLETED', 'CANCELLED'] }
+        status: { $in: ['COMPLETED', 'CANCELLED'] } // Histórico de pedidos finalizados
       };
       
       return await Order.find(filter)
@@ -123,7 +123,7 @@ const resolvers = {
         .limit(limit);
     },
 
-    // ==================== PROMOTIONS ====================
+    // PROMOTIONS
     promotions: async (_, { onlyActive = false }, { user }) => {
       requireAdmin(user);
       const filter = {};
@@ -131,7 +131,7 @@ const resolvers = {
         const now = new Date();
         filter.isActive = true;
         filter.startDate = { $lte: now };
-        filter.endDate = { $gte: now };
+        filter.endDate = { $gte: now }; // Apenas promoções dentro do período válido
       }
       return await Promotion.find(filter).populate('products');
     },
@@ -150,7 +150,7 @@ const resolvers = {
       }).populate('products');
     },
 
-    // ==================== COUPONS ====================
+    // COUPONS 
     coupons: async (_, __, { user }) => {
       requireAdmin(user);
       return await Coupon.find().sort({ createdAt: -1 });
@@ -186,6 +186,7 @@ const resolvers = {
         };
       }
 
+      // Calcula o desconto
       const discount = coupon.discountType === 'PERCENTAGE'
         ? (orderTotal * coupon.discountValue) / 100
         : coupon.discountValue;
@@ -193,7 +194,7 @@ const resolvers = {
       return { valid: true, message: 'Cupom válido!', discount };
     },
 
-    // ==================== DASHBOARD ====================
+    // DASHBOARD
     dashboardMetrics: async (_, __, { user }) => {
       requireAdmin(user);
       
@@ -244,7 +245,7 @@ const resolvers = {
       };
     },
 
-    // ==================== SHIPPING ====================
+    // SHIPPING
     calculateShipping: async (_, { zipCode }) => {
       // Lógica simples - pode ser expandida
       const fee = 5.0;
@@ -252,9 +253,9 @@ const resolvers = {
       return { fee, estimatedDays };
     },
 
-    // ==================== STORE ====================
+    // STORE
     storeInfo: async () => {
-      return await User.findOne({ role: 'ADMIN' });
+      return await User.findOne({ role: 'ADMIN' }); // Dados do administrador da loja
     },
 
     storeSettings: async () => {
@@ -284,7 +285,7 @@ const resolvers = {
   },
 
   Mutation: {
-    // ==================== AUTH ====================
+    // AUTH 
     signup: async (_, { name, email, password, role, adminKey }) => {
       const existingUser = await User.findOne({ email });
       if (existingUser) throw new Error('E-mail já cadastrado');
@@ -346,7 +347,7 @@ const resolvers = {
       return true;
     },
 
-    // ==================== PROFILE ====================
+    // PROFILE 
     updateProfile: async (_, { input }, { user }) => {
       requireAuth(user);
       return await User.findByIdAndUpdate(
@@ -365,7 +366,7 @@ const resolvers = {
       );
     },
 
-    // ==================== ADDRESSES ====================
+    // ADDRESSES
     addAddress: async (_, { input }, { user }) => {
       requireAuth(user);
       
@@ -373,7 +374,7 @@ const resolvers = {
       
       if (dbUser.addresses.length === 0 || input.isDefault) {
         dbUser.addresses.forEach(addr => addr.isDefault = false);
-        input.isDefault = true;
+        input.isDefault = true; // Primeiro endereço ou definido como padrão
       }
       
       // Garantir que label tenha valor
@@ -422,6 +423,7 @@ const resolvers = {
         addr => addr._id.toString() !== addressId
       );
       
+      // Se deletou o padrão, torna o primeiro da lista como novo padrão
       if (wasDefault && dbUser.addresses.length > 0) {
         dbUser.addresses[0].isDefault = true;
       }
@@ -443,7 +445,7 @@ const resolvers = {
       return dbUser;
     },
 
-    // ==================== PAYMENT METHODS ====================
+    // PAYMENT METHODS
     addPaymentMethod: async (_, { input }, { user }) => {
       requireAuth(user);
       
@@ -493,7 +495,7 @@ const resolvers = {
       return dbUser;
     },
 
-    // ==================== PRODUCTS ====================
+    // PRODUCTS
     createProduct: async (_, { input }, { user }) => {
       requireAdmin(user);
       const product = new Product({
@@ -533,7 +535,7 @@ const resolvers = {
       return await product.save();
     },
 
-    // ==================== BANNERS ====================
+    // BANNERS
     createBanner: async (_, { input }, { user }) => {
       requireAdmin(user);
       const banner = new Banner({
@@ -560,7 +562,7 @@ const resolvers = {
       return true;
     },
 
-    // ==================== ORDERS ====================
+    // ORDERS
     createOrder: async (_, { input }, { user }) => {
       requireAuth(user);
       
@@ -572,7 +574,7 @@ const resolvers = {
         });
         
         if (coupon) {
-          coupon.usedCount += 1;
+          coupon.usedCount += 1; // Incrementa contagem de uso do cupom
           await coupon.save();
         }
       }
@@ -652,7 +654,7 @@ const resolvers = {
       return await Order.findById(id).populate('user').populate('items.product');
     },
 
-    // ==================== PROMOTIONS ====================
+    // PROMOTIONS
     createPromotion: async (_, { input }, { user }) => {
       requireAdmin(user);
       
@@ -661,6 +663,7 @@ const resolvers = {
         isActive: input.isActive !== false
       });
       
+      // Se desconto fixo, atualiza preço promocional nos produtos relacionados
       if (input.discountType === 'FIXED') {
         await Product.updateMany(
           { _id: { $in: input.products } },
@@ -686,6 +689,7 @@ const resolvers = {
       
       const promotion = await Promotion.findById(id);
       if (promotion) {
+        // Remove preço promocional dos produtos
         await Product.updateMany(
           { _id: { $in: promotion.products } },
           { $set: { promotionalPrice: null } }
@@ -696,7 +700,7 @@ const resolvers = {
       return true;
     },
 
-    // ==================== COUPONS ====================
+    // COUPONS
     createCoupon: async (_, { input }, { user }) => {
       requireAdmin(user);
       

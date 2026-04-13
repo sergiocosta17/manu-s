@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
+// Página de login e cadastro de usuários
 export default function Login() {
   const [searchParams] = useSearchParams();
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(true);  
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false); 
   const [adminKey, setAdminKey] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Verifica o modo na URL ao carregar
+  // Define o modo (login ou cadastro) baseado no parâmetro da URL
   useEffect(() => {
     const mode = searchParams.get('mode');
     if (mode === 'register') {
@@ -23,11 +24,13 @@ export default function Login() {
     }
   }, [searchParams]);
 
+  // Submete o formulário para autenticação ou criação de conta
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
+    // Seleciona a mutation GraphQL apropriada
     const query = isLogin ? `
       mutation Login($email: String!, $password: String!) {
         login(email: $email, password: $password) {
@@ -67,7 +70,7 @@ export default function Login() {
       localStorage.setItem('token', data.token);
       localStorage.setItem('userRole', data.user.role);
       
-      // Verifica se há um produto pendente para adicionar ao carrinho
+      // Limpa produto pendente no sessionStorage (caso exista)
       const pendingProduct = sessionStorage.getItem('pendingProduct');
       if (pendingProduct) {
         sessionStorage.removeItem('pendingProduct');
@@ -84,16 +87,16 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#faf8f5] p-4 md:p-8 selection:bg-[#1e3a5f] selection:text-white overflow-hidden relative">
       
-      {/* Padrão de fundo sutil */}
+      {/* Padrão de fundo decorativo sutil */}
       <div className="absolute inset-0 opacity-[0.03]" style={{
         backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%231e3a5f' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
       }}></div>
 
-      {/* Elementos decorativos */}
+      {/* Linhas decorativas nas bordas */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#1e3a5f] to-transparent opacity-20"></div>
       <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#1e3a5f] to-transparent opacity-20"></div>
 
-      {/* Botão Voltar ao Cardápio */}
+      {/* Botão para voltar ao cardápio */}
       <button
         onClick={() => navigate('/menu')}
         className="absolute top-6 left-6 flex items-center gap-2 text-[#1e3a5f]/60 hover:text-[#1e3a5f] transition-all group z-20"
@@ -106,19 +109,19 @@ export default function Login() {
 
       <div className="relative z-10 w-full max-w-5xl">
         
-        {/* Card Principal */}
+        {/* Card principal com layout dividido */}
         <div className="bg-white rounded-3xl shadow-[0_25px_80px_rgba(30,58,95,0.12)] border border-[#1e3a5f]/5 flex overflow-hidden">
           
-          {/* Lado Esquerdo - Branding */}
+          {/* Lado esquerdo - Branding (visível apenas em telas grandes) */}
           <div className="hidden lg:flex lg:w-1/2 bg-[#1e3a5f] flex-col justify-center items-center p-16 text-center relative overflow-hidden">
             
-            {/* Decorações elegantes */}
+            {/* Elementos decorativos de fundo */}
             <div className="absolute inset-0 opacity-10">
               <div className="absolute top-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
               <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#d4a853] rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
             </div>
 
-            {/* Linhas decorativas douradas */}
+            {/* Linhas douradas nos cantos */}
             <div className="absolute top-12 left-12 w-20 h-px bg-gradient-to-r from-[#d4a853] to-transparent"></div>
             <div className="absolute top-12 left-12 w-px h-20 bg-gradient-to-b from-[#d4a853] to-transparent"></div>
             <div className="absolute bottom-12 right-12 w-20 h-px bg-gradient-to-l from-[#d4a853] to-transparent"></div>
@@ -146,15 +149,15 @@ export default function Login() {
                 </div>
               </div>
               
-              {/* Linha divisória dourada */}
+              {/* Divisor dourado */}
               <div className="w-24 h-px bg-gradient-to-r from-transparent via-[#d4a853] to-transparent mb-10"></div>
               
-              {/* Descrição */}
+              {/* Descrição da marca */}
               <p className="text-white/70 text-sm font-light max-w-xs leading-relaxed tracking-wide">
                 O autêntico sabor do smash burger artesanal. Qualidade e tradição em cada mordida.
               </p>
               
-              {/* Badges elegantes */}
+              {/* Badges com estatísticas */}
               <div className="flex gap-6 mt-14">
                 <div className="text-center">
                   <p className="text-3xl font-light text-[#d4a853]">500+</p>
@@ -174,10 +177,10 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Lado Direito - Formulário */}
+          {/* Lado direito - Formulário de login/cadastro */}
           <div className="w-full lg:w-1/2 p-8 md:p-14 flex flex-col justify-center bg-white">
             
-            {/* Logo Mobile */}
+            {/* Logo para mobile */}
             <div className="lg:hidden text-center mb-10">
               <img 
                 src="/logo.png" 
@@ -198,7 +201,7 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Título */}
+            {/* Título da seção */}
             <div className="text-center mb-8">
               <h2 className="text-2xl font-light text-[#1e3a5f] tracking-wide">
                 {isLogin ? 'Bem-vindo de volta' : 'Criar sua conta'}
@@ -208,7 +211,7 @@ export default function Login() {
               </p>
             </div>
 
-            {/* Tabs Elegantes */}
+            {/* Tabs para alternar entre login e cadastro */}
             <div className="flex border-b border-[#1e3a5f]/10 mb-8">
               <button
                 type="button"
@@ -311,6 +314,7 @@ export default function Login() {
                 </div>
               )}
 
+              {/* Campo de chave de segurança para admin (apenas no cadastro) */}
               {!isLogin && isAdmin && (
                 <div className="animate-fade-in pt-2">
                   <label className="text-xs font-medium text-[#d4a853] mb-2 flex items-center gap-2 tracking-wide">
@@ -328,6 +332,7 @@ export default function Login() {
                 </div>
               )}
 
+              {/* Exibição de erro */}
               {error && (
                 <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-100 flex items-center gap-3">
                   <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -339,6 +344,7 @@ export default function Login() {
                 </div>
               )}
 
+              {/* Botão de submissão */}
               <button 
                 type="submit" 
                 disabled={loading}
@@ -364,14 +370,14 @@ export default function Login() {
               </button>
             </form>
 
-            {/* Divisor */}
+            {/* Divisor "ou" */}
             <div className="flex items-center gap-4 my-8">
               <div className="flex-1 h-px bg-[#1e3a5f]/10"></div>
               <span className="text-xs text-[#1e3a5f]/30 uppercase tracking-widest">ou</span>
               <div className="flex-1 h-px bg-[#1e3a5f]/10"></div>
             </div>
 
-            {/* Continuar sem conta */}
+            {/* Opção para continuar sem conta */}
             <button 
               onClick={() => navigate('/menu')}
               className="w-full border border-[#1e3a5f]/10 hover:border-[#1e3a5f]/20 hover:bg-[#faf8f5] text-[#1e3a5f]/70 font-medium text-sm py-4 rounded-xl transition-all flex justify-center items-center gap-3"
@@ -383,7 +389,7 @@ export default function Login() {
               <span>Só quero ver o cardápio</span>
             </button>
 
-            {/* Footer */}
+            {/* Rodapé com termos */}
             <p className="text-center text-[#1e3a5f]/30 text-xs mt-8">
               Ao continuar, você concorda com nossos{' '}
               <span className="text-[#1e3a5f]/50 hover:text-[#1e3a5f] cursor-pointer underline">Termos de Uso</span>
@@ -391,7 +397,7 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Badge inferior elegante */}
+        {/* Badge de copyright inferior */}
         <div className="flex justify-center mt-8">
           <div className="flex items-center gap-2 text-[#1e3a5f]/40 text-xs">
             <span>©</span>

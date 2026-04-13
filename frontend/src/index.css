@@ -1,18 +1,21 @@
 @import "tailwindcss";
 
+/* Definição de variáveis CSS customizadas (cores temáticas da marca) */
 @theme {
   --color-brand-yellow: #FBBF24;
-  --color-brand-red: #DC2626;
-  --color-brand-dark: #1F2937;
-  --color-brand-light: #F9FAFB;
+  --color-brand-red: #DC2626; 
+  --color-brand-dark: #1F2937; 
+  --color-brand-light: #F9FAFB; 
 }
 
+/* Estilos globais do corpo da página */
 body {
   background-color: var(--color-brand-light);
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: system-ui, -apple-system, sans-serif;  /* Fonte padrão do sistema */
 }
 
+/* Animação de entrada suave (fade-in com deslocamento vertical) */
 @keyframes fadeInDown {
   0% {
     opacity: 0;
@@ -24,6 +27,7 @@ body {
   }
 }
 
+/* Classe utilitária para aplicar a animação de fade-in */
 .animate-fade-in-down {
   animation: fadeInDown 0.3s ease-out forwards;
 }

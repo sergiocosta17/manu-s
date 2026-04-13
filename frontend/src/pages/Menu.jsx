@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 
-// ============ ÍCONES ============
+// ÍCONES SVG
+// Componentes funcionais para ícones usados na interface
 const Icons = {
   Close: ({ className = "w-5 h-5" }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -78,6 +79,7 @@ const Icons = {
   ),
 };
 
+// Página principal do cardápio, exibe produtos, banners e carrinho lateral
 export default function Menu() {
   const [products, setProducts] = useState([]);
   const [banners, setBanners] = useState([]);
@@ -91,6 +93,7 @@ export default function Menu() {
   const userRole = localStorage.getItem('userRole');
   const isAdmin = userRole === 'ADMIN';
 
+  // Hooks do contexto do carrinho
   const {
     cart,
     isCartOpen,
@@ -108,6 +111,7 @@ export default function Menu() {
     handleConfirmDelivery,
   } = useCart();
 
+  // Lista de categorias para o menu de navegação
   const categories = [
     { id: 'BURGER', label: 'Burgers' },
     { id: 'CHICKEN', label: 'Frango' },
@@ -117,6 +121,7 @@ export default function Menu() {
     { id: 'DESSERT', label: 'Doces' },
   ];
 
+  // Efeito para carregar produtos e banners ao montar o componente
   useEffect(() => {
     const fetchInitialData = async () => {
       setLoading(true);
@@ -153,12 +158,14 @@ export default function Menu() {
     fetchInitialData();
   }, []);
 
+  // Busca pedidos do usuário se não for admin
   useEffect(() => {
     if (!isAdmin) {
       fetchMyOrders();
     }
   }, [isAdmin]);
 
+  // Rotação automática do carrossel de banners a cada 5 segundos
   useEffect(() => {
     if (banners.length <= 1) return;
     const interval = setInterval(() => {
@@ -167,6 +174,7 @@ export default function Menu() {
     return () => clearInterval(interval);
   }, [banners]);
 
+  // Finaliza pedido (checkout simples)
   const handleCheckout = async () => {
     setCheckoutLoading(true);
     try {
@@ -210,19 +218,23 @@ export default function Menu() {
     }
   };
 
+  // Verifica se o produto possui preço promocional válido
   const hasValidPromoPrice = (product) => {
     return product.promotionalPrice && Number(product.promotionalPrice) > 0;
   };
 
+  // Navega para página de detalhes do produto
   const handleProductClick = (productId) => {
     navigate(`/product/${productId}`);
   };
 
+  // Adiciona produto ao carrinho (impede propagação do evento)
   const handleAddToCart = (e, product) => {
     e.stopPropagation();
     addToCart(product);
   };
 
+  // Filtra produtos pela categoria ativa
   const safeProducts = Array.isArray(products) ? products : [];
   const filteredProducts = safeProducts.filter((p) => p.category === activeCategory);
 
@@ -234,7 +246,7 @@ export default function Menu() {
 
       <main className="flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
         
-        {/* Banner Section */}
+        {/* Seção de banners em carrossel */}
         {banners.length > 0 && (
           <div className="relative w-full max-w-5xl mx-auto h-56 md:h-80 rounded-2xl md:rounded-3xl overflow-hidden mb-10 md:mb-14 shadow-[0_20px_60px_rgba(30,58,95,0.15)] group">
             {banners.map((b, idx) => (
@@ -267,7 +279,7 @@ export default function Menu() {
               </div>
             ))}
             
-            {/* Indicadores */}
+            {/* Indicadores de navegação do carrossel */}
             {banners.length > 1 && (
               <div className="absolute bottom-4 md:bottom-6 right-4 md:right-6 flex gap-2 z-20">
                 {banners.map((_, idx) => (
@@ -286,7 +298,7 @@ export default function Menu() {
           </div>
         )}
 
-        {/* Categorias */}
+        {/* Navegação por categorias */}
         <nav className="mb-8 md:mb-12">
           <div className="flex gap-2 md:gap-3 overflow-x-auto pb-4 scrollbar-hide px-1 md:justify-center">
             {categories.map((cat) => (
@@ -305,7 +317,7 @@ export default function Menu() {
           </div>
         </nav>
 
-        {/* Produtos */}
+        {/* Grid de produtos */}
         {loading ? (
           <div className="flex flex-col justify-center items-center py-32">
             <div className="relative">
@@ -316,7 +328,7 @@ export default function Menu() {
           </div>
         ) : (
           <>
-            {/* Header da categoria */}
+            {/* Cabeçalho da categoria ativa */}
             <div className="flex items-center justify-between mb-6 md:mb-8">
               <div>
                 <h3 className="text-xl md:text-2xl font-bold text-[#1e3a5f]">
@@ -328,7 +340,7 @@ export default function Menu() {
               </div>
             </div>
 
-            {/* Grid de Produtos */}
+            {/* Cards de produtos */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
               {filteredProducts.map((p) => (
                 <div
@@ -336,14 +348,14 @@ export default function Menu() {
                   onClick={() => handleProductClick(p.id)}
                   className="bg-white rounded-2xl md:rounded-3xl shadow-sm hover:shadow-xl hover:shadow-[#1e3a5f]/8 border border-[#1e3a5f]/5 flex flex-col overflow-hidden transition-all duration-500 group hover:-translate-y-1 relative cursor-pointer"
                 >
-                  {/* Badge de Oferta */}
+                  {/* Badge de oferta (se preço promocional) */}
                   {hasValidPromoPrice(p) && (
                     <div className="absolute top-3 left-3 z-10 bg-gradient-to-r from-red-500 to-orange-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-lg">
                       Oferta
                     </div>
                   )}
                   
-                  {/* Imagem */}
+                  {/* Imagem do produto */}
                   <div className="h-44 md:h-52 bg-gradient-to-br from-[#f5f3f0] to-[#ebe8e4] relative overflow-hidden">
                     {p.imageUrl ? (
                       <img
@@ -358,7 +370,7 @@ export default function Menu() {
                     )}
                   </div>
                   
-                  {/* Conteúdo */}
+                  {/* Informações do produto */}
                   <div className="p-5 md:p-6 flex-grow flex flex-col">
                     <h3 className="text-base md:text-lg font-bold text-[#1e3a5f] leading-tight mb-2 line-clamp-2 group-hover:text-[#1e3a5f] transition-colors">
                       {p.name}
@@ -385,6 +397,7 @@ export default function Menu() {
                         )}
                       </div>
                       
+                      {/* Botão adicionar ao carrinho (apenas para clientes) */}
                       {!isAdmin && (
                         <button
                           onClick={(e) => handleAddToCart(e, p)}
@@ -400,7 +413,7 @@ export default function Menu() {
               ))}
             </div>
 
-            {/* Mensagem se não houver produtos */}
+            {/* Mensagem quando não há produtos na categoria */}
             {filteredProducts.length === 0 && (
               <div className="text-center py-20 bg-white rounded-3xl border border-[#1e3a5f]/5">
                 <div className="mb-4 flex justify-center">
@@ -415,7 +428,7 @@ export default function Menu() {
         )}
       </main>
 
-      {/* Carrinho Flutuante (Desktop) */}
+      {/* Botão flutuante do carrinho (desktop) */}
       {!isAdmin && cartItemsCount > 0 && (
         <div className="hidden md:block fixed bottom-8 right-8 z-40">
           <button
@@ -437,10 +450,11 @@ export default function Menu() {
         </div>
       )}
 
-      {/* Footer Mobile */}
+      {/* Barra de navegação inferior (mobile) */}
       <footer className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-[#1e3a5f]/10 pb-safe">
         <div className="flex justify-around items-center py-2 px-4">
           {isAdmin ? (
+            // Navegação para administradores
             <>
               <NavButton 
                 onClick={() => navigate('/promotions')} 
@@ -464,6 +478,7 @@ export default function Menu() {
               />
             </>
           ) : (
+            // Navegação para clientes
             <>
               <NavButton 
                 onClick={() => window.scrollTo(0, 0)} 
@@ -482,7 +497,7 @@ export default function Menu() {
                 label="Perfil" 
               />
               
-              {/* Carrinho Mobile */}
+              {/* Botão carrinho mobile (aparece apenas se houver itens) */}
               {cartItemsCount > 0 && (
                 <button
                   onClick={() => setIsCartOpen(true)}
@@ -497,7 +512,7 @@ export default function Menu() {
                 </button>
               )}
 
-              {/* Tracking */}
+              {/* Botão de rastreamento (aparece se houver pedidos ativos) */}
               {activeTrackingOrders.length > 0 && (
                 <button
                   onClick={() => setIsTrackingOpen(true)}
@@ -515,18 +530,17 @@ export default function Menu() {
         </div>
       </footer>
 
-      {/* Sidebar Carrinho */}
+      {/* Sidebar do carrinho (abre como drawer lateral) */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          {/* Overlay */}
           <div 
             className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm"
             onClick={() => setIsCartOpen(false)}
           ></div>
           
-          {/* Sidebar */}
+          {/* Conteúdo do carrinho */}
           <div className="relative w-full max-w-md bg-[#faf8f5] h-full flex flex-col shadow-2xl animate-slide-left">
-            {/* Header */}
+            {/* Cabeçalho */}
             <div className="bg-[#1e3a5f] p-6 md:p-8 flex justify-between items-center relative overflow-hidden">
               <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
               <div className="relative z-10">
@@ -544,7 +558,7 @@ export default function Menu() {
               </button>
             </div>
             
-            {/* Itens */}
+            {/* Lista de itens */}
             <div className="flex-grow overflow-y-auto p-6 space-y-4">
               {cart.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center py-12">
@@ -560,7 +574,7 @@ export default function Menu() {
                     key={item.id} 
                     className="bg-white p-4 rounded-2xl border border-[#1e3a5f]/5 flex items-center gap-4 group hover:shadow-lg hover:shadow-[#1e3a5f]/5 transition-all"
                   >
-                    {/* Imagem */}
+                    {/* Imagem do item */}
                     <div className="w-16 h-16 bg-gradient-to-br from-[#f5f3f0] to-[#ebe8e4] rounded-xl overflow-hidden flex-shrink-0">
                       {item.imageUrl ? (
                         <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
@@ -571,7 +585,7 @@ export default function Menu() {
                       )}
                     </div>
                     
-                    {/* Info */}
+                    {/* Informações do item */}
                     <div className="flex-grow min-w-0">
                       <h4 className="font-semibold text-[#1e3a5f] truncate">{item.name}</h4>
                       <p className="text-[#1e3a5f] font-bold mt-1">
@@ -579,7 +593,7 @@ export default function Menu() {
                       </p>
                     </div>
                     
-                    {/* Quantidade e Remover */}
+                    {/* Quantidade e botão remover */}
                     <div className="flex items-center gap-3">
                       <span className="bg-[#faf8f5] text-[#1e3a5f] px-3 py-1.5 rounded-lg text-sm font-bold border border-[#1e3a5f]/10">
                         x{item.quantity}
@@ -596,10 +610,10 @@ export default function Menu() {
               )}
             </div>
 
-            {/* Footer */}
+            {/* Rodapé com resumo e botão finalizar */}
             {cart.length > 0 && (
               <div className="p-6 bg-white border-t border-[#1e3a5f]/5 shadow-[0_-10px_40px_rgba(30,58,95,0.05)]">
-                {/* Resumo */}
+                {/* Resumo de valores */}
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between text-sm">
                     <span className="text-[#1e3a5f]/50">Subtotal</span>
@@ -616,7 +630,7 @@ export default function Menu() {
                   </div>
                 </div>
                 
-                {/* Botão Finalizar */}
+                {/* Botão finalizar pedido */}
                 <button 
                   onClick={handleCheckout} 
                   disabled={checkoutLoading}
@@ -640,6 +654,7 @@ export default function Menu() {
         </div>
       )}
 
+      {/* Estilos de animação e utilitários */}
       <style>{`
         @keyframes slide-left {
           from { transform: translateX(100%); }
@@ -660,7 +675,7 @@ export default function Menu() {
   );
 }
 
-// Componente auxiliar para navegação
+// Componente auxiliar para botão da barra de navegação mobile
 const NavButton = ({ onClick, icon, label, active }) => (
   <button 
     onClick={onClick} 

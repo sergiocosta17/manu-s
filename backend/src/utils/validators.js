@@ -1,3 +1,4 @@
+// Valida se o e-mail possui formato válido
 const validateEmail = (email) => {
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!re.test(email)) {
@@ -5,12 +6,14 @@ const validateEmail = (email) => {
   }
 };
 
+// Valida se a senha possui pelo menos 6 caracteres
 const validatePassword = (password) => {
   if (!password || password.length < 6) {
     throw new Error('A senha deve ter pelo menos 6 caracteres');
   }
 };
 
+// Valida os campos obrigatórios de um produto (nome e preço)
 const validateProductInput = (input) => {
   if (!input.name || input.name.trim() === '') {
     throw new Error('O nome do produto é obrigatório');

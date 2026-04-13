@@ -12,7 +12,7 @@ import MobileFooter from './components/MobileFooter';
 import GlobalModals from './components/GlobalModals';
 import ProductPage from './pages/ProductPage';
 
-// Componente para proteger rotas que exigem autenticação
+// Componente para proteger rotas que exigem autenticação (qualquer usuário logado)
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token');
   
@@ -23,7 +23,7 @@ function PrivateRoute({ children }) {
   return children;
 }
 
-// Componente para proteger rotas de admin
+// Componente para proteger rotas exclusivas do administrador
 function AdminRoute({ children }) {
   const token = localStorage.getItem('token');
   const userRole = localStorage.getItem('userRole');
@@ -39,12 +39,13 @@ function AdminRoute({ children }) {
   return children;
 }
 
+// Layout principal que envolve as rotas com Header, Footer e Modais globais
 function AppLayout() {
   return (
     <div className="relative">
       <Header />
       <main className="pt-20 pb-20 md:pb-0">
-        <Outlet />
+        <Outlet /> {/* Renderiza o conteúdo da rota filha */}
       </main>
       <MobileFooter />
       <GlobalModals />
@@ -52,31 +53,32 @@ function AppLayout() {
   );
 }
 
+// Componente raiz da aplicação
 function App() {
   return (
     <CartProvider>
       <Routes>
-        {/* Redireciona a raiz para o menu */}
+        {/* Redireciona a raiz para o cardápio */}
         <Route path="/" element={<Navigate to="/menu" replace />} />
         
-        {/* Login como rota separada */}
+        {/* Login como rota separada*/}
         <Route path="/login" element={<Login />} />
         
-        {/* Rotas com layout (Header, Footer, etc.) */}
+        {/* Rotas que utilizam o layout padrão*/}
         <Route element={<AppLayout />}>
-          {/* Rotas públicas - qualquer um pode ver */}
+          {/* Rotas públicas - acessíveis sem autenticação */}
           <Route path="/menu" element={<Menu />} />
           <Route path="/product/:id" element={<ProductPage />} />
           <Route path="/promotions" element={<Promotions />} />
           
-          {/* Rotas protegidas - exigem login */}
+          {/* Rota protegida - exige login */}
           <Route path="/profile" element={
             <PrivateRoute>
               <Profile />
             </PrivateRoute>
           } />
           
-          {/* Rotas de admin - exigem login + role ADMIN */}
+          {/* Rotas de administrador - exigem login + role ADMIN */}
           <Route path="/admin" element={
             <AdminRoute>
               <AdminDashboard />

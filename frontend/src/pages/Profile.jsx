@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Cropper from 'react-easy-crop';
 
+// Função auxiliar para criar objeto Image a partir de URL
 const createImage = (url) => new Promise((resolve, reject) => {
   const image = new Image();
   image.addEventListener('load', () => resolve(image));
@@ -9,6 +10,7 @@ const createImage = (url) => new Promise((resolve, reject) => {
   image.src = url;
 });
 
+// Função para recortar imagem baseada na área selecionada no Cropper
 async function getCroppedImg(imageSrc, pixelCrop) {
   const image = await createImage(imageSrc);
   const canvas = document.createElement('canvas');
@@ -23,17 +25,23 @@ async function getCroppedImg(imageSrc, pixelCrop) {
   return canvas.toDataURL('image/jpeg', 0.8);
 }
 
+// Página de perfil do usuário (cliente ou administrador)
 export default function Profile() {
   const navigate = useNavigate();
   const userRole = localStorage.getItem('userRole');
   const isAdmin = userRole === 'ADMIN';
 
+  // Estado para controle da aba ativa
   const [activeTab, setActiveTab] = useState(isAdmin ? 'STORE_INFO' : 'INFO');
 
+  // Estados para dados do cliente
   const [clientData, setClientData] = useState({ name: '', phone: '', email: '', birthDate: '', avatarUrl: '' });
+  // Estados para dados do administrador (loja)
   const [adminData, setAdminData] = useState({ storeName: '', phone: '', email: '', avatarUrl: '' });
 
+  // Endereços do cliente
   const [addresses, setAddresses] = useState([]);
+  // Endereço da loja (admin)
   const [adminAddressForm, setAdminAddressForm] = useState({
     label: 'Loja',
     zipCode: '',
@@ -46,6 +54,7 @@ export default function Profile() {
     isDefault: true
   });
 
+  // Estados do modal de endereço (cliente)
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState(null);
   const [addressForm, setAddressForm] = useState({
@@ -61,15 +70,18 @@ export default function Profile() {
   });
   const [isCepLoading, setIsCepLoading] = useState(false);
 
+  // Estados para crop de imagem (avatar)
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
 
+  // Pedidos do cliente
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Formata telefone para (XX) XXXXX-XXXX
   const formatPhone = (val) => {
     if (!val) return '';
     let v = val.replace(/\D/g, '');
@@ -80,12 +92,14 @@ export default function Profile() {
     return v;
   };
 
+  // Handler para campo de telefone
   const handlePhoneChange = (e, isAdm) => {
     const formatted = formatPhone(e.target.value);
     if (isAdm) setAdminData({ ...adminData, phone: formatted });
     else setClientData({ ...clientData, phone: formatted });
   };
 
+  // Handler para campo CEP (com consulta à API ViaCEP)
   const handleCepChange = async (e, targetForm) => {
     let val = e.target.value.replace(/\D/g, '');
     if (val.length > 8) val = val.slice(0, 8);
@@ -113,6 +127,7 @@ export default function Profile() {
     }
   };
 
+  // Efeito para carregar todos os dados do perfil ao montar
   useEffect(() => {
     const fetchAllData = async () => {
       setLoading(true);
@@ -120,6 +135,7 @@ export default function Profile() {
         const token = localStorage.getItem('token');
         if (!token) return navigate('/');
 
+        // Busca dados do usuário logado
         const profileRes = await fetch('http://localhost:4000/graphql', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -141,6 +157,7 @@ export default function Profile() {
 
         const user = profileJson.data.me;
 
+        // Preenche estados de acordo com o tipo de usuário
         if (isAdmin) {
           setAdminData({
             storeName: user.storeName || user.name,
@@ -172,6 +189,7 @@ export default function Profile() {
           if (user.addresses) setAddresses(user.addresses);
         }
 
+        // Busca pedidos apenas para cliente
         if (!isAdmin) {
           const ordersRes = await fetch('http://localhost:4000/graphql', {
             method: 'POST',
@@ -195,6 +213,7 @@ export default function Profile() {
     fetchAllData();
   }, [isAdmin, navigate]);
 
+  // Handler para seleção de arquivo de imagem (abre modal de crop)
   const handleFileSelect = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const reader = new FileReader();
@@ -208,6 +227,7 @@ export default function Profile() {
     }
   };
 
+  // Salva a imagem recortada e fecha o modal
   const handleSaveCrop = async () => {
     try {
       const croppedImageBase64 = await getCroppedImg(imageToCrop, croppedAreaPixels);
@@ -218,6 +238,7 @@ export default function Profile() {
     } catch (e) { alert('Erro ao processar imagem.'); }
   };
 
+  // Atualiza perfil (cliente ou admin) via GraphQL
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
@@ -267,6 +288,7 @@ export default function Profile() {
     }
   };
 
+  // Abre modal para adicionar/editar endereço
   const openAddressModal = (address = null) => {
     if (address) {
       setEditingAddressId(address.id);
@@ -281,6 +303,7 @@ export default function Profile() {
     setIsAddressModalOpen(true);
   };
 
+  // Salva endereço (criação ou edição)
   const handleSaveAddress = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
@@ -309,6 +332,7 @@ export default function Profile() {
     }
   };
 
+  // Exclui endereço
   const handleDeleteAddress = async (id) => {
     if (!window.confirm('Excluir este endereço?')) return;
     const token = localStorage.getItem('token');
@@ -330,6 +354,7 @@ export default function Profile() {
     }
   };
 
+  // Logout do usuário
   const handleLogout = () => {
     if (window.confirm('Deseja sair da sua conta?')) {
       localStorage.clear();
@@ -337,6 +362,7 @@ export default function Profile() {
     }
   };
 
+  // Mapeamento de status para exibição
   const getStatusDisplay = (status) => {
     const map = {
       PLACED: { label: 'Recebido', color: 'bg-blue-50 text-blue-600 border-blue-200' },
@@ -350,10 +376,12 @@ export default function Profile() {
     return map[status] || { label: status, color: 'bg-gray-100 text-gray-500 border-gray-200' };
   };
 
+  // Formata data para exibição
   const formatDate = (timestamp) => new Date(Number(timestamp)).toLocaleDateString('pt-BR', {
     day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
   });
 
+  // Definição das abas para cliente
   const clientTabs = [
     { id: 'INFO', label: 'Dados Pessoais', icon: <UserIcon /> },
     { id: 'ADDRESSES', label: 'Endereços', icon: <LocationIcon /> },
@@ -361,6 +389,7 @@ export default function Profile() {
     { id: 'PAYMENTS', label: 'Pagamentos', icon: <CardIcon /> }
   ];
 
+  // Definição das abas para admin
   const adminTabs = [
     { id: 'STORE_INFO', label: 'Dados da Loja', icon: <StoreIcon /> }
   ];
@@ -372,7 +401,7 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-[#faf8f5] flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white">
       
-      {/* Espaço para Header */}
+      {/* Espaço para o Header fixo */}
       <div className="h-20"></div>
 
       {loading ? (
@@ -386,11 +415,11 @@ export default function Profile() {
       ) : (
         <main className="flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10 flex flex-col lg:flex-row gap-6 lg:gap-8">
 
-          {/* Sidebar */}
+          {/* Sidebar com navegação entre abas */}
           <aside className="w-full lg:w-80 flex-shrink-0">
             <div className="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-[#1e3a5f]/5 p-6 lg:p-8 flex flex-col h-full">
               
-              {/* Perfil Header */}
+              {/* Cabeçalho do perfil na sidebar */}
               <div className="flex items-center gap-4 mb-8 pb-8 border-b border-[#1e3a5f]/10">
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#1e3a5f]/10 to-[#1e3a5f]/5 border-2 border-[#d4a853]/30 overflow-hidden flex-shrink-0 shadow-lg">
                   {currentAvatar ? (
@@ -410,7 +439,7 @@ export default function Profile() {
                 </div>
               </div>
 
-              {/* Navegação */}
+              {/* Navegação entre abas */}
               <nav className="flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 scrollbar-hide">
                 {tabs.map((tab) => (
                   <button
@@ -428,7 +457,7 @@ export default function Profile() {
                 ))}
               </nav>
 
-              {/* Logout */}
+              {/* Botão de logout (apenas desktop) */}
               <div className="mt-auto pt-8 border-t border-[#1e3a5f]/10 hidden lg:block">
                 <button
                   onClick={handleLogout}
@@ -441,10 +470,10 @@ export default function Profile() {
             </div>
           </aside>
 
-          {/* Conteúdo Principal */}
+          {/* Conteúdo principal da aba selecionada */}
           <section className="flex-grow">
 
-            {/* Tab: Informações Pessoais / Loja */}
+            {/* Aba: Informações Pessoais (cliente) ou Dados da Loja (admin) */}
             {(activeTab === 'INFO' || activeTab === 'STORE_INFO') && (
               <div className="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-[#1e3a5f]/5 p-6 lg:p-10">
                 <div className="flex items-center justify-between mb-8 pb-6 border-b border-[#1e3a5f]/10">
@@ -457,7 +486,7 @@ export default function Profile() {
                 </div>
 
                 <form onSubmit={handleUpdateProfile} className="space-y-6">
-                  {/* Avatar Upload */}
+                  {/* Upload de Avatar */}
                   <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-[#faf8f5] rounded-2xl border border-[#1e3a5f]/5">
                     <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-[#1e3a5f]/10 to-[#1e3a5f]/5 border-2 border-dashed border-[#1e3a5f]/20 overflow-hidden flex-shrink-0 relative group">
                       {(isAdmin ? adminData.avatarUrl : clientData.avatarUrl) ? (
@@ -511,7 +540,7 @@ export default function Profile() {
                     )}
                   </div>
 
-                  {/* Endereço da Loja (Admin) */}
+                  {/* Endereço da Loja (apenas admin) */}
                   {isAdmin && (
                     <div className="pt-6 border-t border-[#1e3a5f]/10">
                       <h4 className="font-semibold text-[#1e3a5f] mb-5 flex items-center gap-2">
@@ -572,7 +601,7 @@ export default function Profile() {
               </div>
             )}
 
-            {/* Tab: Endereços */}
+            {/* Aba: Endereços (cliente) */}
             {activeTab === 'ADDRESSES' && (
               <div className="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-[#1e3a5f]/5 p-6 lg:p-10">
                 <div className="flex items-center justify-between mb-8 pb-6 border-b border-[#1e3a5f]/10">
@@ -643,7 +672,7 @@ export default function Profile() {
               </div>
             )}
 
-            {/* Tab: Pedidos */}
+            {/* Aba: Pedidos (cliente) */}
             {activeTab === 'ORDERS' && (
               <div className="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-[#1e3a5f]/5 p-6 lg:p-10">
                 <div className="flex items-center justify-between mb-8 pb-6 border-b border-[#1e3a5f]/10">
@@ -699,7 +728,7 @@ export default function Profile() {
               </div>
             )}
 
-            {/* Tab: Pagamentos */}
+            {/* Aba: Pagamentos (placeholder) */}
             {activeTab === 'PAYMENTS' && (
               <div className="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-[#1e3a5f]/5 p-6 lg:p-10">
                 <div className="flex items-center justify-between mb-8 pb-6 border-b border-[#1e3a5f]/10">
@@ -719,7 +748,7 @@ export default function Profile() {
         </main>
       )}
 
-      {/* Modal de Endereço */}
+      {/* Modal para adicionar/editar endereço */}
       {isAddressModalOpen && (
         <Modal onClose={() => setIsAddressModalOpen(false)} title={editingAddressId ? 'Editar Endereço' : 'Novo Endereço'}>
           <form onSubmit={handleSaveAddress} className="space-y-5">
@@ -816,7 +845,7 @@ export default function Profile() {
         </Modal>
       )}
 
-      {/* Modal de Crop */}
+      {/* Modal de recorte de imagem */}
       {cropModalOpen && (
         <Modal onClose={() => setCropModalOpen(false)} title="Ajustar Foto" noPadding>
           <div className="relative h-80 bg-[#1e3a5f]">
@@ -857,7 +886,7 @@ export default function Profile() {
         </Modal>
       )}
 
-      {/* Footer Mobile */}
+      {/* Rodapé de navegação mobile */}
       <footer className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-[#1e3a5f]/10 pb-safe">
         <div className="flex justify-around items-center py-2 px-4">
           <NavBtn onClick={() => navigate('/menu')} icon={<HomeIcon />} label="Início" />
@@ -870,8 +899,9 @@ export default function Profile() {
   );
 }
 
-// ============ COMPONENTES AUXILIARES ============
+// COMPONENTES AUXILIARES
 
+// Modal reutilizável
 const Modal = ({ onClose, title, children, noPadding }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm" onClick={onClose}></div>
@@ -890,6 +920,7 @@ const Modal = ({ onClose, title, children, noPadding }) => (
   </div>
 );
 
+// Campo de input estilizado
 const InputField = ({ label, loading, className = '', ...props }) => (
   <div className={className}>
     <label className="block text-xs font-medium text-[#1e3a5f]/50 mb-2 flex items-center gap-2">
@@ -908,6 +939,7 @@ const InputField = ({ label, loading, className = '', ...props }) => (
   </div>
 );
 
+// Botão da barra de navegação mobile
 const NavBtn = ({ onClick, icon, label, active, danger }) => (
   <button
     onClick={onClick}
@@ -920,7 +952,7 @@ const NavBtn = ({ onClick, icon, label, active, danger }) => (
   </button>
 );
 
-// ============ ÍCONES ============
+// ÍCONES SVG
 
 const UserIcon = ({ className = "w-6 h-6" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">

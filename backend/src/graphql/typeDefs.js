@@ -1,7 +1,7 @@
 const { gql } = require('apollo-server-express');
 
 const typeDefs = gql`
-  # ==================== ENUMS ====================
+  # ENUMS
   enum Role { USER ADMIN }
   
   enum OrderStatus { 
@@ -34,7 +34,8 @@ const typeDefs = gql`
   
   enum DiscountType { PERCENTAGE FIXED }
 
-  # ==================== TYPES ====================
+  # TYPES
+  # Endereço do usuário
   type Address {
     id: ID!
     label: String!
@@ -48,6 +49,7 @@ const typeDefs = gql`
     isDefault: Boolean!
   }
 
+  # Método de pagamento salvo
   type SavedPaymentMethod {
     id: ID!
     type: PaymentMethod!
@@ -57,6 +59,7 @@ const typeDefs = gql`
     isDefault: Boolean!
   }
 
+  # Usuário (cliente ou admin)
   type User {
     id: ID!
     name: String!
@@ -73,6 +76,7 @@ const typeDefs = gql`
     createdAt: String!
   }
 
+  # Produto do cardápio
   type Product {
     id: ID!
     name: String!
@@ -85,6 +89,7 @@ const typeDefs = gql`
     isAvailable: Boolean!
   }
 
+  # Banner promocional
   type Banner {
     id: ID!
     title: String
@@ -95,6 +100,7 @@ const typeDefs = gql`
     isActive: Boolean!
   }
 
+  # Item do pedido
   type OrderItem {
     product: Product
     name: String!
@@ -102,11 +108,13 @@ const typeDefs = gql`
     quantity: Int!
   }
 
+  # Histórico de status do pedido
   type StatusHistory {
     status: OrderStatus!
     timestamp: String!
   }
 
+  # Pedido
   type Order {
     id: ID!
     user: User!
@@ -127,6 +135,7 @@ const typeDefs = gql`
     updatedAt: String!
   }
 
+  # Promoção de produtos
   type Promotion {
     id: ID!
     name: String!
@@ -138,6 +147,7 @@ const typeDefs = gql`
     isActive: Boolean!
   }
 
+  # Cupom de desconto
   type Coupon {
     id: ID!
     code: String!
@@ -151,17 +161,20 @@ const typeDefs = gql`
     isActive: Boolean!
   }
 
+  # Resultado da validação de cupom
   type CouponValidation {
     valid: Boolean!
     message: String
     discount: Float
   }
 
+  # Payload de autenticação
   type AuthPayload {
     token: String!
     user: User!
   }
 
+  # Métricas do dashboard administrativo
   type DashboardMetrics {
     totalOrders: Int!
     pendingOrders: Int!
@@ -174,19 +187,21 @@ const typeDefs = gql`
     monthRevenue: Float!
   }
 
+  # Cotação de frete
   type ShippingQuote {
     fee: Float!
     estimatedDays: Int!
   }
 
-  # ✅ Tipo para configurações da loja (usado no checkout para retirada)
+  # Configurações da loja para checkout/retirada
   type StoreSettings {
     storeName: String
     storeAddress: String
     storePhone: String
   }
 
-  # ==================== INPUTS ====================
+  # INPUTS
+  # Input para criação/atualização de endereço
   input AddressInput {
     label: String
     zipCode: String!
@@ -199,6 +214,7 @@ const typeDefs = gql`
     isDefault: Boolean
   }
 
+  # Input para adicionar método de pagamento
   input PaymentMethodInput {
     type: PaymentMethod!
     label: String
@@ -207,6 +223,7 @@ const typeDefs = gql`
     isDefault: Boolean
   }
 
+  # Input para criação/atualização de produto
   input ProductInput {
     name: String!
     price: Float!
@@ -218,6 +235,7 @@ const typeDefs = gql`
     isAvailable: Boolean
   }
 
+  # Input para criação/atualização de banner
   input BannerInput {
     title: String
     subtitle: String
@@ -227,6 +245,7 @@ const typeDefs = gql`
     isActive: Boolean
   }
 
+  # Input para item de pedido
   input OrderItemInput {
     product: ID!
     name: String!
@@ -234,6 +253,7 @@ const typeDefs = gql`
     quantity: Int!
   }
 
+  # Input para criação de pedido
   input OrderInput {
     items: [OrderItemInput!]!
     subtotal: Float!
@@ -246,6 +266,7 @@ const typeDefs = gql`
     paymentMethod: PaymentMethod!
   }
 
+  # Input para criação/atualização de promoção
   input PromotionInput {
     name: String!
     products: [ID!]!
@@ -256,6 +277,7 @@ const typeDefs = gql`
     isActive: Boolean
   }
 
+  # Input para criação/atualização de cupom
   input CouponInput {
     code: String!
     discountType: DiscountType!
@@ -267,6 +289,7 @@ const typeDefs = gql`
     isActive: Boolean
   }
 
+  # Input para atualização de perfil do cliente
   input UpdateProfileInput {
     name: String
     phone: String
@@ -274,6 +297,7 @@ const typeDefs = gql`
     avatarUrl: String
   }
 
+  # Input para atualização de perfil da loja (admin)
   input UpdateStoreInput {
     storeName: String
     storeAddress: AddressInput
@@ -282,12 +306,13 @@ const typeDefs = gql`
     avatarUrl: String
   }
 
+  # Input para alteração de senha
   input ChangePasswordInput {
     currentPassword: String!
     newPassword: String!
   }
 
-  # ==================== QUERIES ====================
+  # QUERIES
   type Query {
     # Auth
     me: User!
@@ -332,7 +357,7 @@ const typeDefs = gql`
     storeSettings: StoreSettings
   }
 
-  # ==================== MUTATIONS ====================
+  # MUTATIONS
   type Mutation {
     # Auth
     signup(name: String!, email: String!, password: String!, role: Role, adminKey: String): AuthPayload!
@@ -390,6 +415,7 @@ const typeDefs = gql`
     # Apply coupon (usado internamente no createOrder)
     applyCoupon(code: String!): Coupon!
 
+    # Confirm delivery (mantido por compatibilidade)
     confirmDelivery(id: ID!): Order!
   }
 `;

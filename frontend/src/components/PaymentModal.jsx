@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useCart } from '../contexts/CartContext';
 
-// ============ ÍCONES ============
+// ÍCONES SVG
+// Componentes funcionais para ícones usados no modal de pagamento
 const Icons = {
   Close: ({ className = "w-5 h-5" }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -52,6 +53,7 @@ const Icons = {
   ),
 };
 
+// Modal de pagamento (etapa final do checkout)
 export default function PaymentModal({ 
   isOpen, 
   onClose, 
@@ -69,6 +71,7 @@ export default function PaymentModal({
   const [paymentMethod, setPaymentMethod] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Opções de métodos de pagamento disponíveis
   const paymentMethods = [
     { 
       id: 'PIX', 
@@ -97,6 +100,7 @@ export default function PaymentModal({
     },
   ];
 
+  // Submete o pedido para a API GraphQL
   const handleSubmitOrder = async () => {
     if (!paymentMethod) {
       alert('Selecione uma forma de pagamento');
@@ -108,6 +112,7 @@ export default function PaymentModal({
     try {
       const token = localStorage.getItem('token');
 
+      // Prepara os itens do pedido a partir do carrinho
       const itemsInput = cart.map((item) => ({
         product: item.id,
         name: item.name,
@@ -115,6 +120,7 @@ export default function PaymentModal({
         quantity: item.quantity,
       }));
 
+      // Prepara endereço de entrega se for delivery
       let deliveryAddressInput = null;
       if (deliveryType === 'DELIVERY' && address) {
         deliveryAddressInput = {
@@ -129,6 +135,7 @@ export default function PaymentModal({
         };
       }
 
+      // Monta o input completo do pedido
       const orderInput = {
         items: itemsInput,
         subtotal: subtotal,
@@ -141,6 +148,7 @@ export default function PaymentModal({
         paymentMethod: paymentMethod,
       };
 
+      // Chamada GraphQL para criar pedido
       const response = await fetch('http://localhost:4000/graphql', {
         method: 'POST',
         headers: {
@@ -170,7 +178,7 @@ export default function PaymentModal({
 
       if (result.data?.createOrder) {
         await fetchMyOrders();
-        onSuccess();
+        onSuccess(); 
         alert(`Pedido #${result.data.createOrder.id.slice(-6).toUpperCase()} criado com sucesso!`);
       }
     } catch (err) {
@@ -181,6 +189,7 @@ export default function PaymentModal({
     }
   };
 
+  // Formata endereço para exibição resumida
   const formatAddress = () => {
     if (!address) return 'Retirada na loja';
     return `${address.street}, ${address.number}${address.complement ? ` - ${address.complement}` : ''}, ${address.neighborhood} - ${address.city}/${address.state}`;
@@ -190,6 +199,7 @@ export default function PaymentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Overlay escurecido */}
       <div 
         className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm"
         onClick={onClose}
@@ -197,7 +207,7 @@ export default function PaymentModal({
 
       <div className="relative bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
         
-        {/* Header */}
+        {/* Header com título e progresso */}
         <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -212,17 +222,17 @@ export default function PaymentModal({
             </button>
           </div>
 
-          {/* Progress - Ambas douradas na etapa 2 */}
+          {/* Barra de progresso - ambas etapas preenchidas na etapa 2 */}
           <div className="flex gap-2 mt-4">
             <div className="flex-1 h-1.5 bg-[#d4a853] rounded-full" />
             <div className="flex-1 h-1.5 bg-[#d4a853] rounded-full" />
           </div>
         </div>
 
-        {/* Content */}
+        {/* Conteúdo principal */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#faf8f5]">
           
-          {/* Endereço/Tipo Selecionado */}
+          {/* Card de endereço/tipo de entrega selecionado */}
           <div className="bg-white rounded-2xl p-4 border border-[#1e3a5f]/10">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#1e3a5f] flex items-center justify-center flex-shrink-0 text-white">
@@ -243,7 +253,7 @@ export default function PaymentModal({
             </div>
           </div>
 
-          {/* Formas de Pagamento */}
+          {/* Seleção de forma de pagamento */}
           <div>
             <label className="block text-[#1e3a5f] font-bold mb-3">Forma de Pagamento</label>
             <div className="space-y-3">
@@ -291,7 +301,7 @@ export default function PaymentModal({
             </div>
           </div>
 
-          {/* Resumo Final */}
+          {/* Resumo final do pedido */}
           <div className="bg-white rounded-2xl p-4 border border-[#1e3a5f]/10">
             <h3 className="text-[#1e3a5f] font-bold mb-3">Resumo do Pedido</h3>
             
@@ -325,7 +335,7 @@ export default function PaymentModal({
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer com botões de navegação */}
         <div className="p-6 bg-white border-t border-[#1e3a5f]/10">
           <div className="flex gap-3">
             <button

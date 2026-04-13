@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 
+// Página de registro/cadastro de novo usuário (cliente)
 export default function Register() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -9,6 +10,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Submete o formulário de cadastro via GraphQL
   const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -47,7 +49,7 @@ export default function Register() {
       localStorage.setItem('token', token);
       localStorage.setItem('userRole', user.role);
       
-      navigate('/menu');
+      navigate('/menu'); // Redireciona para o cardápio após cadastro bem-sucedido
 
     } catch (err) {
       setError(err.message || 'Erro ao criar conta.');

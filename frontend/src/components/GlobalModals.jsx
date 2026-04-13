@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useCart } from '../contexts/CartContext';
 import CheckoutModal from './CheckoutModal';
 
-// ============ ÍCONES ============
+// ÍCONES SVG
+// Componentes funcionais para ícones usados nos modais
 const Icons = {
   Cart: ({ className = "w-5 h-5" }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -88,7 +89,9 @@ const Icons = {
   ),
 };
 
+// Componente que gerencia os modais globais: Carrinho e Acompanhamento de Pedidos
 export default function GlobalModals() {
+  // Hooks e estado global do carrinho via contexto
   const {
     isCartOpen,
     setIsCartOpen,
@@ -103,16 +106,18 @@ export default function GlobalModals() {
     handleConfirmDelivery,
   } = useCart();
 
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [confirmingOrderId, setConfirmingOrderId] = useState(null);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false); 
+  const [confirmingOrderId, setConfirmingOrderId] = useState(null); 
 
+  // Efeito para buscar pedidos periodicamente quando o modal de rastreio está aberto
   useEffect(() => {
     if (!isTrackingOpen) return;
-    fetchMyOrders();
+    fetchMyOrders(); 
     const interval = setInterval(fetchMyOrders, 5000);
     return () => clearInterval(interval);
   }, [isTrackingOpen, fetchMyOrders]);
 
+  // Retorna informações visuais (ícone, cor, label) para cada status do pedido
   const getStatusInfo = (status, deliveryType = 'DELIVERY') => {
     const isPickup = deliveryType === 'PICKUP';
 
@@ -221,11 +226,12 @@ export default function GlobalModals() {
     return statusMap[status] || statusMap.PENDING;
   };
 
-  // ✅ CORREÇÃO: Mostra botão para DELIVERED ou PICKED_UP
+  // Verifica se o pedido está no status que exige confirmação do cliente
   const needsConfirmation = (order) => {
     return ['DELIVERED', 'PICKED_UP'].includes(order.status);
   };
 
+  // Retorna textos específicos para o botão de confirmação baseado no tipo de entrega
   const getConfirmationTexts = (order) => {
     const isPickup = order.deliveryType === 'PICKUP';
     if (isPickup) {
@@ -244,6 +250,7 @@ export default function GlobalModals() {
     };
   };
 
+  // Formata timestamp para horário legível
   const formatTime = (timestamp) => {
     return new Date(Number(timestamp)).toLocaleTimeString('pt-BR', {
       hour: '2-digit',
@@ -251,28 +258,32 @@ export default function GlobalModals() {
     });
   };
 
+  // Handler para confirmar entrega/retirada de um pedido
   const onConfirmDelivery = async (orderId) => {
     setConfirmingOrderId(orderId);
     await handleConfirmDelivery(orderId);
     setConfirmingOrderId(null);
   };
 
+  // Cálculo de valores para o carrinho
   const deliveryFee = 5.0;
   const cartTotal = getCartTotal();
   const orderTotal = cartTotal + deliveryFee;
 
   return (
     <>
-      {/* ==================== MODAL DO CARRINHO ==================== */}
+      {/* MODAL DO CARRINHO */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
+          {/* Overlay escurecido com blur */}
           <div
             className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm"
             onClick={() => setIsCartOpen(false)}
           />
+          {/* Painel lateral do carrinho */}
           <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-slide-in-right">
             
-            {/* Header */}
+            {/* Header do carrinho */}
             <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] p-6">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-3">
@@ -293,7 +304,7 @@ export default function GlobalModals() {
               </div>
             </div>
 
-            {/* Itens */}
+            {/* Lista de itens do carrinho */}
             <div className="flex-1 overflow-y-auto p-4 bg-[#faf8f5]">
               {cartItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center py-12">
@@ -330,6 +341,7 @@ export default function GlobalModals() {
                           </p>
                           
                           <div className="flex items-center justify-between mt-3">
+                            {/* Controles de quantidade */}
                             <div className="flex items-center gap-2 bg-[#faf8f5] rounded-xl p-1">
                               <button
                                 onClick={() => updateQuantity(item.id, item.quantity - 1, item.observation)}
@@ -345,6 +357,7 @@ export default function GlobalModals() {
                                 +
                               </button>
                             </div>
+                            {/* Botão remover item */}
                             <button
                               onClick={() => removeFromCart(item.id, item.observation)}
                               className="p-2 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
@@ -360,7 +373,7 @@ export default function GlobalModals() {
               )}
             </div>
 
-            {/* Footer */}
+            {/* Footer com resumo e botão de finalizar */}
             {cartItems.length > 0 && (
               <div className="bg-white border-t border-[#1e3a5f]/10 p-6 space-y-4">
                 <div className="space-y-2">
@@ -396,22 +409,23 @@ export default function GlobalModals() {
         </div>
       )}
 
-      {/* CHECKOUT MODAL */}
+      {/* MODAL DE CHECKOUT - exibido após clicar em Finalizar Pedido */}
       <CheckoutModal 
         isOpen={isCheckoutOpen} 
         onClose={() => setIsCheckoutOpen(false)} 
       />
 
-      {/* ==================== MODAL DE ACOMPANHAMENTO ==================== */}
+      {/* MODAL DE ACOMPANHAMENTO */}
       {isTrackingOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+          {/* Overlay */}
           <div
             className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm"
             onClick={() => setIsTrackingOpen(false)}
           />
           <div className="relative w-full max-w-lg bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
             
-            {/* Header - Compacto */}
+            {/* Header */}
             <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] p-4 sm:p-6 flex-shrink-0">
               <div className="flex justify-between items-center">
                 <div>
@@ -430,7 +444,7 @@ export default function GlobalModals() {
               </div>
             </div>
 
-            {/* Content */}
+            {/* Lista de pedidos ativos */}
             <div className="flex-1 overflow-y-auto p-3 sm:p-4 bg-[#faf8f5]">
               {activeTrackingOrders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -461,7 +475,7 @@ export default function GlobalModals() {
                               : 'border-[#1e3a5f]/5'
                         }`}
                       >
-                        {/* Cabeçalho do pedido - Compacto */}
+                        {/* Cabeçalho do pedido */}
                         <div className="p-3 sm:p-4 border-b border-[#1e3a5f]/5">
                           <div className="flex justify-between items-start">
                             <div>
@@ -492,7 +506,7 @@ export default function GlobalModals() {
                           </div>
                         </div>
 
-                        {/* Timeline de status - Compacto */}
+                        {/* Timeline de progresso (exceto cancelados) */}
                         {!isCancelled && (
                           <div className="px-3 sm:px-4 py-2 sm:py-3 bg-[#faf8f5]">
                             <div className="flex gap-1 mb-1.5 sm:mb-2">
@@ -513,7 +527,7 @@ export default function GlobalModals() {
                           </div>
                         )}
 
-                        {/* Mensagem de cancelado */}
+                        {/* Mensagem para pedidos cancelados */}
                         {isCancelled && (
                           <div className="px-3 sm:px-4 py-2 sm:py-3 bg-red-50">
                             <p className="text-red-600 font-medium text-xs sm:text-sm text-center flex items-center justify-center gap-2">
@@ -523,7 +537,7 @@ export default function GlobalModals() {
                           </div>
                         )}
 
-                        {/* Endereço de entrega */}
+                        {/* Endereço de entrega (apenas para delivery) */}
                         {!isPickup && order.deliveryAddress && (
                           <div className="px-3 sm:px-4 py-2 sm:py-3 bg-blue-50/50 border-t border-blue-100">
                             <p className="text-[10px] sm:text-xs font-bold text-blue-700 mb-0.5 sm:mb-1 flex items-center gap-1">
@@ -537,7 +551,7 @@ export default function GlobalModals() {
                           </div>
                         )}
 
-                        {/* Aviso de retirada */}
+                        {/* Aviso para pedidos prontos para retirada */}
                         {isPickup && order.status === 'READY_FOR_PICKUP' && (
                           <div className="px-3 sm:px-4 py-2 sm:py-3 bg-purple-50 border-t border-purple-100">
                             <p className="text-purple-700 font-bold text-xs sm:text-sm text-center flex items-center justify-center gap-2">
@@ -547,7 +561,7 @@ export default function GlobalModals() {
                           </div>
                         )}
 
-                        {/* Itens do pedido - Compacto */}
+                        {/* Lista de itens do pedido */}
                         <div className="p-3 sm:p-4">
                           <div className="space-y-1 sm:space-y-2 mb-2 sm:mb-3">
                             {order.items.map((item, idx) => (
@@ -569,7 +583,7 @@ export default function GlobalModals() {
                           </div>
                         </div>
 
-                        {/* ✅ BOTÃO DE CONFIRMAR - SEMPRE VISÍVEL QUANDO NECESSÁRIO */}
+                        {/* Botão de confirmação (quando entregue/retirado) */}
                         {showConfirmation && (
                           <div className="p-3 sm:p-4 bg-green-50 border-t border-green-200">
                             <div className="text-center mb-2 sm:mb-3">
@@ -615,6 +629,7 @@ export default function GlobalModals() {
         </div>
       )}
 
+      {/* Estilos de animação para o carrinho */}
       <style>{`
         @keyframes slide-in-right {
           from { transform: translateX(100%); }
