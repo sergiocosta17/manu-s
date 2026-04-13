@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // Página de administração para gerenciar o catálogo de produtos
@@ -16,10 +16,20 @@ export default function AdminProducts() {
     category: 'BURGER',
     imageUrl: ''
   });
+
+  // Estados para o modal de ajuste de imagem
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [originalImage, setOriginalImage] = useState(null);
+  const [cropArea, setCropArea] = useState({ x: 0, y: 0, width: 100, height: 100 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+  const [zoom, setZoom] = useState(1);
+  const cropContainerRef = useRef(null);
+  const imageRef = useRef(null);
   
   const navigate = useNavigate();
 
-  // Lista de categorias disponíveis para filtro e seleção
   const categories = [
     { value: 'ALL', label: 'Todos' },
     { value: 'BURGER', label: 'Burgers' },
@@ -30,10 +40,8 @@ export default function AdminProducts() {
     { value: 'DESSERT', label: 'Doces' }
   ];
 
-  // Carrega produtos ao montar o componente
   useEffect(() => { fetchProducts(); }, []);
 
-  // Busca todos os produtos via GraphQL
   const fetchProducts = async () => {
     setLoading(true);
     try {
@@ -58,7 +66,7 @@ export default function AdminProducts() {
     }
   };
 
-  // Processa upload de imagem, redimensiona e converte para base64
+  // Processa upload de imagem e abre modal de ajuste
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -73,30 +81,189 @@ export default function AdminProducts() {
     
     const reader = new FileReader();
     reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_SIZE = 800;
-        let width = img.width;
-        let height = img.height;
-        
-        if (width > height) {
-          if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
-        } else {
-          if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
-        }
-        
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        setProductForm({ ...productForm, imageUrl: canvas.toDataURL('image/jpeg', 0.8) });
-      };
-      img.src = event.target.result;
+      setOriginalImage(event.target.result);
+      setZoom(1);
+      setCropArea({ x: 0, y: 0, width: 100, height: 100 });
+      setIsCropModalOpen(true);
     };
     reader.readAsDataURL(file);
   };
 
-  // Submete formulário para criar ou atualizar produto
+  // Quando a imagem carrega, calcula as dimensões
+  const handleImageLoad = useCallback(() => {
+    if (imageRef.current && cropContainerRef.current) {
+      const container = cropContainerRef.current;
+      const img = imageRef.current;
+      
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      
+      // Calcula o tamanho da imagem para caber no container
+      const imgRatio = img.naturalWidth / img.naturalHeight;
+      const containerRatio = containerWidth / containerHeight;
+      
+      let displayWidth, displayHeight;
+      
+      if (imgRatio > containerRatio) {
+        displayWidth = containerWidth;
+        displayHeight = containerWidth / imgRatio;
+      } else {
+        displayHeight = containerHeight;
+        displayWidth = containerHeight * imgRatio;
+      }
+      
+      setImageSize({ 
+        width: displayWidth, 
+        height: displayHeight,
+        naturalWidth: img.naturalWidth,
+        naturalHeight: img.naturalHeight
+      });
+      
+      // Centraliza a área de crop inicial (quadrado)
+      const cropSize = Math.min(displayWidth, displayHeight) * 0.8;
+      setCropArea({
+        x: (displayWidth - cropSize) / 2,
+        y: (displayHeight - cropSize) / 2,
+        width: cropSize,
+        height: cropSize
+      });
+    }
+  }, []);
+
+  // Inicia o arrasto da área de crop
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    const rect = cropContainerRef.current.getBoundingClientRect();
+    setIsDragging(true);
+    setDragStart({
+      x: e.clientX - rect.left - cropArea.x,
+      y: e.clientY - rect.top - cropArea.y
+    });
+  };
+
+  // Move a área de crop
+  const handleMouseMove = useCallback((e) => {
+    if (!isDragging || !cropContainerRef.current) return;
+    
+    const rect = cropContainerRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left - dragStart.x;
+    const y = e.clientY - rect.top - dragStart.y;
+    
+    // Limita aos bounds da imagem
+    const maxX = imageSize.width * zoom - cropArea.width;
+    const maxY = imageSize.height * zoom - cropArea.height;
+    
+    setCropArea(prev => ({
+      ...prev,
+      x: Math.max(0, Math.min(x, maxX)),
+      y: Math.max(0, Math.min(y, maxY))
+    }));
+  }, [isDragging, dragStart, imageSize, cropArea.width, cropArea.height, zoom]);
+
+  // Finaliza o arrasto
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Touch events para mobile
+  const handleTouchStart = (e) => {
+    const touch = e.touches[0];
+    const rect = cropContainerRef.current.getBoundingClientRect();
+    setIsDragging(true);
+    setDragStart({
+      x: touch.clientX - rect.left - cropArea.x,
+      y: touch.clientY - rect.top - cropArea.y
+    });
+  };
+
+  const handleTouchMove = useCallback((e) => {
+    if (!isDragging || !cropContainerRef.current) return;
+    
+    const touch = e.touches[0];
+    const rect = cropContainerRef.current.getBoundingClientRect();
+    const x = touch.clientX - rect.left - dragStart.x;
+    const y = touch.clientY - rect.top - dragStart.y;
+    
+    const maxX = imageSize.width * zoom - cropArea.width;
+    const maxY = imageSize.height * zoom - cropArea.height;
+    
+    setCropArea(prev => ({
+      ...prev,
+      x: Math.max(0, Math.min(x, maxX)),
+      y: Math.max(0, Math.min(y, maxY))
+    }));
+  }, [isDragging, dragStart, imageSize, cropArea.width, cropArea.height, zoom]);
+
+  // Aplica zoom
+  const handleZoomChange = (newZoom) => {
+    const oldZoom = zoom;
+    setZoom(newZoom);
+    
+    // Ajusta a posição do crop para manter centralizado
+    const zoomRatio = newZoom / oldZoom;
+    setCropArea(prev => {
+      const centerX = prev.x + prev.width / 2;
+      const centerY = prev.y + prev.height / 2;
+      
+      const newCenterX = centerX * zoomRatio;
+      const newCenterY = centerY * zoomRatio;
+      
+      const newX = newCenterX - prev.width / 2;
+      const newY = newCenterY - prev.height / 2;
+      
+      const maxX = imageSize.width * newZoom - prev.width;
+      const maxY = imageSize.height * newZoom - prev.height;
+      
+      return {
+        ...prev,
+        x: Math.max(0, Math.min(newX, maxX)),
+        y: Math.max(0, Math.min(newY, maxY))
+      };
+    });
+  };
+
+  // Confirma o crop e salva a imagem
+  const handleCropConfirm = () => {
+    if (!imageRef.current) return;
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = imageRef.current;
+    
+    // Tamanho de saída (quadrado)
+    const outputSize = 800;
+    canvas.width = outputSize;
+    canvas.height = outputSize;
+    
+    // Calcula a área de crop na imagem original
+    const scaleX = img.naturalWidth / (imageSize.width * zoom);
+    const scaleY = img.naturalHeight / (imageSize.height * zoom);
+    
+    const sourceX = cropArea.x * scaleX;
+    const sourceY = cropArea.y * scaleY;
+    const sourceWidth = cropArea.width * scaleX;
+    const sourceHeight = cropArea.height * scaleY;
+    
+    // Desenha a imagem recortada
+    ctx.drawImage(
+      img,
+      sourceX, sourceY, sourceWidth, sourceHeight,
+      0, 0, outputSize, outputSize
+    );
+    
+    // Converte para base64
+    const croppedImageUrl = canvas.toDataURL('image/jpeg', 0.85);
+    setProductForm({ ...productForm, imageUrl: croppedImageUrl });
+    setIsCropModalOpen(false);
+    setOriginalImage(null);
+  };
+
+  // Cancela o crop
+  const handleCropCancel = () => {
+    setIsCropModalOpen(false);
+    setOriginalImage(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -134,7 +301,6 @@ export default function AdminProducts() {
     }
   };
 
-  // Exclui um produto após confirmação
   const handleDelete = async (id) => {
     if (!window.confirm('Excluir este produto?')) return;
     try {
@@ -152,7 +318,6 @@ export default function AdminProducts() {
     } catch (err) {}
   };
 
-  // Abre modal para edição de produto existente
   const openEdit = (product) => {
     setEditingProduct(product);
     setProductForm({ 
@@ -166,18 +331,15 @@ export default function AdminProducts() {
     setIsModalOpen(true);
   };
 
-  // Abre modal para criação de novo produto
   const openCreate = () => {
     setEditingProduct(null);
     setProductForm({ name: '', price: '', promotionalPrice: '', description: '', category: activeCategory === 'ALL' ? 'BURGER' : activeCategory, imageUrl: '' });
     setIsModalOpen(true);
   };
 
-  // Filtra produtos pela categoria ativa
   const filteredProducts = products
     .filter(p => activeCategory === 'ALL' || p.category === activeCategory);
 
-  // Estatísticas para exibição nos cards
   const stats = {
     total: products.length,
     promos: products.filter(p => p.promotionalPrice).length,
@@ -187,7 +349,6 @@ export default function AdminProducts() {
   return (
     <div className="min-h-screen bg-[#faf8f5] flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white">
       
-      {/* Espaço reservado para o header fixo */}
       <div className="h-20"></div>
 
       <main className="flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
@@ -252,7 +413,7 @@ export default function AdminProducts() {
           ))}
         </nav>
 
-        {/* Conteúdo principal: grid de produtos ou estados de loading/vazio */}
+        {/* Grid de produtos */}
         {loading ? (
           <div className="flex flex-col justify-center items-center py-32">
             <div className="relative">
@@ -274,7 +435,6 @@ export default function AdminProducts() {
                 key={p.id} 
                 className="bg-white rounded-2xl shadow-sm border border-[#1e3a5f]/5 overflow-hidden flex flex-col group hover:shadow-lg hover:-translate-y-1 transition-all relative"
               >
-                {/* (Oferta, Indisponível, Destaque) */}
                 <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
                   {p.promotionalPrice && (
                     <span className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md">
@@ -293,7 +453,6 @@ export default function AdminProducts() {
                   )}
                 </div>
                 
-                {/* Imagem do produto */}
                 <div className="h-40 bg-gradient-to-br from-[#f5f3f0] to-[#ebe8e4] relative overflow-hidden">
                   {p.imageUrl ? (
                     <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -304,7 +463,6 @@ export default function AdminProducts() {
                   )}
                 </div>
                 
-                {/* Informações do produto */}
                 <div className="p-5 flex-grow flex flex-col">
                   <span className="text-[9px] font-semibold text-[#1e3a5f]/30 uppercase tracking-wider mb-1">
                     {categories.find(c => c.value === p.category)?.label}
@@ -323,7 +481,6 @@ export default function AdminProducts() {
                       <p className="text-xl font-bold text-[#1e3a5f]">R$ {p.price.toFixed(2)}</p>
                     )}
                   </div>
-                  {/* Ações: Editar e Excluir */}
                   <div className="flex gap-2">
                     <button 
                       onClick={() => openEdit(p)} 
@@ -351,7 +508,6 @@ export default function AdminProducts() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm" onClick={() => setIsModalOpen(false)}></div>
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-fade-in">
-            {/* Cabeçalho do modal */}
             <div className="flex items-center justify-between p-6 border-b border-[#1e3a5f]/10 sticky top-0 bg-white z-10">
               <h2 className="text-xl font-bold text-[#1e3a5f]">
                 {editingProduct ? 'Editar Produto' : 'Novo Produto'}
@@ -364,9 +520,8 @@ export default function AdminProducts() {
               </button>
             </div>
             
-            {/* Formulário */}
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              {/* Upload de imagem */}
+              {/* Upload de imagem com ajuste */}
               <div>
                 <label className="block text-xs font-medium text-[#1e3a5f]/50 mb-2">Imagem do Produto</label>
                 <div className={`border-2 border-dashed rounded-2xl transition-all relative ${
@@ -375,13 +530,21 @@ export default function AdminProducts() {
                   {productForm.imageUrl ? (
                     <div className="relative">
                       <img src={productForm.imageUrl} alt="Preview" className="w-full h-48 object-cover rounded-xl" />
-                      <button
-                        type="button"
-                        onClick={() => setProductForm({ ...productForm, imageUrl: '' })}
-                        className="absolute top-3 right-3 bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-lg flex items-center justify-center shadow-lg transition-colors"
-                      >
-                        <CloseIcon className="w-4 h-4" />
-                      </button>
+                      <div className="absolute top-3 right-3 flex gap-2">
+                        {/* Botão para ajustar a imagem novamente */}
+                        <label className="bg-white hover:bg-gray-100 text-[#1e3a5f] w-8 h-8 rounded-lg flex items-center justify-center shadow-lg transition-colors cursor-pointer">
+                          <CropIcon className="w-4 h-4" />
+                          <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                        </label>
+                        {/* Botão para remover a imagem */}
+                        <button
+                          type="button"
+                          onClick={() => setProductForm({ ...productForm, imageUrl: '' })}
+                          className="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-lg flex items-center justify-center shadow-lg transition-colors"
+                        >
+                          <CloseIcon className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <label className="flex flex-col items-center justify-center h-48 cursor-pointer">
@@ -479,6 +642,160 @@ export default function AdminProducts() {
         </div>
       )}
 
+      {/* Modal de ajuste/crop de imagem */}
+      {isCropModalOpen && originalImage && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={handleCropCancel}></div>
+          <div className="relative bg-[#1e3a5f] rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-white/10">
+              <div>
+                <h2 className="text-lg font-bold text-white">Ajustar Imagem</h2>
+                <p className="text-white/50 text-xs mt-0.5">Arraste para posicionar</p>
+              </div>
+              <button
+                onClick={handleCropCancel}
+                className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/50 hover:text-white transition-all"
+              >
+                <CloseIcon />
+              </button>
+            </div>
+            
+            {/* Área de crop */}
+            <div 
+              ref={cropContainerRef}
+              className="relative w-full h-80 bg-black/50 overflow-hidden cursor-move select-none"
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleMouseUp}
+            >
+              {/* Imagem */}
+              <img
+                ref={imageRef}
+                src={originalImage}
+                alt="Para ajustar"
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-none pointer-events-none"
+                style={{ 
+                  width: imageSize.width * zoom,
+                  height: imageSize.height * zoom
+                }}
+                onLoad={handleImageLoad}
+                draggable={false}
+              />
+              
+              {/* Overlay escuro fora da área de crop */}
+              <div className="absolute inset-0 pointer-events-none">
+                {/* Top */}
+                <div 
+                  className="absolute bg-black/60"
+                  style={{
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: `calc(50% - ${cropArea.height / 2}px + ${cropArea.y - imageSize.height * zoom / 2 + cropArea.height / 2}px)`
+                  }}
+                />
+                {/* Bottom */}
+                <div 
+                  className="absolute bg-black/60"
+                  style={{
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    height: `calc(50% - ${cropArea.height / 2}px - ${cropArea.y - imageSize.height * zoom / 2 + cropArea.height / 2}px)`
+                  }}
+                />
+                {/* Left */}
+                <div 
+                  className="absolute bg-black/60"
+                  style={{
+                    top: `calc(50% - ${imageSize.height * zoom / 2 - cropArea.y}px)`,
+                    left: 0,
+                    width: `calc(50% - ${imageSize.width * zoom / 2 - cropArea.x}px)`,
+                    height: cropArea.height
+                  }}
+                />
+                {/* Right */}
+                <div 
+                  className="absolute bg-black/60"
+                  style={{
+                    top: `calc(50% - ${imageSize.height * zoom / 2 - cropArea.y}px)`,
+                    right: 0,
+                    width: `calc(50% - ${imageSize.width * zoom / 2 - (imageSize.width * zoom - cropArea.x - cropArea.width)}px)`,
+                    height: cropArea.height
+                  }}
+                />
+              </div>
+              
+              {/* Área de crop interativa */}
+              <div
+                className="absolute border-2 border-white rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]"
+                style={{
+                  left: `calc(50% - ${imageSize.width * zoom / 2 - cropArea.x}px)`,
+                  top: `calc(50% - ${imageSize.height * zoom / 2 - cropArea.y}px)`,
+                  width: cropArea.width,
+                  height: cropArea.height,
+                }}
+                onMouseDown={handleMouseDown}
+                onTouchStart={handleTouchStart}
+              >
+                {/* Cantos */}
+                <div className="absolute -top-1 -left-1 w-3 h-3 bg-white rounded-full shadow-md"></div>
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full shadow-md"></div>
+                <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-white rounded-full shadow-md"></div>
+                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-white rounded-full shadow-md"></div>
+                
+                {/* Grid de terços */}
+                <div className="absolute inset-0 pointer-events-none">
+                  <div className="absolute left-1/3 top-0 bottom-0 w-px bg-white/30"></div>
+                  <div className="absolute left-2/3 top-0 bottom-0 w-px bg-white/30"></div>
+                  <div className="absolute top-1/3 left-0 right-0 h-px bg-white/30"></div>
+                  <div className="absolute top-2/3 left-0 right-0 h-px bg-white/30"></div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Controle de zoom */}
+            <div className="p-5 border-t border-white/10">
+              <div className="flex items-center gap-4 mb-5">
+                <ZoomOutIcon className="w-5 h-5 text-white/50" />
+                <input
+                  type="range"
+                  min="1"
+                  max="3"
+                  step="0.1"
+                  value={zoom}
+                  onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
+                  className="flex-grow h-2 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
+                />
+                <ZoomInIcon className="w-5 h-5 text-white/50" />
+              </div>
+              
+              {/* Botões */}
+              <div className="flex gap-3">
+                <button 
+                  type="button" 
+                  onClick={handleCropCancel} 
+                  className="flex-1 py-3.5 rounded-xl font-medium bg-white/10 hover:bg-white/20 text-white transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="button"
+                  onClick={handleCropConfirm}
+                  className="flex-1 py-3.5 rounded-xl font-medium bg-[#d4a853] hover:bg-[#c49a4a] text-[#1e3a5f] shadow-lg transition-all flex items-center justify-center gap-2"
+                >
+                  <CheckIcon className="w-5 h-5" />
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Rodapé de navegação mobile */}
       <footer className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-[#1e3a5f]/10 pb-safe">
         <div className="flex justify-around items-center py-2 px-4">
@@ -488,13 +805,23 @@ export default function AdminProducts() {
           <NavBtn onClick={() => navigate('/profile')} icon={<UserIcon />} label="Perfil" />
         </div>
       </footer>
+
+      {/* Estilos de animação */}
+      <style>{`
+        @keyframes fade-in {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.2s ease-out;
+        }
+      `}</style>
     </div>
   );
 }
 
 // COMPONENTES AUXILIARES
 
-// Botão da barra de navegação mobile
 const NavBtn = ({ onClick, icon, label, active }) => (
   <button
     onClick={onClick}
@@ -560,5 +887,29 @@ const ImageIcon = ({ className = "w-5 h-5" }) => (
 const CloseIcon = ({ className = "w-5 h-5" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+  </svg>
+);
+
+const CropIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4M4 12h16"></path>
+  </svg>
+);
+
+const ZoomInIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"></path>
+  </svg>
+);
+
+const ZoomOutIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"></path>
+  </svg>
+);
+
+const CheckIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
   </svg>
 );
