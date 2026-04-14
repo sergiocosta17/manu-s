@@ -14,7 +14,8 @@ export default function AdminProducts() {
     promotionalPrice: '',
     description: '',
     category: 'BURGER',
-    imageUrl: ''
+    imageUrl: '',
+    isFeatured: false
   });
 
   // Estados para o modal de ajuste de imagem
@@ -32,6 +33,7 @@ export default function AdminProducts() {
 
   const categories = [
     { value: 'ALL', label: 'Todos' },
+    { value: 'FEATURED', label: 'Destaques' },
     { value: 'BURGER', label: 'Burgers' },
     { value: 'CHICKEN', label: 'Frango' },
     { value: 'COMBO', label: 'Combos' },
@@ -89,7 +91,6 @@ export default function AdminProducts() {
     reader.readAsDataURL(file);
   };
 
-  // Quando a imagem carrega, calcula as dimensões
   const handleImageLoad = useCallback(() => {
     if (imageRef.current && cropContainerRef.current) {
       const container = cropContainerRef.current;
@@ -98,7 +99,6 @@ export default function AdminProducts() {
       const containerWidth = container.clientWidth;
       const containerHeight = container.clientHeight;
       
-      // Calcula o tamanho da imagem para caber no container
       const imgRatio = img.naturalWidth / img.naturalHeight;
       const containerRatio = containerWidth / containerHeight;
       
@@ -119,7 +119,6 @@ export default function AdminProducts() {
         naturalHeight: img.naturalHeight
       });
       
-      // Centraliza a área de crop inicial (quadrado)
       const cropSize = Math.min(displayWidth, displayHeight) * 0.8;
       setCropArea({
         x: (displayWidth - cropSize) / 2,
@@ -130,7 +129,6 @@ export default function AdminProducts() {
     }
   }, []);
 
-  // Inicia o arrasto da área de crop
   const handleMouseDown = (e) => {
     e.preventDefault();
     const rect = cropContainerRef.current.getBoundingClientRect();
@@ -141,7 +139,6 @@ export default function AdminProducts() {
     });
   };
 
-  // Move a área de crop
   const handleMouseMove = useCallback((e) => {
     if (!isDragging || !cropContainerRef.current) return;
     
@@ -149,7 +146,6 @@ export default function AdminProducts() {
     const x = e.clientX - rect.left - dragStart.x;
     const y = e.clientY - rect.top - dragStart.y;
     
-    // Limita aos bounds da imagem
     const maxX = imageSize.width * zoom - cropArea.width;
     const maxY = imageSize.height * zoom - cropArea.height;
     
@@ -160,12 +156,10 @@ export default function AdminProducts() {
     }));
   }, [isDragging, dragStart, imageSize, cropArea.width, cropArea.height, zoom]);
 
-  // Finaliza o arrasto
   const handleMouseUp = () => {
     setIsDragging(false);
   };
 
-  // Touch events para mobile
   const handleTouchStart = (e) => {
     const touch = e.touches[0];
     const rect = cropContainerRef.current.getBoundingClientRect();
@@ -194,12 +188,10 @@ export default function AdminProducts() {
     }));
   }, [isDragging, dragStart, imageSize, cropArea.width, cropArea.height, zoom]);
 
-  // Aplica zoom
   const handleZoomChange = (newZoom) => {
     const oldZoom = zoom;
     setZoom(newZoom);
     
-    // Ajusta a posição do crop para manter centralizado
     const zoomRatio = newZoom / oldZoom;
     setCropArea(prev => {
       const centerX = prev.x + prev.width / 2;
@@ -222,7 +214,6 @@ export default function AdminProducts() {
     });
   };
 
-  // Confirma o crop e salva a imagem
   const handleCropConfirm = () => {
     if (!imageRef.current) return;
     
@@ -230,12 +221,10 @@ export default function AdminProducts() {
     const ctx = canvas.getContext('2d');
     const img = imageRef.current;
     
-    // Tamanho de saída (quadrado)
     const outputSize = 800;
     canvas.width = outputSize;
     canvas.height = outputSize;
     
-    // Calcula a área de crop na imagem original
     const scaleX = img.naturalWidth / (imageSize.width * zoom);
     const scaleY = img.naturalHeight / (imageSize.height * zoom);
     
@@ -244,21 +233,18 @@ export default function AdminProducts() {
     const sourceWidth = cropArea.width * scaleX;
     const sourceHeight = cropArea.height * scaleY;
     
-    // Desenha a imagem recortada
     ctx.drawImage(
       img,
       sourceX, sourceY, sourceWidth, sourceHeight,
       0, 0, outputSize, outputSize
     );
     
-    // Converte para base64
     const croppedImageUrl = canvas.toDataURL('image/jpeg', 0.85);
     setProductForm({ ...productForm, imageUrl: croppedImageUrl });
     setIsCropModalOpen(false);
     setOriginalImage(null);
   };
 
-  // Cancela o crop
   const handleCropCancel = () => {
     setIsCropModalOpen(false);
     setOriginalImage(null);
@@ -273,7 +259,8 @@ export default function AdminProducts() {
       description: productForm.description || '',
       category: productForm.category,
       imageUrl: productForm.imageUrl || '',
-      promotionalPrice: productForm.promotionalPrice ? parseFloat(productForm.promotionalPrice) : null
+      promotionalPrice: productForm.promotionalPrice ? parseFloat(productForm.promotionalPrice) : null,
+      isFeatured: productForm.isFeatured // NOVO: envia o campo isFeatured
     };
 
     const mutation = editingProduct 
@@ -294,7 +281,7 @@ export default function AdminProducts() {
       
       setIsModalOpen(false);
       setEditingProduct(null);
-      setProductForm({ name: '', price: '', promotionalPrice: '', description: '', category: 'BURGER', imageUrl: '' });
+      setProductForm({ name: '', price: '', promotionalPrice: '', description: '', category: 'BURGER', imageUrl: '', isFeatured: false });
       fetchProducts();
     } catch (err) {
       alert('Erro ao salvar produto');
@@ -326,24 +313,64 @@ export default function AdminProducts() {
       promotionalPrice: product.promotionalPrice?.toString() || '', 
       description: product.description || '',
       category: product.category || 'BURGER',
-      imageUrl: product.imageUrl || ''
+      imageUrl: product.imageUrl || '',
+      isFeatured: product.isFeatured || false
     });
     setIsModalOpen(true);
   };
 
   const openCreate = () => {
     setEditingProduct(null);
-    setProductForm({ name: '', price: '', promotionalPrice: '', description: '', category: activeCategory === 'ALL' ? 'BURGER' : activeCategory, imageUrl: '' });
+    setProductForm({ 
+      name: '', 
+      price: '', 
+      promotionalPrice: '', 
+      description: '', 
+      category: activeCategory === 'ALL' || activeCategory === 'FEATURED' ? 'BURGER' : activeCategory, 
+      imageUrl: '',
+      isFeatured: activeCategory === 'FEATURED' // Se estiver na aba Destaques, marca como destaque por padrão
+    });
     setIsModalOpen(true);
   };
 
-  const filteredProducts = products
-    .filter(p => activeCategory === 'ALL' || p.category === activeCategory);
+  // Toggle rápido de destaque
+  const toggleFeatured = async (product) => {
+    try {
+      const response = await fetch('http://localhost:4000/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({
+          query: `mutation UpdateProduct($id: ID!, $input: ProductInput!) { updateProduct(id: $id, input: $input) { id isFeatured } }`,
+          variables: { 
+            id: product.id, 
+            input: { 
+              name: product.name,
+              price: product.price,
+              category: product.category,
+              isFeatured: !product.isFeatured 
+            } 
+          }
+        })
+      });
+      const result = await response.json();
+      if (result.errors) { alert('Erro: ' + result.errors[0].message); return; }
+      fetchProducts();
+    } catch (err) {
+      alert('Erro ao atualizar destaque');
+    }
+  };
+
+  const filteredProducts = products.filter(p => {
+    if (activeCategory === 'ALL') return true;
+    if (activeCategory === 'FEATURED') return p.isFeatured === true;
+    return p.category === activeCategory;
+  });
 
   const stats = {
     total: products.length,
     promos: products.filter(p => p.promotionalPrice).length,
-    byCategory: categories.slice(1).map(c => ({ ...c, count: products.filter(p => p.category === c.value).length }))
+    featured: products.filter(p => p.isFeatured).length, // NOVO
+    byCategory: categories.slice(2).map(c => ({ ...c, count: products.filter(p => p.category === c.value).length }))
   };
 
   return (
@@ -375,7 +402,7 @@ export default function AdminProducts() {
         </div>
 
         {/* Cards de estatísticas */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           <div className="bg-white rounded-2xl p-5 border border-[#1e3a5f]/5">
             <p className="text-[#1e3a5f]/40 text-xs font-medium mb-1">Total de Produtos</p>
             <p className="text-3xl font-bold text-[#1e3a5f]">{stats.total}</p>
@@ -383,6 +410,13 @@ export default function AdminProducts() {
           <div className="bg-white rounded-2xl p-5 border border-[#1e3a5f]/5">
             <p className="text-[#1e3a5f]/40 text-xs font-medium mb-1">Em Promoção</p>
             <p className="text-3xl font-bold text-red-500">{stats.promos}</p>
+          </div>
+          <div className="bg-gradient-to-br from-[#d4a853]/10 to-[#d4a853]/5 rounded-2xl p-5 border border-[#d4a853]/20">
+            <p className="text-[#d4a853] text-xs font-medium mb-1 flex items-center gap-1">
+              <StarIcon className="w-3 h-3" />
+              Em Destaque
+            </p>
+            <p className="text-3xl font-bold text-[#d4a853]">{stats.featured}</p>
           </div>
           <div className="col-span-2 bg-white rounded-2xl p-5 border border-[#1e3a5f]/5">
             <p className="text-[#1e3a5f]/40 text-xs font-medium mb-3">Por Categoria</p>
@@ -404,11 +438,25 @@ export default function AdminProducts() {
               onClick={() => setActiveCategory(cat.value)} 
               className={`flex-shrink-0 flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all text-sm ${
                 activeCategory === cat.value 
-                  ? 'bg-[#1e3a5f] text-white shadow-lg shadow-[#1e3a5f]/20' 
+                  ? cat.value === 'FEATURED'
+                    ? 'bg-gradient-to-r from-[#d4a853] to-[#c49a4a] text-white shadow-lg shadow-[#d4a853]/30'
+                    : 'bg-[#1e3a5f] text-white shadow-lg shadow-[#1e3a5f]/20' 
                   : 'bg-white text-[#1e3a5f]/60 border border-[#1e3a5f]/10 hover:bg-[#1e3a5f]/5'
               }`}
             >
+              {cat.value === 'FEATURED' && (
+                <StarIcon className={`w-4 h-4 ${activeCategory === cat.value ? 'text-white' : 'text-[#d4a853]'}`} />
+              )}
               {cat.label}
+              {cat.value === 'FEATURED' && stats.featured > 0 && (
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                  activeCategory === cat.value 
+                    ? 'bg-white/20 text-white' 
+                    : 'bg-[#d4a853]/10 text-[#d4a853]'
+                }`}>
+                  {stats.featured}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -424,9 +472,19 @@ export default function AdminProducts() {
           </div>
         ) : filteredProducts.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-2xl border border-[#1e3a5f]/5">
-            <BoxIcon className="w-12 h-12 text-[#1e3a5f]/20 mx-auto mb-4" />
-            <p className="text-[#1e3a5f]/40 font-medium">Nenhum produto nesta categoria</p>
-            <p className="text-[#1e3a5f]/30 text-sm mt-1">Clique em "Novo Produto" para adicionar</p>
+            {activeCategory === 'FEATURED' ? (
+              <>
+                <StarIcon className="w-12 h-12 text-[#d4a853]/30 mx-auto mb-4" />
+                <p className="text-[#1e3a5f]/40 font-medium">Nenhum produto em destaque</p>
+                <p className="text-[#1e3a5f]/30 text-sm mt-1">Edite um produto e marque como destaque</p>
+              </>
+            ) : (
+              <>
+                <BoxIcon className="w-12 h-12 text-[#1e3a5f]/20 mx-auto mb-4" />
+                <p className="text-[#1e3a5f]/40 font-medium">Nenhum produto nesta categoria</p>
+                <p className="text-[#1e3a5f]/30 text-sm mt-1">Clique em "Novo Produto" para adicionar</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
@@ -435,6 +493,7 @@ export default function AdminProducts() {
                 key={p.id} 
                 className="bg-white rounded-2xl shadow-sm border border-[#1e3a5f]/5 overflow-hidden flex flex-col group hover:shadow-lg hover:-translate-y-1 transition-all relative"
               >
+                {/* Badges */}
                 <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
                   {p.promotionalPrice && (
                     <span className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md">
@@ -446,12 +505,20 @@ export default function AdminProducts() {
                       Indisponível
                     </span>
                   )}
-                  {p.isFeatured && (
-                    <span className="bg-[#d4a853] text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
-                      Destaque
-                    </span>
-                  )}
                 </div>
+
+                {/* Botão de toggle destaque no canto superior direito */}
+                <button
+                  onClick={() => toggleFeatured(p)}
+                  className={`absolute top-3 right-3 z-10 w-8 h-8 rounded-lg flex items-center justify-center transition-all shadow-md ${
+                    p.isFeatured 
+                      ? 'bg-[#d4a853] text-white hover:bg-[#c49a4a]' 
+                      : 'bg-white/90 text-[#1e3a5f]/30 hover:text-[#d4a853] hover:bg-white'
+                  }`}
+                  title={p.isFeatured ? 'Remover dos destaques' : 'Adicionar aos destaques'}
+                >
+                  <StarIcon className="w-4 h-4" />
+                </button>
                 
                 <div className="h-40 bg-gradient-to-br from-[#f5f3f0] to-[#ebe8e4] relative overflow-hidden">
                   {p.imageUrl ? (
@@ -464,9 +531,17 @@ export default function AdminProducts() {
                 </div>
                 
                 <div className="p-5 flex-grow flex flex-col">
-                  <span className="text-[9px] font-semibold text-[#1e3a5f]/30 uppercase tracking-wider mb-1">
-                    {categories.find(c => c.value === p.category)?.label}
-                  </span>
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <span className="text-[9px] font-semibold text-[#1e3a5f]/30 uppercase tracking-wider">
+                      {categories.find(c => c.value === p.category)?.label}
+                    </span>
+                    {p.isFeatured && (
+                      <span className="text-[9px] font-semibold text-[#d4a853] uppercase tracking-wider flex items-center gap-1">
+                        <StarIcon className="w-3 h-3" />
+                        Destaque
+                      </span>
+                    )}
+                  </div>
                   <h3 className="font-bold text-[#1e3a5f] mb-2 line-clamp-2">{p.name}</h3>
                   {p.description && (
                     <p className="text-[#1e3a5f]/40 text-xs mb-4 line-clamp-2">{p.description}</p>
@@ -531,12 +606,10 @@ export default function AdminProducts() {
                     <div className="relative">
                       <img src={productForm.imageUrl} alt="Preview" className="w-full h-48 object-cover rounded-xl" />
                       <div className="absolute top-3 right-3 flex gap-2">
-                        {/* Botão para ajustar a imagem novamente */}
                         <label className="bg-white hover:bg-gray-100 text-[#1e3a5f] w-8 h-8 rounded-lg flex items-center justify-center shadow-lg transition-colors cursor-pointer">
                           <CropIcon className="w-4 h-4" />
                           <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                         </label>
-                        {/* Botão para remover a imagem */}
                         <button
                           type="button"
                           onClick={() => setProductForm({ ...productForm, imageUrl: '' })}
@@ -576,7 +649,7 @@ export default function AdminProducts() {
                     value={productForm.category}
                     onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
                   >
-                    {categories.slice(1).map(c => (
+                    {categories.slice(2).map(c => (
                       <option key={c.value} value={c.value}>{c.label}</option>
                     ))}
                   </select>
@@ -622,6 +695,35 @@ export default function AdminProducts() {
                 />
               </div>
 
+              {/* NOVO: Checkbox para Destaque */}
+              <div 
+                onClick={() => setProductForm({ ...productForm, isFeatured: !productForm.isFeatured })}
+                className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                  productForm.isFeatured 
+                    ? 'bg-[#d4a853]/10 border-[#d4a853]/30' 
+                    : 'bg-[#faf8f5] border-[#1e3a5f]/10 hover:border-[#1e3a5f]/20'
+                }`}
+              >
+                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
+                  productForm.isFeatured 
+                    ? 'bg-[#d4a853] border-[#d4a853]' 
+                    : 'border-[#1e3a5f]/20'
+                }`}>
+                  {productForm.isFeatured && (
+                    <CheckIcon className="w-4 h-4 text-white" />
+                  )}
+                </div>
+                <div className="flex-grow">
+                  <p className={`font-medium ${productForm.isFeatured ? 'text-[#d4a853]' : 'text-[#1e3a5f]'}`}>
+                    Adicionar aos Destaques
+                  </p>
+                  <p className="text-xs text-[#1e3a5f]/40 mt-0.5">
+                    Este produto aparecerá na seção de destaques do cardápio
+                  </p>
+                </div>
+                <StarIcon className={`w-5 h-5 ${productForm.isFeatured ? 'text-[#d4a853]' : 'text-[#1e3a5f]/20'}`} />
+              </div>
+
               <div className="flex gap-3 pt-4">
                 <button 
                   type="button" 
@@ -647,7 +749,6 @@ export default function AdminProducts() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={handleCropCancel}></div>
           <div className="relative bg-[#1e3a5f] rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in">
-            {/* Header */}
             <div className="flex items-center justify-between p-5 border-b border-white/10">
               <div>
                 <h2 className="text-lg font-bold text-white">Ajustar Imagem</h2>
@@ -661,7 +762,6 @@ export default function AdminProducts() {
               </button>
             </div>
             
-            {/* Área de crop */}
             <div 
               ref={cropContainerRef}
               className="relative w-full h-80 bg-black/50 overflow-hidden cursor-move select-none"
@@ -671,7 +771,6 @@ export default function AdminProducts() {
               onTouchMove={handleTouchMove}
               onTouchEnd={handleMouseUp}
             >
-              {/* Imagem */}
               <img
                 ref={imageRef}
                 src={originalImage}
@@ -685,9 +784,7 @@ export default function AdminProducts() {
                 draggable={false}
               />
               
-              {/* Overlay escuro fora da área de crop */}
               <div className="absolute inset-0 pointer-events-none">
-                {/* Top */}
                 <div 
                   className="absolute bg-black/60"
                   style={{
@@ -697,7 +794,6 @@ export default function AdminProducts() {
                     height: `calc(50% - ${cropArea.height / 2}px + ${cropArea.y - imageSize.height * zoom / 2 + cropArea.height / 2}px)`
                   }}
                 />
-                {/* Bottom */}
                 <div 
                   className="absolute bg-black/60"
                   style={{
@@ -707,7 +803,6 @@ export default function AdminProducts() {
                     height: `calc(50% - ${cropArea.height / 2}px - ${cropArea.y - imageSize.height * zoom / 2 + cropArea.height / 2}px)`
                   }}
                 />
-                {/* Left */}
                 <div 
                   className="absolute bg-black/60"
                   style={{
@@ -717,7 +812,6 @@ export default function AdminProducts() {
                     height: cropArea.height
                   }}
                 />
-                {/* Right */}
                 <div 
                   className="absolute bg-black/60"
                   style={{
@@ -729,7 +823,6 @@ export default function AdminProducts() {
                 />
               </div>
               
-              {/* Área de crop interativa */}
               <div
                 className="absolute border-2 border-white rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]"
                 style={{
@@ -741,13 +834,11 @@ export default function AdminProducts() {
                 onMouseDown={handleMouseDown}
                 onTouchStart={handleTouchStart}
               >
-                {/* Cantos */}
                 <div className="absolute -top-1 -left-1 w-3 h-3 bg-white rounded-full shadow-md"></div>
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full shadow-md"></div>
                 <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-white rounded-full shadow-md"></div>
                 <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-white rounded-full shadow-md"></div>
                 
-                {/* Grid de terços */}
                 <div className="absolute inset-0 pointer-events-none">
                   <div className="absolute left-1/3 top-0 bottom-0 w-px bg-white/30"></div>
                   <div className="absolute left-2/3 top-0 bottom-0 w-px bg-white/30"></div>
@@ -757,7 +848,6 @@ export default function AdminProducts() {
               </div>
             </div>
             
-            {/* Controle de zoom */}
             <div className="p-5 border-t border-white/10">
               <div className="flex items-center gap-4 mb-5">
                 <ZoomOutIcon className="w-5 h-5 text-white/50" />
@@ -773,7 +863,6 @@ export default function AdminProducts() {
                 <ZoomInIcon className="w-5 h-5 text-white/50" />
               </div>
               
-              {/* Botões */}
               <div className="flex gap-3">
                 <button 
                   type="button" 
@@ -911,5 +1000,12 @@ const ZoomOutIcon = ({ className = "w-5 h-5" }) => (
 const CheckIcon = ({ className = "w-5 h-5" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+  </svg>
+);
+
+// Ícone de estrela para destaques
+const StarIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
   </svg>
 );
