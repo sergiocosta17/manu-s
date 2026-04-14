@@ -170,9 +170,9 @@ export default function ProductPage() {
     }, 2000);
   };
 
-  // Incrementa a quantidade (máximo 10)
+  // Incrementa a quantidade 
   const incrementQuantity = () => {
-    setQuantity((prev) => Math.min(prev + 1, 10));
+    setQuantity((prev) => Math.min(prev + 1));
   };
 
   // Decrementa a quantidade (mínimo 1)
@@ -334,7 +334,7 @@ export default function ProductPage() {
                       </span>
                       <button
                         onClick={incrementQuantity}
-                        disabled={quantity >= 10}
+                        disabled={quantity >= 999}
                         className="w-12 h-12 bg-[#faf8f5] rounded-xl flex items-center justify-center border border-[#1e3a5f]/10 hover:bg-[#1e3a5f]/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         <Icons.Plus className="w-5 h-5 text-[#1e3a5f]" />
