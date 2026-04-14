@@ -246,13 +246,30 @@ export default function Menu() {
 
   const safeProducts = Array.isArray(products) ? products : [];
   
-  // ATUALIZADO: Lógica de filtro para incluir Destaques
+  // Lógica de filtro para incluir Destaques
   const filteredProducts = activeCategory === 'FEATURED'
     ? safeProducts.filter((p) => p.isFeatured === true)
     : safeProducts.filter((p) => p.category === activeCategory);
 
   // Conta quantos produtos em destaque existem
   const featuredCount = safeProducts.filter((p) => p.isFeatured === true).length;
+const visibleCategories = categories.filter((cat) => {
+  if (cat.id === 'FEATURED') {
+    return featuredCount > 0;
+  }
+
+  return safeProducts.some((p) => p.category === cat.id);
+});
+
+useEffect(() => {
+  const stillExists = visibleCategories.some(
+    (cat) => cat.id === activeCategory
+  );
+
+  if (!stillExists && visibleCategories.length > 0) {
+    setActiveCategory(visibleCategories[0].id);
+  }
+}, [visibleCategories, activeCategory]);
 
   return (
     <div className="min-h-screen bg-[#faf8f5] flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white">
@@ -335,7 +352,7 @@ export default function Menu() {
         {/* Navegação por categorias*/}
         <nav className="mb-8 md:mb-12">
           <div className="flex gap-2 md:gap-3 overflow-x-auto pb-4 scrollbar-hide px-1 md:justify-center">
-            {categories.map((cat) => (
+            {visibleCategories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
