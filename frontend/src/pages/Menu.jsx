@@ -81,6 +81,11 @@ const Icons = {
       <path d="M22 10H2c0-2.76 4.48-5 10-5s10 2.24 10 5zM2 12h20v2c0 1.1-.9 2-2 2h-.67c.44-.58.67-1.27.67-2 0-1.65-1.35-3-3-3s-3 1.35-3 3c0 .73.23 1.42.67 2h-5.34c.44-.58.67-1.27.67-2 0-1.65-1.35-3-3-3s-3 1.35-3 3c0 .73.23 1.42.67 2H4c-1.1 0-2-.9-2-2v-2zm0 6c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2H2z"/>
     </svg>
   ),
+  Star: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+    </svg>
+  ),
 };
 
 // Página principal do cardápio
@@ -88,7 +93,7 @@ export default function Menu() {
   const [products, setProducts] = useState([]);
   const [banners, setBanners] = useState([]);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
-  const [activeCategory, setActiveCategory] = useState('BURGER');
+  const [activeCategory, setActiveCategory] = useState('FEATURED'); // Inicia em Destaques
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -115,6 +120,7 @@ export default function Menu() {
   } = useCart();
 
   const categories = [
+    { id: 'FEATURED', label: 'Destaques', icon: Icons.Star },
     { id: 'BURGER', label: 'Burgers' },
     { id: 'CHICKEN', label: 'Frango' },
     { id: 'COMBO', label: 'Combos' },
@@ -134,8 +140,9 @@ export default function Menu() {
             Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
           },
           body: JSON.stringify({
+            // ATUALIZADO: Busca também o campo isFeatured
             query: `query { 
-              products { id name price promotionalPrice description category imageUrl } 
+              products { id name price promotionalPrice description category imageUrl isFeatured } 
               banners { id title subtitle imageUrl }
             }`,
           }),
@@ -165,7 +172,6 @@ export default function Menu() {
     }
   }, [isAdmin]);
 
-  // Rotação automática do carrossel (pausa ao passar o mouse)
   useEffect(() => {
     if (banners.length <= 1) return;
     const interval = setInterval(() => {
@@ -174,7 +180,6 @@ export default function Menu() {
     return () => clearInterval(interval);
   }, [banners]);
 
-  // Funções de navegação do banner
   const goToPreviousBanner = () => {
     setCurrentBannerIndex((prev) => (prev - 1 + banners.length) % banners.length);
   };
@@ -240,7 +245,14 @@ export default function Menu() {
   };
 
   const safeProducts = Array.isArray(products) ? products : [];
-  const filteredProducts = safeProducts.filter((p) => p.category === activeCategory);
+  
+  // ATUALIZADO: Lógica de filtro para incluir Destaques
+  const filteredProducts = activeCategory === 'FEATURED'
+    ? safeProducts.filter((p) => p.isFeatured === true)
+    : safeProducts.filter((p) => p.category === activeCategory);
+
+  // Conta quantos produtos em destaque existem
+  const featuredCount = safeProducts.filter((p) => p.isFeatured === true).length;
 
   return (
     <div className="min-h-screen bg-[#faf8f5] flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white">
@@ -282,10 +294,8 @@ export default function Menu() {
               </div>
             ))}
             
-            {/* Setas de navegação (aparecem apenas se houver mais de 1 banner) */}
             {banners.length > 1 && (
               <>
-                {/* Seta Esquerda */}
                 <button
                   onClick={goToPreviousBanner}
                   className="absolute left-3 md:left-5 top-1/2 -translate-y-1/2 z-20 w-10 h-10 md:w-12 md:h-12 bg-white/90 hover:bg-white rounded-full shadow-lg flex items-center justify-center text-[#1e3a5f] transition-all opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95"
@@ -294,7 +304,6 @@ export default function Menu() {
                   <Icons.ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
                 </button>
 
-                {/* Seta Direita */}
                 <button
                   onClick={goToNextBanner}
                   className="absolute right-3 md:right-5 top-1/2 -translate-y-1/2 z-20 w-10 h-10 md:w-12 md:h-12 bg-white/90 hover:bg-white rounded-full shadow-lg flex items-center justify-center text-[#1e3a5f] transition-all opacity-0 group-hover:opacity-100 hover:scale-110 active:scale-95"
@@ -305,7 +314,6 @@ export default function Menu() {
               </>
             )}
             
-            {/* Indicadores de navegação do carrossel */}
             {banners.length > 1 && (
               <div className="absolute bottom-4 md:bottom-6 right-4 md:right-6 flex gap-2 z-20">
                 {banners.map((_, idx) => (
@@ -324,20 +332,34 @@ export default function Menu() {
           </div>
         )}
 
-        {/* Navegação por categorias */}
+        {/* Navegação por categorias*/}
         <nav className="mb-8 md:mb-12">
           <div className="flex gap-2 md:gap-3 overflow-x-auto pb-4 scrollbar-hide px-1 md:justify-center">
             {categories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
-                className={`flex-shrink-0 px-5 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl font-semibold whitespace-nowrap transition-all duration-300 text-sm md:text-base ${
+                className={`flex-shrink-0 px-5 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl font-semibold whitespace-nowrap transition-all duration-300 text-sm md:text-base flex items-center gap-2 ${
                   activeCategory === cat.id
-                    ? 'bg-[#1e3a5f] text-white shadow-lg shadow-[#1e3a5f]/20 scale-[1.02]'
+                    ? cat.id === 'FEATURED'
+                      ? 'bg-gradient-to-r from-[#d4a853] to-[#c49a4a] text-white shadow-lg shadow-[#d4a853]/30 scale-[1.02]'
+                      : 'bg-[#1e3a5f] text-white shadow-lg shadow-[#1e3a5f]/20 scale-[1.02]'
                     : 'bg-white text-[#1e3a5f]/60 hover:bg-[#1e3a5f]/5 border border-[#1e3a5f]/10 hover:border-[#1e3a5f]/20'
                 }`}
               >
+                {cat.id === 'FEATURED' && (
+                  <Icons.Star className={`w-4 h-4 ${activeCategory === cat.id ? 'text-white' : 'text-[#d4a853]'}`} />
+                )}
                 {cat.label}
+                {cat.id === 'FEATURED' && featuredCount > 0 && (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                    activeCategory === cat.id 
+                      ? 'bg-white/20 text-white' 
+                      : 'bg-[#d4a853]/10 text-[#d4a853]'
+                  }`}>
+                    {featuredCount}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -356,7 +378,10 @@ export default function Menu() {
           <>
             <div className="flex items-center justify-between mb-6 md:mb-8">
               <div>
-                <h3 className="text-xl md:text-2xl font-bold text-[#1e3a5f]">
+                <h3 className="text-xl md:text-2xl font-bold text-[#1e3a5f] flex items-center gap-2">
+                  {activeCategory === 'FEATURED' && (
+                    <Icons.Star className="w-6 h-6 text-[#d4a853]" />
+                  )}
                   {categories.find(c => c.id === activeCategory)?.label}
                 </h3>
                 <p className="text-[#1e3a5f]/40 text-sm mt-1">
@@ -372,11 +397,20 @@ export default function Menu() {
                   onClick={() => handleProductClick(p.id)}
                   className="bg-white rounded-2xl md:rounded-3xl shadow-sm hover:shadow-xl hover:shadow-[#1e3a5f]/8 border border-[#1e3a5f]/5 flex flex-col overflow-hidden transition-all duration-500 group hover:-translate-y-1 relative cursor-pointer"
                 >
-                  {hasValidPromoPrice(p) && (
-                    <div className="absolute top-3 left-3 z-10 bg-gradient-to-r from-red-500 to-orange-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-lg">
-                      Oferta
-                    </div>
-                  )}
+                  {/* Badges */}
+                  <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
+                    {hasValidPromoPrice(p) && (
+                      <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-lg">
+                        Oferta
+                      </div>
+                    )}
+                    {p.isFeatured && activeCategory !== 'FEATURED' && (
+                      <div className="bg-[#d4a853] text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-md">
+                        <Icons.Star className="w-3 h-3" />
+                        Destaque
+                      </div>
+                    )}
+                  </div>
                   
                   <div className="h-44 md:h-52 bg-gradient-to-br from-[#f5f3f0] to-[#ebe8e4] relative overflow-hidden">
                     {p.imageUrl ? (
@@ -436,10 +470,17 @@ export default function Menu() {
             {filteredProducts.length === 0 && (
               <div className="text-center py-20 bg-white rounded-3xl border border-[#1e3a5f]/5">
                 <div className="mb-4 flex justify-center">
-                  <Icons.Burger className="w-16 h-16 text-[#1e3a5f]/20" />
+                  {activeCategory === 'FEATURED' ? (
+                    <Icons.Star className="w-16 h-16 text-[#d4a853]/30" />
+                  ) : (
+                    <Icons.Burger className="w-16 h-16 text-[#1e3a5f]/20" />
+                  )}
                 </div>
                 <p className="text-[#1e3a5f]/40 font-medium">
-                  Nenhum item disponível nesta categoria
+                  {activeCategory === 'FEATURED' 
+                    ? 'Nenhum produto em destaque no momento'
+                    : 'Nenhum item disponível nesta categoria'
+                  }
                 </p>
               </div>
             )}
