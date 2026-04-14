@@ -78,6 +78,7 @@ export default function ProductPage() {
   const [error, setError] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [addedToCart, setAddedToCart] = useState(false);
+  const [observations, setObservations] = useState('');
   
   // Ref para prevenir múltiplos cliques no botão de adicionar
   const isAddingRef = useRef(false);
@@ -160,7 +161,7 @@ export default function ProductPage() {
     if (!product || isAddingRef.current || addedToCart) return;
     
     isAddingRef.current = true;
-    addToCart(product, quantity);
+    addToCart(product, quantity, observations);
     setAddedToCart(true);
 
     // Reseta o estado após 2 segundos
@@ -348,6 +349,24 @@ export default function ProductPage() {
                     </div>
                   </div>
                 </div>
+                {/* Campo de observações */}
+<div className="bg-white rounded-2xl p-5 border border-[#1e3a5f]/5 mb-6">
+  <p className="text-sm text-[#1e3a5f]/50 mb-3">
+    Observações para o pedido (opcional)
+  </p>
+
+  <textarea
+    value={observations}
+    onChange={(e) => setObservations(e.target.value)}
+    placeholder="Ex: sem cebola, molho separado..."
+    maxLength={200}
+    className="w-full h-24 resize-none rounded-xl border border-[#1e3a5f]/10 p-3 text-sm outline-none focus:border-[#1e3a5f]"
+  />
+
+  <div className="text-right text-xs text-[#1e3a5f]/30 mt-1">
+    {observations.length}/200
+  </div>
+</div>
 
                 {/* Botão de adicionar ao carrinho */}
                 <button
