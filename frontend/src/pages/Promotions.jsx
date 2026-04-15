@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import backgroundImage from '../assets/hamburgueres-de-fundo-16x9.png';
@@ -13,6 +13,15 @@ export default function Promotions() {
   const isAdmin = userRole === 'ADMIN';
   
   const { addToCart } = useCart?.() || {};
+
+  // Estado para feedback visual (toast)
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  // Função para mostrar toast
+  const showToast = useCallback((message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3500);
+  }, []);
 
   // Lista de categorias com ícones para exibição
   const categories = [
@@ -48,17 +57,26 @@ export default function Promotions() {
         setProducts(promoProducts);
       } catch (err) {
         console.error('Erro ao carregar ofertas:', err);
+        showToast('Erro ao carregar ofertas. Tente novamente.', 'error');
       } finally {
         setLoading(false);
       }
     };
 
     fetchPromotions();
-  }, []);
+  }, [showToast]);
 
   // Calcula o percentual de desconto
   const calculateDiscount = (original, promo) => {
     return Math.round(((original - promo) / original) * 100);
+  };
+
+  // Handler para adicionar ao carrinho com feedback
+  const handleAddToCart = (product) => {
+    if (addToCart) {
+      addToCart(product);
+      showToast(`${product.name} adicionado ao carrinho!`, 'success');
+    }
   };
 
   return (
@@ -76,19 +94,22 @@ export default function Promotions() {
       
       <div className="relative z-10 h-20"></div>
 
+      {/* Toast Notification */}
+      <Toast toast={toast} onClose={() => setToast({ ...toast, show: false })} />
+
       <main className="relative z-10 flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
         
         {/* cabeçalho destacado com informações de ofertas */}
         <div className="bg-gradient-to-br from-[#1e3a5f] to-[#162d4a] rounded-2xl md:rounded-3xl p-8 md:p-12 mb-10 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-[#d4a853]/20 rounded-full blur-3xl"></div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-2xl"></div>
-          <div className="absolute top-8 left-8 w-16 h-px bg-gradient-to-r from-[#d4a853] to-transparent"></div>
-          <div className="absolute top-8 left-8 w-px h-16 bg-gradient-to-b from-[#d4a853] to-transparent"></div>
+          <div className="absolute top-8 left-8 w-16 h-px bg-gradient-to-r from-white/30 to-transparent"></div>
+          <div className="absolute top-8 left-8 w-px h-16 bg-gradient-to-b from-white/30 to-transparent"></div>
           
           <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="text-center md:text-left">
-              <div className="inline-flex items-center gap-2 bg-[#d4a853]/20 text-[#d4a853] px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase mb-4">
-                <span className="w-1.5 h-1.5 bg-[#d4a853] rounded-full animate-pulse"></span>
+              <div className="inline-flex items-center gap-2 bg-white/10 text-white px-4 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase mb-4">
+                <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
                 Promoções Ativas
               </div>
               <h1 className="text-3xl md:text-5xl font-bold text-white mb-4 tracking-tight">
@@ -102,7 +123,7 @@ export default function Promotions() {
             {/* Contador de ofertas disponíveis */}
             <div className="flex items-center gap-4">
               <div className="text-center bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-                <p className="text-5xl md:text-6xl font-bold text-[#d4a853]">{products.length}</p>
+                <p className="text-5xl md:text-6xl font-bold text-white">{products.length}</p>
                 <p className="text-white/50 text-xs uppercase tracking-widest mt-1">Ofertas</p>
               </div>
             </div>
@@ -150,7 +171,7 @@ export default function Promotions() {
                   className="bg-white rounded-2xl md:rounded-3xl shadow-sm hover:shadow-xl hover:shadow-[#1e3a5f]/8 border border-[#1e3a5f]/5 flex flex-col overflow-hidden transition-all duration-500 group hover:-translate-y-1 relative"
                 >
                   {/* Badge com percentual de desconto */}
-                  <div className="absolute top-4 left-4 z-10 bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5">
+                  <div className="absolute top-4 left-4 z-10 bg-gradient-to-r from-[#1e3a5f] to-[#162d4a] text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5">
                     <span className="text-sm">🔥</span>
                     -{calculateDiscount(p.price, p.promotionalPrice)}%
                   </div>
@@ -193,10 +214,10 @@ export default function Promotions() {
                         <span className="text-[#1e3a5f]/30 line-through text-sm font-medium">
                           R$ {Number(p.price).toFixed(2).replace('.', ',')}
                         </span>
-                        <span className="text-2xl font-bold text-red-500">
+                        <span className="text-2xl font-bold text-[#1e3a5f]">
                           R$ {Number(p.promotionalPrice).toFixed(2).replace('.', ',')}
                         </span>
-                        <span className="text-[10px] font-medium text-green-600 mt-1">
+                        <span className="text-[10px] font-medium text-[#1e3a5f]/50 mt-1">
                           Economize R$ {(p.price - p.promotionalPrice).toFixed(2).replace('.', ',')}
                         </span>
                       </div>
@@ -204,7 +225,7 @@ export default function Promotions() {
                       {/* Botão adicionar ao carrinho (apenas para clientes) */}
                       {!isAdmin && (
                         <button
-                          onClick={() => addToCart?.(p)}
+                          onClick={() => handleAddToCart(p)}
                           className="bg-[#1e3a5f] hover:bg-[#162d4a] text-white w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 shadow-lg shadow-[#1e3a5f]/20 hover:shadow-xl hover:shadow-[#1e3a5f]/30 active:scale-95 group/btn"
                         >
                           <svg
@@ -260,6 +281,35 @@ export default function Promotions() {
 
 // COMPONENTES AUXILIARES
 
+// Toast Notification Component
+const Toast = ({ toast, onClose }) => {
+  if (!toast.show) return null;
+
+  const typeStyles = {
+    success: 'bg-[#1e3a5f] text-white',
+    error: 'bg-[#1e3a5f]/90 text-white border-2 border-white/20',
+    info: 'bg-[#1e3a5f]/80 text-white'
+  };
+
+  const icons = {
+    success: <CheckCircleIcon className="w-5 h-5" />,
+    error: <ErrorIcon className="w-5 h-5" />,
+    info: <InfoIcon className="w-5 h-5" />
+  };
+
+  return (
+    <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] animate-slide-down">
+      <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl ${typeStyles[toast.type]}`}>
+        {icons[toast.type]}
+        <span className="font-medium text-sm">{toast.message}</span>
+        <button onClick={onClose} className="ml-2 opacity-70 hover:opacity-100 transition-opacity">
+          <CloseIcon className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // Botão da barra de navegação mobile
 const NavBtn = ({ onClick, icon, label, active }) => (
   <button
@@ -290,5 +340,29 @@ const HomeIcon = ({ className = "w-6 h-6" }) => (
 const UserIcon = ({ className = "w-6 h-6" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+  </svg>
+);
+
+const CheckCircleIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+  </svg>
+);
+
+const ErrorIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+  </svg>
+);
+
+const InfoIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+  </svg>
+);
+
+const CloseIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
   </svg>
 );

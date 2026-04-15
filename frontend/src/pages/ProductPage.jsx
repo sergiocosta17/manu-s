@@ -45,11 +45,6 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
-  AlertCircle: ({ className = "w-5 h-5" }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  ),
 };
 
 const GET_PRODUCT = `
@@ -84,7 +79,6 @@ const categoryLabels = {
   DESSERT: 'Sobremesa',
 };
 
-// Mapeamento de dias
 const DAY_MAP = {
   0: 'sunday',
   1: 'monday',
@@ -117,7 +111,6 @@ export default function ProductPage() {
   const [addedToCart, setAddedToCart] = useState(false);
   const [observations, setObservations] = useState('');
   
-  // Estados para horário de funcionamento
   const [isStoreOpen, setIsStoreOpen] = useState(true);
   const [storeHoursMessage, setStoreHoursMessage] = useState('');
   const [todayHours, setTodayHours] = useState(null);
@@ -126,7 +119,6 @@ export default function ProductPage() {
   const isAddingRef = useRef(false);
   const isAdmin = localStorage.getItem('userRole') === 'ADMIN';
 
-  // Função para verificar se a loja está aberta
   const checkStoreOpen = (businessHours) => {
     if (!businessHours) {
       return { isOpen: true, message: '', todayHours: null, closingSoon: false };
@@ -185,7 +177,7 @@ export default function ProductPage() {
       let closingMessage = '';
       
       if (closingSoon) {
-        closingMessage = `Fechamos em ${minutesUntilClose} minutos`;
+        closingMessage = `Fechamos em ${minutesUntilClose} min`;
       }
 
       return {
@@ -429,78 +421,34 @@ export default function ProductPage() {
     >
       <div className="fixed inset-0 bg-[#faf8f5]/85 pointer-events-none z-0"></div>
 
-      <div className="sticky top-0 z-30">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center gap-4">
-          <button
-            onClick={() => navigate(-1)}
-            className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-md hover:shadow-lg transition-all border border-[#1e3a5f]/10"
-          >
-            <Icons.ArrowLeft className="w-5 h-5 text-[#1e3a5f]" />
-          </button>
-          <div className="flex-grow">
-            <h1 className="font-bold text-[#1e3a5f] truncate">{product.name}</h1>
-            <p className="text-xs text-[#1e3a5f]/40">Detalhes do produto</p>
-          </div>
-        </div>
-      </div>
+      {/* Espaçador para navbar fixa */}
+      <div className="h-20"></div>
 
-      {/* Aviso de Loja Fechada - Visível para admin e cliente */}
+      {/* Aviso de Loja Fechada */}
       {!isStoreOpen && (
-        <div className="relative z-20 max-w-5xl mx-auto px-4 mb-4">
-          <div className="rounded-2xl p-4 md:p-5 shadow-lg border-2 bg-gradient-to-r from-[#1e3a5f]/10 to-[#1e3a5f]/5 border-[#1e3a5f]/30">
-            <div className="flex items-center gap-3">
-              {/* Indicador de status */}
-              <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-[#1e3a5f]/20 flex-shrink-0">
-                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-              </div>
-
-              <div className="flex-grow">
-                <h3 className="font-bold text-lg text-[#1e3a5f]">Loja Fechada</h3>
-                <p className="text-sm text-[#1e3a5f]/70">{storeHoursMessage}</p>
-              </div>
-            </div>
-
-            {/* Aviso adicional */}
-            <div className="mt-3 pt-3 border-t border-[#1e3a5f]/20 flex items-center gap-2">
-              <Icons.AlertCircle className="w-5 h-5 text-[#1e3a5f]/60" />
-              <span className="text-sm text-[#1e3a5f]/70">
-                {isAdmin 
-                  ? 'Os clientes não podem fazer pedidos no momento.' 
-                  : 'Não é possível fazer pedidos no momento.'
-                }
-              </span>
-            </div>
+        <div className="relative z-20 max-w-5xl mx-auto px-4 pt-4 pb-2">
+          <div className="bg-[#1e3a5f]/10 border border-[#1e3a5f]/20 rounded-xl px-4 py-3 flex items-center gap-3">
+            <Icons.Clock className="w-5 h-5 text-[#1e3a5f]/60 flex-shrink-0" />
+            <p className="text-sm text-[#1e3a5f]">
+              <span className="font-semibold">Fechado</span>
+              {storeHoursMessage && <span className="text-[#1e3a5f]/70"> · {storeHoursMessage}</span>}
+            </p>
           </div>
         </div>
       )}
 
-      {/* Aviso de Fechando em Breve - Visível para admin e cliente */}
+      {/* Aviso de Fechando em Breve */}
       {isStoreOpen && isClosingSoon && (
-        <div className="relative z-20 max-w-5xl mx-auto px-4 mb-4">
-          <div className="rounded-2xl p-4 md:p-5 shadow-lg border-2 bg-gradient-to-r from-[#1e3a5f]/10 to-[#1e3a5f]/5 border-[#1e3a5f]/30">
-            <div className="flex items-center gap-3">
-              {/* Indicador de status */}
-              <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-[#1e3a5f]/20 flex-shrink-0">
-                <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-                <div className="absolute inset-0 rounded-full bg-amber-400 animate-pulse opacity-30"></div>
-              </div>
-
-              <div className="flex-grow">
-                <h3 className="font-bold text-lg text-[#1e3a5f]">Fechando em Breve</h3>
-                <p className="text-sm text-[#1e3a5f]/70">{storeHoursMessage}</p>
-              </div>
+        <div className="relative z-20 max-w-5xl mx-auto px-4 pt-4 pb-2">
+          <div className="bg-[#1e3a5f]/10 border border-[#1e3a5f]/20 rounded-xl px-4 py-3 flex items-center gap-3">
+            <div className="relative flex-shrink-0">
+              <Icons.Clock className="w-5 h-5 text-[#1e3a5f]/60" />
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-[#1e3a5f] rounded-full animate-pulse"></span>
             </div>
-
-            {/* Aviso adicional */}
-            <div className="mt-3 pt-3 border-t border-[#1e3a5f]/20 flex items-center gap-2">
-              <Icons.AlertCircle className="w-5 h-5 text-[#1e3a5f]/60" />
-              <span className="text-sm text-[#1e3a5f]/70">
-                {isAdmin 
-                  ? 'Os clientes devem finalizar os pedidos em breve!' 
-                  : 'Finalize seu pedido em breve!'
-                }
-              </span>
-            </div>
+            <p className="text-sm text-[#1e3a5f]">
+              <span className="font-semibold">{storeHoursMessage}</span>
+              <span className="text-[#1e3a5f]/70"> · Finalize seu pedido</span>
+            </p>
           </div>
         </div>
       )}
@@ -508,27 +456,48 @@ export default function ProductPage() {
       {/* Conteúdo principal */}
       <main className="relative z-10 max-w-5xl mx-auto px-4 py-6 md:py-10">
         <div className="grid md:grid-cols-2 gap-8 md:gap-12">
-          {/* Coluna da imagem do produto */}
-          <div className="relative">
-            <div className="aspect-square bg-white rounded-3xl overflow-hidden shadow-lg border border-[#1e3a5f]/5 relative">
-              {product.imageUrl ? (
-                <img
-                  src={product.imageUrl}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#f5f3f0] to-[#ebe8e4]">
-                  <Icons.Burger className="w-24 h-24 text-[#1e3a5f]/20" />
-                </div>
-              )}
+          
+          {/* Coluna da imagem com botão voltar ao lado */}
+          <div className="flex gap-4">
+            {/* Botão Voltar - Lateral */}
+            <button
+              onClick={() => navigate(-1)}
+              className="hidden md:flex w-12 h-12 bg-white rounded-xl items-center justify-center shadow-md hover:shadow-lg transition-all border border-[#1e3a5f]/10 flex-shrink-0 self-start"
+            >
+              <Icons.ArrowLeft className="w-5 h-5 text-[#1e3a5f]" />
+            </button>
 
-              {showPromoPrice && (
-                <div className="absolute top-4 left-4 bg-gradient-to-r from-red-500 to-orange-500 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
-                  <Icons.Fire className="w-4 h-4" />
-                  <span>-{getDiscountPercent()}% OFF</span>
-                </div>
-              )}
+            {/* Container da imagem */}
+            <div className="flex-grow">
+              {/* Botão Voltar Mobile - acima da imagem */}
+              <button
+                onClick={() => navigate(-1)}
+                className="md:hidden w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-md hover:shadow-lg transition-all border border-[#1e3a5f]/10 mb-4"
+              >
+                <Icons.ArrowLeft className="w-5 h-5 text-[#1e3a5f]" />
+              </button>
+
+              <div className="aspect-square bg-white rounded-3xl overflow-hidden shadow-lg border border-[#1e3a5f]/5 relative">
+                {product.imageUrl ? (
+                  <img
+                    src={product.imageUrl}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#f5f3f0] to-[#ebe8e4]">
+                    <Icons.Burger className="w-24 h-24 text-[#1e3a5f]/20" />
+                  </div>
+                )}
+
+                {/* Badge de desconto */}
+                {showPromoPrice && (
+                  <div className="absolute top-4 left-4 bg-[#1e3a5f] text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
+                    <Icons.Fire className="w-4 h-4" />
+                    <span>-{getDiscountPercent()}% OFF</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -553,7 +522,7 @@ export default function ProductPage() {
               <div className="flex items-end gap-3">
                 {showPromoPrice ? (
                   <>
-                    <span className="text-3xl md:text-4xl font-bold text-red-500">
+                    <span className="text-3xl md:text-4xl font-bold text-[#1e3a5f]">
                       R$ {displayPromoPrice}
                     </span>
                     <span className="text-lg text-[#1e3a5f]/30 line-through mb-1">
@@ -567,7 +536,7 @@ export default function ProductPage() {
                 )}
               </div>
               {showPromoPrice && savings && (
-                <p className="text-green-600 text-sm font-medium mt-1">
+                <p className="text-[#1e3a5f]/70 text-sm font-medium mt-1">
                   Você economiza R$ {savings}
                 </p>
               )}
@@ -632,9 +601,9 @@ export default function ProductPage() {
                   disabled={addedToCart || !isStoreOpen}
                   className={`w-full py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-3 ${
                     !isStoreOpen
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      ? 'bg-[#1e3a5f]/30 text-white/50 cursor-not-allowed'
                       : addedToCart
-                        ? 'bg-green-500 text-white cursor-not-allowed'
+                        ? 'bg-[#1e3a5f] text-white cursor-not-allowed'
                         : 'bg-[#1e3a5f] text-white hover:bg-[#162d4a] shadow-lg shadow-[#1e3a5f]/20'
                   }`}
                 >

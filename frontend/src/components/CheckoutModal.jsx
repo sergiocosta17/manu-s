@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useCart } from '../contexts/CartContext';
 import PaymentModal from './PaymentModal';
 
 // ÍCONES SVG
-// Componentes funcionais para ícones usados na interface
 const Icons = {
   Close: ({ className = "w-5 h-5" }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -52,10 +51,25 @@ const Icons = {
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
     </svg>
   ),
+  CheckCircle: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+  ),
+  Error: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+  ),
+  Info: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+  ),
 };
 
 export default function CheckoutModal({ isOpen, onClose }) {
-  const { cart, getCartTotal, clearCart } = useCart(); // Contexto do carrinho
+  const { cart, getCartTotal, clearCart } = useCart();
   
   // Estados locais
   const [savedAddresses, setSavedAddresses] = useState([]);
@@ -71,7 +85,6 @@ export default function CheckoutModal({ isOpen, onClose }) {
     city: '',
     state: '',
   });
-  const [loading, setLoading] = useState(false);
   const [loadingCep, setLoadingCep] = useState(false);
   const [cepError, setCepError] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -79,16 +92,37 @@ export default function CheckoutModal({ isOpen, onClose }) {
   const [storeAddress, setStoreAddress] = useState(null);
   const [loadingStore, setLoadingStore] = useState(false);
 
+  // Estados para feedback visual (toast)
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  // Função para mostrar toast
+  const showToast = useCallback((message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3500);
+  }, []);
+
   // Cálculo de valores
   const shippingFee = deliveryType === 'DELIVERY' ? 5.0 : 0;
   const subtotal = getCartTotal();
   const total = subtotal + shippingFee;
 
+  // Bloqueia scroll do body quando modal está aberto
+  useEffect(() => {
+    if (isOpen || showPaymentModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, showPaymentModal]);
+
   // Efeito executado quando o modal é aberto
   useEffect(() => {
     if (isOpen) {
-      fetchUserAddresses(); // Busca endereços salvos do usuário
-      fetchStoreAddress();  // Busca dados da loja para retirada
+      fetchUserAddresses();
+      fetchStoreAddress();
     }
   }, [isOpen]);
 
@@ -126,7 +160,6 @@ export default function CheckoutModal({ isOpen, onClose }) {
       const result = await response.json();
       if (result.data?.me?.addresses) {
         setSavedAddresses(result.data.me.addresses);
-        // Seleciona o endereço padrão ou o primeiro da lista
         const defaultAddr = result.data.me.addresses.find(a => a.isDefault);
         if (defaultAddr) {
           setSelectedAddressId(defaultAddr.id);
@@ -136,10 +169,11 @@ export default function CheckoutModal({ isOpen, onClose }) {
       }
     } catch (err) {
       console.error('Erro ao buscar endereços:', err);
+      showToast('Erro ao carregar endereços salvos', 'error');
     }
   };
 
-  // Busca configurações da loja (endereço para retirada) via GraphQL
+  // Busca informações da loja (endereço do admin) via GraphQL
   const fetchStoreAddress = async () => {
     setLoadingStore(true);
     try {
@@ -148,24 +182,59 @@ export default function CheckoutModal({ isOpen, onClose }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: `query { 
-            storeSettings {
+            storeInfo {
               storeName
-              storeAddress
-              storePhone
+              phone
+              storeAddress {
+                street
+                number
+                complement
+                neighborhood
+                city
+                state
+                zipCode
+              }
             }
           }`,
         }),
       });
 
       const result = await response.json();
-      if (result.data?.storeSettings) {
-        setStoreAddress(result.data.storeSettings);
+      
+      if (result.data?.storeInfo) {
+        const info = result.data.storeInfo;
+        const addr = info.storeAddress;
+        
+        // Monta o endereço formatado
+        let formattedAddress = null;
+        if (addr && addr.street) {
+          formattedAddress = `${addr.street}, ${addr.number || 'S/N'}`;
+          if (addr.complement) {
+            formattedAddress += ` - ${addr.complement}`;
+          }
+          formattedAddress += ` - ${addr.neighborhood || ''}, ${addr.city || ''}/${addr.state || ''}`;
+          if (addr.zipCode) {
+            formattedAddress += ` - CEP: ${addr.zipCode}`;
+          }
+        }
+        
+        setStoreAddress({
+          storeName: info.storeName || 'Nossa Loja',
+          storeAddress: formattedAddress || 'Endereço não configurado pelo administrador',
+          storePhone: info.phone || null
+        });
+      } else {
+        setStoreAddress({
+          storeName: 'Nossa Loja',
+          storeAddress: 'Endereço não configurado pelo administrador',
+          storePhone: null
+        });
       }
     } catch (err) {
       console.error('Erro ao buscar endereço da loja:', err);
       setStoreAddress({
         storeName: 'Nossa Loja',
-        storeAddress: 'Configure o endereço no painel admin',
+        storeAddress: 'Erro ao carregar endereço da loja',
         storePhone: null
       });
     } finally {
@@ -187,6 +256,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
 
       if (data.erro) {
         setCepError('CEP não encontrado');
+        showToast('CEP não encontrado', 'error');
         return;
       }
 
@@ -200,9 +270,11 @@ export default function CheckoutModal({ isOpen, onClose }) {
       }));
 
       setCepError('');
+      showToast('Endereço encontrado!', 'success');
     } catch (error) {
       console.error('Erro ao buscar CEP:', error);
       setCepError('Erro ao buscar CEP');
+      showToast('Erro ao buscar CEP', 'error');
     } finally {
       setLoadingCep(false);
     }
@@ -224,10 +296,10 @@ export default function CheckoutModal({ isOpen, onClose }) {
     }
   };
 
-  // Avança para a etapa de pagamento, validando endereço se delivery
+  // Avança para a etapa de pagamento
   const handleContinueToPayment = () => {
     if (deliveryType === 'DELIVERY' && !selectedAddressId && !newAddress.street) {
-      alert('Selecione ou adicione um endereço de entrega');
+      showToast('Selecione ou adicione um endereço de entrega', 'error');
       return;
     }
     setShowPaymentModal(true);
@@ -255,7 +327,6 @@ export default function CheckoutModal({ isOpen, onClose }) {
     setCepError('');
   };
 
-  // Se modal fechado, não renderiza nada
   if (!isOpen) return null;
 
   // Se estiver na etapa de pagamento, renderiza PaymentModal
@@ -284,18 +355,20 @@ export default function CheckoutModal({ isOpen, onClose }) {
     );
   }
 
-  // Renderização principal do modal de checkout
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-hidden">
       <div 
-        className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-[#1e3a5f]/70 backdrop-blur-md"
         onClick={onClose}
       />
 
-      <div className="relative bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+      {/* Toast Notification */}
+      <Toast toast={toast} onClose={() => setToast({ ...toast, show: false })} />
+
+      <div className="relative bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-scale-in">
         
         {/* Header com título e progresso */}
-        <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] p-6">
+        <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] p-6 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-white">Finalizar Pedido</h2>
@@ -311,7 +384,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
 
           {/* Barra de progresso */}
           <div className="flex gap-2 mt-4">
-            <div className="flex-1 h-1.5 bg-[#d4a853] rounded-full" />
+            <div className="flex-1 h-1.5 bg-white rounded-full" />
             <div className="flex-1 h-1.5 bg-white/20 rounded-full" />
           </div>
         </div>
@@ -353,20 +426,20 @@ export default function CheckoutModal({ isOpen, onClose }) {
                   <Icons.Store className="w-6 h-6" />
                 </div>
                 <p className="text-[#1e3a5f] font-bold text-sm">Retirada</p>
-                <p className="text-green-600 text-xs font-medium">Grátis</p>
+                <p className="text-[#1e3a5f]/50 text-xs font-medium">Grátis</p>
               </button>
             </div>
           </div>
 
           {/* Informações da loja para retirada */}
           {deliveryType === 'PICKUP' && (
-            <div className="bg-gradient-to-br from-[#1e3a5f]/10 to-[#1e3a5f]/5 rounded-2xl p-5 border border-[#1e3a5f]/10">
+            <div className="bg-white rounded-2xl p-5 border border-[#1e3a5f]/10 shadow-sm">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-xl bg-[#1e3a5f] flex items-center justify-center flex-shrink-0">
                   <Icons.LocationMarker className="w-6 h-6 text-white" />
                 </div>
-                <div className="flex-1">
-                  <h4 className="text-[#1e3a5f] font-bold text-sm mb-1">Local de Retirada</h4>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-[#1e3a5f]/50 text-xs font-medium mb-1">Local de Retirada</h4>
                   {loadingStore ? (
                     <div className="flex items-center gap-2 text-[#1e3a5f]/50 text-sm">
                       <Icons.Spinner className="w-4 h-4" />
@@ -374,13 +447,16 @@ export default function CheckoutModal({ isOpen, onClose }) {
                     </div>
                   ) : storeAddress ? (
                     <>
-                      <p className="text-[#d4a853] font-bold">{storeAddress.storeName || 'Nossa Loja'}</p>
-                      <p className="text-[#1e3a5f]/70 text-sm mt-1">{storeAddress.storeAddress || 'Endereço não configurado'}</p>
+                      <p className="text-[#1e3a5f] font-bold text-base">{storeAddress.storeName}</p>
+                      <p className="text-[#1e3a5f]/70 text-sm mt-1 leading-relaxed">{storeAddress.storeAddress}</p>
+                      
                       {storeAddress.storePhone && (
-                        <p className="text-[#1e3a5f]/50 text-xs mt-2 flex items-center gap-1">
-                          <Icons.Phone className="w-3 h-3" />
-                          {storeAddress.storePhone}
-                        </p>
+                        <div className="mt-3">
+                          <span className="text-[#1e3a5f]/50 text-xs flex items-center gap-1.5 bg-[#1e3a5f]/5 px-2.5 py-1.5 rounded-lg inline-flex">
+                            <Icons.Phone className="w-3.5 h-3.5" />
+                            {storeAddress.storePhone}
+                          </span>
+                        </div>
                       )}
                     </>
                   ) : (
@@ -421,7 +497,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
                           <div className="flex items-center gap-2">
                             <span className="text-[#1e3a5f] font-bold">{addr.label || 'Endereço'}</span>
                             {addr.isDefault && (
-                              <span className="text-[10px] bg-[#d4a853]/20 text-[#d4a853] px-2 py-0.5 rounded-full font-bold">
+                              <span className="text-[10px] bg-[#1e3a5f]/10 text-[#1e3a5f] px-2 py-0.5 rounded-full font-bold">
                                 PADRÃO
                               </span>
                             )}
@@ -482,24 +558,24 @@ export default function CheckoutModal({ isOpen, onClose }) {
                           maxLength={9}
                           className={`w-full bg-[#faf8f5] border rounded-xl px-3 py-2.5 text-[#1e3a5f] text-sm placeholder:text-[#1e3a5f]/30 focus:outline-none transition-colors ${
                             cepError 
-                              ? 'border-red-400 focus:border-red-500' 
+                              ? 'border-[#1e3a5f]/50 focus:border-[#1e3a5f]' 
                               : loadingCep 
-                                ? 'border-amber-400' 
+                                ? 'border-[#1e3a5f]/30' 
                                 : 'border-[#1e3a5f]/10 focus:border-[#1e3a5f]'
                           }`}
                         />
                         {loadingCep && (
                           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <Icons.Spinner className="w-4 h-4 text-amber-500" />
+                            <Icons.Spinner className="w-4 h-4 text-[#1e3a5f]" />
                           </div>
                         )}
                         {!loadingCep && newAddress.street && newAddress.zipCode.length === 9 && (
                           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <Icons.Check className="w-4 h-4 text-green-500" />
+                            <Icons.Check className="w-4 h-4 text-[#1e3a5f]" />
                           </div>
                         )}
                       </div>
-                      {cepError && <p className="text-red-500 text-xs mt-1">{cepError}</p>}
+                      {cepError && <p className="text-[#1e3a5f]/60 text-xs mt-1">{cepError}</p>}
                     </div>
                     
                     <div>
@@ -579,7 +655,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
                         type="text"
                         value={newAddress.state}
                         onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value.toUpperCase() })}
-                        placeholder="PB"
+                        placeholder="PE"
                         maxLength={2}
                         disabled={loadingCep}
                         className="w-full bg-[#faf8f5] border border-[#1e3a5f]/10 rounded-xl px-3 py-2.5 text-[#1e3a5f] text-sm placeholder:text-[#1e3a5f]/30 focus:outline-none focus:border-[#1e3a5f] disabled:opacity-50"
@@ -601,14 +677,14 @@ export default function CheckoutModal({ isOpen, onClose }) {
               </div>
               <div className="flex justify-between text-[#1e3a5f]/60">
                 <span>Entrega</span>
-                <span className={shippingFee === 0 ? 'text-green-600 font-medium' : ''}>
+                <span className={shippingFee === 0 ? 'text-[#1e3a5f] font-medium' : ''}>
                   {shippingFee > 0 ? `R$ ${shippingFee.toFixed(2).replace('.', ',')}` : 'Grátis'}
                 </span>
               </div>
               <div className="border-t border-[#1e3a5f]/10 pt-3 mt-2">
                 <div className="flex justify-between items-center">
                   <span className="text-[#1e3a5f] font-bold">Total</span>
-                  <span className="text-[#d4a853] font-black text-xl">R$ {total.toFixed(2).replace('.', ',')}</span>
+                  <span className="text-[#1e3a5f] font-black text-xl">R$ {total.toFixed(2).replace('.', ',')}</span>
                 </div>
               </div>
             </div>
@@ -616,7 +692,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
         </div>
 
         {/* Footer com ações de navegação */}
-        <div className="p-6 bg-white border-t border-[#1e3a5f]/10">
+        <div className="p-6 bg-white border-t border-[#1e3a5f]/10 flex-shrink-0">
           <div className="flex gap-3">
             <button
               onClick={onClose}
@@ -635,6 +711,52 @@ export default function CheckoutModal({ isOpen, onClose }) {
           </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes scale-in {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .animate-scale-in {
+          animation: scale-in 0.2s ease-out;
+        }
+        @keyframes slide-down {
+          from { opacity: 0; transform: translate(-50%, -20px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .animate-slide-down {
+          animation: slide-down 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }
+
+// Toast Notification Component
+const Toast = ({ toast, onClose }) => {
+  if (!toast.show) return null;
+
+  const typeStyles = {
+    success: 'bg-[#1e3a5f] text-white',
+    error: 'bg-[#1e3a5f]/90 text-white border-2 border-white/20',
+    info: 'bg-[#1e3a5f]/80 text-white'
+  };
+
+  const icons = {
+    success: <Icons.CheckCircle className="w-5 h-5" />,
+    error: <Icons.Error className="w-5 h-5" />,
+    info: <Icons.Info className="w-5 h-5" />
+  };
+
+  return (
+    <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[200] animate-slide-down">
+      <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl ${typeStyles[toast.type]}`}>
+        {icons[toast.type]}
+        <span className="font-medium text-sm">{toast.message}</span>
+        <button onClick={onClose} className="ml-2 opacity-70 hover:opacity-100 transition-opacity">
+          <Icons.Close className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+};

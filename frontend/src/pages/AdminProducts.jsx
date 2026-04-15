@@ -29,8 +29,40 @@ export default function AdminProducts() {
   const [zoom, setZoom] = useState(1);
   const cropContainerRef = useRef(null);
   const imageRef = useRef(null);
+
+  // Estados para feedback visual (toast e confirm modal)
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null, data: null });
   
   const navigate = useNavigate();
+
+  // Função para mostrar toast
+  const showToast = useCallback((message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3500);
+  }, []);
+
+  // Função para mostrar modal de confirmação
+  const showConfirm = useCallback((title, message, onConfirm, data = null) => {
+    setConfirmModal({ show: true, title, message, onConfirm, data });
+  }, []);
+
+  // Função para fechar modal de confirmação
+  const closeConfirm = useCallback(() => {
+    setConfirmModal({ show: false, title: '', message: '', onConfirm: null, data: null });
+  }, []);
+
+  // Bloqueia scroll do body quando qualquer modal está aberto
+  useEffect(() => {
+    if (isModalOpen || isCropModalOpen || confirmModal.show) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isModalOpen, isCropModalOpen, confirmModal.show]);
 
   const categories = [
     { value: 'ALL', label: 'Todos' },
@@ -64,6 +96,7 @@ export default function AdminProducts() {
       setProducts(result.data.products || []);
     } catch (err) {
       console.error('Erro ao carregar produtos:', err);
+      showToast('Erro ao carregar produtos', 'error');
     } finally {
       setLoading(false);
     }
@@ -74,11 +107,11 @@ export default function AdminProducts() {
     const file = e.target.files[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      alert('Selecione apenas arquivos de imagem.');
+      showToast('Selecione apenas arquivos de imagem', 'error');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert('A imagem deve ter no máximo 5MB.');
+      showToast('A imagem deve ter no máximo 5MB', 'error');
       return;
     }
     
@@ -244,6 +277,7 @@ export default function AdminProducts() {
     setProductForm({ ...productForm, imageUrl: croppedImageUrl });
     setIsCropModalOpen(false);
     setOriginalImage(null);
+    showToast('Imagem ajustada com sucesso!', 'success');
   };
 
   const handleCropCancel = () => {
@@ -278,32 +312,51 @@ export default function AdminProducts() {
       });
       
       const result = await response.json();
-      if (result.errors) { alert('Erro: ' + result.errors[0].message); return; }
+      if (result.errors) { 
+        showToast('Erro: ' + result.errors[0].message, 'error'); 
+        return; 
+      }
       
       setIsModalOpen(false);
       setEditingProduct(null);
       setProductForm({ name: '', price: '', promotionalPrice: '', description: '', category: 'BURGER', imageUrl: '', isFeatured: false });
       fetchProducts();
+      showToast(editingProduct ? 'Produto atualizado com sucesso!' : 'Produto criado com sucesso!', 'success');
     } catch (err) {
-      alert('Erro ao salvar produto');
+      showToast('Erro ao salvar produto', 'error');
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Excluir este produto?')) return;
-    try {
-      const response = await fetch('http://localhost:4000/graphql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ 
-          query: `mutation DeleteProduct($id: ID!) { deleteProduct(id: $id) }`,
-          variables: { id }
-        })
-      });
-      const result = await response.json();
-      if (result.errors) { alert('Erro: ' + result.errors[0].message); return; }
-      fetchProducts();
-    } catch (err) {}
+  const handleDelete = (product) => {
+    showConfirm(
+      'Excluir produto',
+      `Tem certeza que deseja excluir "${product.name}"? Esta ação não pode ser desfeita.`,
+      async () => {
+        try {
+          const response = await fetch('http://localhost:4000/graphql', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            body: JSON.stringify({ 
+              query: `mutation DeleteProduct($id: ID!) { deleteProduct(id: $id) }`,
+              variables: { id: product.id }
+            })
+          });
+          const result = await response.json();
+          if (result.errors) { 
+            showToast('Erro: ' + result.errors[0].message, 'error'); 
+            closeConfirm();
+            return; 
+          }
+          closeConfirm();
+          fetchProducts();
+          showToast('Produto excluído com sucesso!', 'success');
+        } catch (err) {
+          showToast('Erro ao excluir produto', 'error');
+          closeConfirm();
+        }
+      },
+      product
+    );
   };
 
   const openEdit = (product) => {
@@ -354,10 +407,17 @@ export default function AdminProducts() {
         })
       });
       const result = await response.json();
-      if (result.errors) { alert('Erro: ' + result.errors[0].message); return; }
+      if (result.errors) { 
+        showToast('Erro: ' + result.errors[0].message, 'error'); 
+        return; 
+      }
       fetchProducts();
+      showToast(
+        product.isFeatured ? 'Produto removido dos destaques' : 'Produto adicionado aos destaques!', 
+        'success'
+      );
     } catch (err) {
-      alert('Erro ao atualizar destaque');
+      showToast('Erro ao atualizar destaque', 'error');
     }
   };
 
@@ -387,6 +447,19 @@ export default function AdminProducts() {
     >
       <div className="absolute inset-0 bg-[#faf8f5]/85 pointer-events-none"></div>
       
+      {/* Toast Notification */}
+      <Toast toast={toast} onClose={() => setToast({ ...toast, show: false })} />
+
+      {/* Confirm Modal */}
+      <ConfirmModal 
+        isOpen={confirmModal.show}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={closeConfirm}
+        productName={confirmModal.data?.name}
+      />
+      
       <div className="relative z-10 h-20"></div>
 
       <main className="relative z-10 flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
@@ -396,7 +469,7 @@ export default function AdminProducts() {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 bg-[#1e3a5f] rounded-xl flex items-center justify-center">
-                <BoxIcon className="w-5 h-5 text-[#d4a853]" />
+                <BoxIcon className="w-5 h-5 text-white" />
               </div>
               <h1 className="text-2xl md:text-3xl font-bold text-[#1e3a5f]">Catálogo de Produtos</h1>
             </div>
@@ -420,14 +493,14 @@ export default function AdminProducts() {
           </div>
           <div className="bg-white rounded-2xl p-5 border border-[#1e3a5f]/5">
             <p className="text-[#1e3a5f]/40 text-xs font-medium mb-1">Em Promoção</p>
-            <p className="text-3xl font-bold text-red-500">{stats.promos}</p>
+            <p className="text-3xl font-bold text-[#1e3a5f]">{stats.promos}</p>
           </div>
-          <div className="bg-gradient-to-br from-[#d4a853]/10 to-[#d4a853]/5 rounded-2xl p-5 border border-[#d4a853]/20">
-            <p className="text-[#d4a853] text-xs font-medium mb-1 flex items-center gap-1">
+          <div className="bg-gradient-to-br from-[#1e3a5f]/10 to-[#1e3a5f]/5 rounded-2xl p-5 border border-[#1e3a5f]/20">
+            <p className="text-[#1e3a5f] text-xs font-medium mb-1 flex items-center gap-1">
               <StarIcon className="w-3 h-3" />
               Em Destaque
             </p>
-            <p className="text-3xl font-bold text-[#d4a853]">{stats.featured}</p>
+            <p className="text-3xl font-bold text-[#1e3a5f]">{stats.featured}</p>
           </div>
           <div className="col-span-2 bg-white rounded-2xl p-5 border border-[#1e3a5f]/5">
             <p className="text-[#1e3a5f]/40 text-xs font-medium mb-3">Por Categoria</p>
@@ -449,21 +522,19 @@ export default function AdminProducts() {
               onClick={() => setActiveCategory(cat.value)} 
               className={`flex-shrink-0 flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all text-sm ${
                 activeCategory === cat.value 
-                  ? cat.value === 'FEATURED'
-                    ? 'bg-gradient-to-r from-[#d4a853] to-[#c49a4a] text-white shadow-lg shadow-[#d4a853]/30'
-                    : 'bg-[#1e3a5f] text-white shadow-lg shadow-[#1e3a5f]/20' 
+                  ? 'bg-[#1e3a5f] text-white shadow-lg shadow-[#1e3a5f]/20' 
                   : 'bg-white text-[#1e3a5f]/60 border border-[#1e3a5f]/10 hover:bg-[#1e3a5f]/5'
               }`}
             >
               {cat.value === 'FEATURED' && (
-                <StarIcon className={`w-4 h-4 ${activeCategory === cat.value ? 'text-white' : 'text-[#d4a853]'}`} />
+                <StarIcon className={`w-4 h-4 ${activeCategory === cat.value ? 'text-white' : 'text-[#1e3a5f]'}`} />
               )}
               {cat.label}
               {cat.value === 'FEATURED' && stats.featured > 0 && (
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
                   activeCategory === cat.value 
                     ? 'bg-white/20 text-white' 
-                    : 'bg-[#d4a853]/10 text-[#d4a853]'
+                    : 'bg-[#1e3a5f]/10 text-[#1e3a5f]'
                 }`}>
                   {stats.featured}
                 </span>
@@ -485,7 +556,7 @@ export default function AdminProducts() {
           <div className="text-center py-20 bg-white rounded-2xl border border-[#1e3a5f]/5">
             {activeCategory === 'FEATURED' ? (
               <>
-                <StarIcon className="w-12 h-12 text-[#d4a853]/30 mx-auto mb-4" />
+                <StarIcon className="w-12 h-12 text-[#1e3a5f]/30 mx-auto mb-4" />
                 <p className="text-[#1e3a5f]/40 font-medium">Nenhum produto em destaque</p>
                 <p className="text-[#1e3a5f]/30 text-sm mt-1">Edite um produto e marque como destaque</p>
               </>
@@ -507,12 +578,12 @@ export default function AdminProducts() {
                 {/* Badges */}
                 <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
                   {p.promotionalPrice && (
-                    <span className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md">
+                    <span className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md">
                       Oferta
                     </span>
                   )}
                   {!p.isAvailable && (
-                    <span className="bg-gray-800 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
+                    <span className="bg-[#1e3a5f]/80 text-white text-[10px] font-bold px-2.5 py-1 rounded-full">
                       Indisponível
                     </span>
                   )}
@@ -523,8 +594,8 @@ export default function AdminProducts() {
                   onClick={() => toggleFeatured(p)}
                   className={`absolute top-3 right-3 z-10 w-8 h-8 rounded-lg flex items-center justify-center transition-all shadow-md ${
                     p.isFeatured 
-                      ? 'bg-[#d4a853] text-white hover:bg-[#c49a4a]' 
-                      : 'bg-white/90 text-[#1e3a5f]/30 hover:text-[#d4a853] hover:bg-white'
+                      ? 'bg-[#1e3a5f] text-white hover:bg-[#162d4a]' 
+                      : 'bg-white/90 text-[#1e3a5f]/30 hover:text-[#1e3a5f] hover:bg-white'
                   }`}
                   title={p.isFeatured ? 'Remover dos destaques' : 'Adicionar aos destaques'}
                 >
@@ -547,7 +618,7 @@ export default function AdminProducts() {
                       {categories.find(c => c.value === p.category)?.label}
                     </span>
                     {p.isFeatured && (
-                      <span className="text-[9px] font-semibold text-[#d4a853] uppercase tracking-wider flex items-center gap-1">
+                      <span className="text-[9px] font-semibold text-[#1e3a5f] uppercase tracking-wider flex items-center gap-1">
                         <StarIcon className="w-3 h-3" />
                         Destaque
                       </span>
@@ -561,7 +632,7 @@ export default function AdminProducts() {
                     {p.promotionalPrice ? (
                       <div className="flex items-baseline gap-2">
                         <p className="text-[#1e3a5f]/30 line-through text-sm">R$ {p.price.toFixed(2)}</p>
-                        <p className="text-xl font-bold text-red-500">R$ {p.promotionalPrice.toFixed(2)}</p>
+                        <p className="text-xl font-bold text-[#1e3a5f]">R$ {p.promotionalPrice.toFixed(2)}</p>
                       </div>
                     ) : (
                       <p className="text-xl font-bold text-[#1e3a5f]">R$ {p.price.toFixed(2)}</p>
@@ -576,8 +647,8 @@ export default function AdminProducts() {
                       Editar
                     </button>
                     <button 
-                      onClick={() => handleDelete(p.id)} 
-                      className="w-11 bg-red-50 hover:bg-red-100 text-red-500 border border-red-100 rounded-xl flex items-center justify-center transition-colors"
+                      onClick={() => handleDelete(p)} 
+                      className="w-11 bg-[#1e3a5f]/5 hover:bg-[#1e3a5f]/10 text-[#1e3a5f]/50 hover:text-[#1e3a5f] border border-[#1e3a5f]/10 rounded-xl flex items-center justify-center transition-colors"
                     >
                       <TrashIcon className="w-4 h-4" />
                     </button>
@@ -591,9 +662,9 @@ export default function AdminProducts() {
 
       {/* Modal de criação/edição de produto */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm" onClick={() => setIsModalOpen(false)}></div>
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-hidden">
+          <div className="absolute inset-0 bg-[#1e3a5f]/70 backdrop-blur-md" onClick={() => setIsModalOpen(false)}></div>
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-scale-in">
             <div className="flex items-center justify-between p-6 border-b border-[#1e3a5f]/10 sticky top-0 bg-white z-10">
               <h2 className="text-xl font-bold text-[#1e3a5f]">
                 {editingProduct ? 'Editar Produto' : 'Novo Produto'}
@@ -624,7 +695,7 @@ export default function AdminProducts() {
                         <button
                           type="button"
                           onClick={() => setProductForm({ ...productForm, imageUrl: '' })}
-                          className="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-lg flex items-center justify-center shadow-lg transition-colors"
+                          className="bg-[#1e3a5f] hover:bg-[#162d4a] text-white w-8 h-8 rounded-lg flex items-center justify-center shadow-lg transition-colors"
                         >
                           <CloseIcon className="w-4 h-4" />
                         </button>
@@ -682,12 +753,12 @@ export default function AdminProducts() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-red-400 mb-2">Preço Promocional</label>
+                  <label className="block text-xs font-medium text-[#1e3a5f]/50 mb-2">Preço Promocional</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
-                    className="w-full px-4 py-3.5 rounded-xl bg-red-50 border border-red-100 focus:border-red-200 outline-none text-red-500 placeholder-red-300"
+                    className="w-full px-4 py-3.5 rounded-xl bg-[#1e3a5f]/5 border border-[#1e3a5f]/10 focus:border-[#1e3a5f]/20 outline-none text-[#1e3a5f] placeholder-[#1e3a5f]/30"
                     placeholder="Opcional"
                     value={productForm.promotionalPrice}
                     onChange={(e) => setProductForm({ ...productForm, promotionalPrice: e.target.value })}
@@ -711,13 +782,13 @@ export default function AdminProducts() {
                 onClick={() => setProductForm({ ...productForm, isFeatured: !productForm.isFeatured })}
                 className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
                   productForm.isFeatured 
-                    ? 'bg-[#d4a853]/10 border-[#d4a853]/30' 
+                    ? 'bg-[#1e3a5f]/10 border-[#1e3a5f]/30' 
                     : 'bg-[#faf8f5] border-[#1e3a5f]/10 hover:border-[#1e3a5f]/20'
                 }`}
               >
                 <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
                   productForm.isFeatured 
-                    ? 'bg-[#d4a853] border-[#d4a853]' 
+                    ? 'bg-[#1e3a5f] border-[#1e3a5f]' 
                     : 'border-[#1e3a5f]/20'
                 }`}>
                   {productForm.isFeatured && (
@@ -725,14 +796,14 @@ export default function AdminProducts() {
                   )}
                 </div>
                 <div className="flex-grow">
-                  <p className={`font-medium ${productForm.isFeatured ? 'text-[#d4a853]' : 'text-[#1e3a5f]'}`}>
+                  <p className={`font-medium ${productForm.isFeatured ? 'text-[#1e3a5f]' : 'text-[#1e3a5f]'}`}>
                     Adicionar aos Destaques
                   </p>
                   <p className="text-xs text-[#1e3a5f]/40 mt-0.5">
                     Este produto aparecerá na seção de destaques do cardápio
                   </p>
                 </div>
-                <StarIcon className={`w-5 h-5 ${productForm.isFeatured ? 'text-[#d4a853]' : 'text-[#1e3a5f]/20'}`} />
+                <StarIcon className={`w-5 h-5 ${productForm.isFeatured ? 'text-[#1e3a5f]' : 'text-[#1e3a5f]/20'}`} />
               </div>
 
               <div className="flex gap-3 pt-4">
@@ -757,9 +828,9 @@ export default function AdminProducts() {
 
       {/* Modal de ajuste/crop de imagem */}
       {isCropModalOpen && originalImage && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={handleCropCancel}></div>
-          <div className="relative bg-[#1e3a5f] rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-fade-in">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 overflow-hidden">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={handleCropCancel}></div>
+          <div className="relative bg-[#1e3a5f] rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-scale-in">
             <div className="flex items-center justify-between p-5 border-b border-white/10">
               <div>
                 <h2 className="text-lg font-bold text-white">Ajustar Imagem</h2>
@@ -885,7 +956,7 @@ export default function AdminProducts() {
                 <button 
                   type="button"
                   onClick={handleCropConfirm}
-                  className="flex-1 py-3.5 rounded-xl font-medium bg-[#d4a853] hover:bg-[#c49a4a] text-[#1e3a5f] shadow-lg transition-all flex items-center justify-center gap-2"
+                  className="flex-1 py-3.5 rounded-xl font-medium bg-white hover:bg-gray-100 text-[#1e3a5f] shadow-lg transition-all flex items-center justify-center gap-2"
                 >
                   <CheckIcon className="w-5 h-5" />
                   Confirmar
@@ -908,12 +979,19 @@ export default function AdminProducts() {
 
       {/* Estilos de animação */}
       <style>{`
-        @keyframes fade-in {
+        @keyframes scale-in {
           from { opacity: 0; transform: scale(0.95); }
           to { opacity: 1; transform: scale(1); }
         }
-        .animate-fade-in {
-          animation: fade-in 0.2s ease-out;
+        .animate-scale-in {
+          animation: scale-in 0.2s ease-out;
+        }
+        @keyframes slide-down {
+          from { opacity: 0; transform: translate(-50%, -20px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .animate-slide-down {
+          animation: slide-down 0.3s ease-out;
         }
       `}</style>
     </div>
@@ -921,6 +999,71 @@ export default function AdminProducts() {
 }
 
 // COMPONENTES AUXILIARES
+
+// Toast Notification Component
+const Toast = ({ toast, onClose }) => {
+  if (!toast.show) return null;
+
+  const typeStyles = {
+    success: 'bg-[#1e3a5f] text-white',
+    error: 'bg-[#1e3a5f]/90 text-white border-2 border-white/20',
+    info: 'bg-[#1e3a5f]/80 text-white'
+  };
+
+  const icons = {
+    success: <CheckCircleIcon className="w-5 h-5" />,
+    error: <ErrorIcon className="w-5 h-5" />,
+    info: <InfoIcon className="w-5 h-5" />
+  };
+
+  return (
+    <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] animate-slide-down">
+      <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl ${typeStyles[toast.type]}`}>
+        {icons[toast.type]}
+        <span className="font-medium text-sm">{toast.message}</span>
+        <button onClick={onClose} className="ml-2 opacity-70 hover:opacity-100 transition-opacity">
+          <CloseIcon className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Confirm Modal Component
+const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, productName }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 overflow-hidden">
+      <div className="absolute inset-0 bg-[#1e3a5f]/70 backdrop-blur-md" onClick={onCancel}></div>
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-scale-in">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="w-12 h-12 rounded-full bg-[#1e3a5f]/10 flex items-center justify-center flex-shrink-0">
+            <AlertIcon className="w-6 h-6 text-[#1e3a5f]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-bold text-[#1e3a5f]">{title}</h3>
+          </div>
+        </div>
+        <p className="text-[#1e3a5f]/60 text-sm mb-6">{message}</p>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-3 rounded-xl font-medium text-[#1e3a5f] bg-[#faf8f5] hover:bg-[#f0eeeb] transition-all"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 py-3 rounded-xl font-medium text-white bg-[#1e3a5f] hover:bg-[#162d4a] transition-all shadow-lg shadow-[#1e3a5f]/20"
+          >
+            Confirmar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const NavBtn = ({ onClick, icon, label, active }) => (
   <button
@@ -1014,9 +1157,32 @@ const CheckIcon = ({ className = "w-5 h-5" }) => (
   </svg>
 );
 
-// Ícone de estrela para destaques
 const StarIcon = ({ className = "w-5 h-5" }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 24 24">
     <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+  </svg>
+);
+
+const CheckCircleIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+  </svg>
+);
+
+const ErrorIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+  </svg>
+);
+
+const InfoIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+  </svg>
+);
+
+const AlertIcon = ({ className = "w-6 h-6" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
   </svg>
 );

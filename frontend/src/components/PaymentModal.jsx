@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useCart } from '../contexts/CartContext';
 
 // ÍCONES SVG
@@ -51,6 +51,41 @@ const Icons = {
       <path d="M13 10V3L4 14h7v7l9-11h-7z" />
     </svg>
   ),
+  CheckCircle: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  Error: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  Info: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  Check: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+    </svg>
+  ),
+  Clock: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  Home: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+    </svg>
+  ),
+  Receipt: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+    </svg>
+  ),
 };
 
 // Modal de pagamento (etapa final do checkout)
@@ -70,13 +105,35 @@ export default function PaymentModal({
   const { fetchMyOrders } = useCart();
   const [paymentMethod, setPaymentMethod] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // Estados para feedback visual (toast)
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  
+  // Estado para tela de confirmação
+  const [orderConfirmation, setOrderConfirmation] = useState({ show: false, orderId: '', orderData: null });
+
+  // Bloqueia scroll do body quando modal está aberto
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
+  // Função para mostrar toast
+  const showToast = useCallback((message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3500);
+  }, []);
 
   // Opções de métodos de pagamento disponíveis
   const paymentMethods = [
     { 
       id: 'PIX', 
       label: 'PIX', 
-      icon: (selected) => <Icons.Pix className="w-6 h-6" color={selected ? "#fff" : "#32BCAD"} />,
+      icon: (selected) => <Icons.Pix className="w-6 h-6" color={selected ? "#fff" : "#1e3a5f"} />,
       description: 'Pagamento instantâneo', 
       highlight: true 
     },
@@ -103,7 +160,7 @@ export default function PaymentModal({
   // Submete o pedido para a API GraphQL
   const handleSubmitOrder = async () => {
     if (!paymentMethod) {
-      alert('Selecione uma forma de pagamento');
+      showToast('Selecione uma forma de pagamento', 'error');
       return;
     }
 
@@ -178,12 +235,26 @@ export default function PaymentModal({
 
       if (result.data?.createOrder) {
         await fetchMyOrders();
-        onSuccess(); 
-        alert(`Pedido #${result.data.createOrder.id.slice(-6).toUpperCase()} criado com sucesso!`);
+        
+        // Mostra tela de confirmação em vez de fechar o modal
+        setOrderConfirmation({
+          show: true,
+          orderId: result.data.createOrder.id,
+          orderData: {
+            ...result.data.createOrder,
+            items: cart,
+            deliveryType,
+            paymentMethod,
+            address,
+            subtotal,
+            shippingFee,
+            total
+          }
+        });
       }
     } catch (err) {
       console.error('Erro ao criar pedido:', err);
-      alert(`Erro ao finalizar pedido: ${err.message}`);
+      showToast(`Erro ao finalizar pedido: ${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -195,20 +266,205 @@ export default function PaymentModal({
     return `${address.street}, ${address.number}${address.complement ? ` - ${address.complement}` : ''}, ${address.neighborhood} - ${address.city}/${address.state}`;
   };
 
+  // Handler para fechar a confirmação e executar onSuccess
+  const handleCloseConfirmation = () => {
+    setOrderConfirmation({ show: false, orderId: '', orderData: null });
+    onSuccess();
+  };
+
+  // Obtém o label do método de pagamento
+  const getPaymentMethodLabel = (methodId) => {
+    const method = paymentMethods.find(m => m.id === methodId);
+    return method ? method.label : methodId;
+  };
+
   if (!isOpen) return null;
 
+  // Tela de confirmação do pedido
+  if (orderConfirmation.show) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-hidden">
+        <div className="absolute inset-0 bg-[#1e3a5f]/70 backdrop-blur-md" />
+
+        <div className="relative bg-white rounded-3xl w-full max-w-md max-h-[85vh] overflow-hidden flex flex-col shadow-2xl animate-scale-in">
+          
+          {/* Header de sucesso - compacto */}
+          <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] px-6 py-5 text-center relative overflow-hidden flex-shrink-0">
+            {/* Efeitos decorativos */}
+            <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+            <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/5 rounded-full blur-xl"></div>
+            
+            {/* Ícone de sucesso animado */}
+            <div className="relative z-10 flex items-center justify-center gap-4">
+              <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-lg animate-bounce-once flex-shrink-0">
+                <Icons.Check className="w-7 h-7 text-[#1e3a5f]" />
+              </div>
+              <div className="text-left">
+                <h2 className="text-xl font-bold text-white">Pedido Confirmado!</h2>
+                <p className="text-white/60 text-sm">Seu pedido foi recebido</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Conteúdo da confirmação - scrollável */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-[#faf8f5]">
+            
+            {/* Número do pedido */}
+            <div className="bg-white rounded-2xl p-4 border border-[#1e3a5f]/10 text-center">
+              <p className="text-[#1e3a5f]/50 text-[10px] font-medium uppercase tracking-wider mb-1">Número do Pedido</p>
+              <p className="text-2xl font-black text-[#1e3a5f] tracking-wider">
+                #{orderConfirmation.orderId.slice(-6).toUpperCase()}
+              </p>
+            </div>
+
+            {/* Status e tempo estimado */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white rounded-xl p-3 border border-[#1e3a5f]/10">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-[#1e3a5f]/10 flex items-center justify-center flex-shrink-0">
+                    <Icons.Receipt className="w-4 h-4 text-[#1e3a5f]" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[#1e3a5f]/50 text-[10px]">Status</p>
+                    <p className="text-[#1e3a5f] font-bold text-sm truncate">Recebido</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-3 border border-[#1e3a5f]/10">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-[#1e3a5f]/10 flex items-center justify-center flex-shrink-0">
+                    <Icons.Clock className="w-4 h-4 text-[#1e3a5f]" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[#1e3a5f]/50 text-[10px]">Previsão</p>
+                    <p className="text-[#1e3a5f] font-bold text-sm truncate">30-45 min</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Detalhes da entrega/retirada */}
+            <div className="bg-white rounded-xl p-3 border border-[#1e3a5f]/10">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-[#1e3a5f] flex items-center justify-center flex-shrink-0 text-white">
+                  {orderConfirmation.orderData?.deliveryType === 'DELIVERY' 
+                    ? <Icons.Motorcycle className="w-4 h-4" /> 
+                    : <Icons.Store className="w-4 h-4" />
+                  }
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[#1e3a5f]/50 text-[10px] font-medium">
+                    {orderConfirmation.orderData?.deliveryType === 'DELIVERY' ? 'Entregar em' : 'Retirar em'}
+                  </p>
+                  <p className="text-[#1e3a5f] font-bold text-sm truncate">
+                    {orderConfirmation.orderData?.address 
+                      ? `${orderConfirmation.orderData.address.street}, ${orderConfirmation.orderData.address.number}`
+                      : 'Na loja'
+                    }
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Resumo dos itens */}
+            <div className="bg-white rounded-xl p-3 border border-[#1e3a5f]/10">
+              <h4 className="text-[#1e3a5f] font-bold text-xs mb-2">Itens do Pedido</h4>
+              <div className="space-y-1.5 max-h-24 overflow-y-auto">
+                {orderConfirmation.orderData?.items?.map((item, index) => (
+                  <div key={index} className="flex justify-between text-xs">
+                    <span className="text-[#1e3a5f]/70 truncate flex-1 mr-2">{item.quantity}x {item.name}</span>
+                    <span className="text-[#1e3a5f]/70 font-medium flex-shrink-0">
+                      R$ {((item.promotionalPrice || item.price) * item.quantity).toFixed(2).replace('.', ',')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Pagamento e Total */}
+            <div className="bg-white rounded-xl p-3 border border-[#1e3a5f]/10">
+              <div className="space-y-1.5 text-xs">
+                <div className="flex justify-between text-[#1e3a5f]/60">
+                  <span>Pagamento</span>
+                  <span className="font-medium text-[#1e3a5f]">
+                    {getPaymentMethodLabel(orderConfirmation.orderData?.paymentMethod)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-[#1e3a5f]/60">
+                  <span>Subtotal</span>
+                  <span>R$ {orderConfirmation.orderData?.subtotal?.toFixed(2).replace('.', ',')}</span>
+                </div>
+                <div className="flex justify-between text-[#1e3a5f]/60">
+                  <span>Entrega</span>
+                  <span className={orderConfirmation.orderData?.shippingFee === 0 ? 'text-[#1e3a5f] font-medium' : ''}>
+                    {orderConfirmation.orderData?.shippingFee > 0 
+                      ? `R$ ${orderConfirmation.orderData.shippingFee.toFixed(2).replace('.', ',')}` 
+                      : 'Grátis'
+                    }
+                  </span>
+                </div>
+                <div className="border-t border-[#1e3a5f]/10 pt-2 mt-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[#1e3a5f] font-bold text-sm">Total</span>
+                    <span className="text-[#1e3a5f] font-black text-lg">
+                      R$ {orderConfirmation.orderData?.total?.toFixed(2).replace('.', ',')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer com botão */}
+          <div className="p-4 bg-white border-t border-[#1e3a5f]/10 flex-shrink-0">
+            <button
+              onClick={handleCloseConfirmation}
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] hover:from-[#162d4a] hover:to-[#1e3a5f] text-white font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#1e3a5f]/20"
+            >
+              <Icons.Home className="w-5 h-5" />
+              Voltar ao Cardápio
+            </button>
+            <p className="text-center text-[#1e3a5f]/40 text-[10px] mt-3">
+              Acompanhe seu pedido pelo botão "Acompanhar" no menu
+            </p>
+          </div>
+        </div>
+
+        <style>{`
+          @keyframes scale-in {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+          }
+          .animate-scale-in {
+            animation: scale-in 0.3s ease-out;
+          }
+          @keyframes bounce-once {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+          }
+          .animate-bounce-once {
+            animation: bounce-once 0.5s ease-out;
+          }
+        `}</style>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Overlay escurecido */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-hidden">
+      {/* Overlay escurecido - não clicável na confirmação */}
       <div 
-        className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-[#1e3a5f]/70 backdrop-blur-md"
         onClick={onClose}
       />
+
+      {/* Toast Notification */}
+      <Toast toast={toast} onClose={() => setToast({ ...toast, show: false })} />
 
       <div className="relative bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
         
         {/* Header com título e progresso */}
-        <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] p-6">
+        <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] p-6 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-white">Pagamento</h2>
@@ -224,8 +480,8 @@ export default function PaymentModal({
 
           {/* Barra de progresso - ambas etapas preenchidas na etapa 2 */}
           <div className="flex gap-2 mt-4">
-            <div className="flex-1 h-1.5 bg-[#d4a853] rounded-full" />
-            <div className="flex-1 h-1.5 bg-[#d4a853] rounded-full" />
+            <div className="flex-1 h-1.5 bg-white rounded-full" />
+            <div className="flex-1 h-1.5 bg-white rounded-full" />
           </div>
         </div>
 
@@ -246,7 +502,7 @@ export default function PaymentModal({
               </div>
               <button
                 onClick={onBack}
-                className="text-[#d4a853] text-sm font-bold hover:underline flex-shrink-0"
+                className="text-[#1e3a5f] text-sm font-bold hover:underline flex-shrink-0"
               >
                 Alterar
               </button>
@@ -279,7 +535,7 @@ export default function PaymentModal({
                         <div className="flex items-center gap-2">
                           <p className="text-[#1e3a5f] font-bold">{method.label}</p>
                           {method.highlight && (
-                            <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                            <span className="text-[10px] bg-[#1e3a5f]/10 text-[#1e3a5f] px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
                               <Icons.Lightning className="w-3 h-3" />
                               RÁPIDO
                             </span>
@@ -323,20 +579,20 @@ export default function PaymentModal({
               </div>
               <div className="flex justify-between text-sm text-[#1e3a5f]/60">
                 <span>Entrega</span>
-                <span className={shippingFee === 0 ? 'text-green-600 font-medium' : ''}>
+                <span className={shippingFee === 0 ? 'text-[#1e3a5f] font-medium' : ''}>
                   {shippingFee > 0 ? `R$ ${shippingFee.toFixed(2).replace('.', ',')}` : 'Grátis'}
                 </span>
               </div>
               <div className="flex justify-between items-center pt-2 border-t border-[#1e3a5f]/10">
                 <span className="text-[#1e3a5f] font-bold">Total</span>
-                <span className="text-[#d4a853] font-black text-2xl">R$ {total.toFixed(2).replace('.', ',')}</span>
+                <span className="text-[#1e3a5f] font-black text-2xl">R$ {total.toFixed(2).replace('.', ',')}</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Footer com botões de navegação */}
-        <div className="p-6 bg-white border-t border-[#1e3a5f]/10">
+        <div className="p-6 bg-white border-t border-[#1e3a5f]/10 flex-shrink-0">
           <div className="flex gap-3">
             <button
               onClick={onBack}
@@ -348,7 +604,7 @@ export default function PaymentModal({
             <button
               onClick={handleSubmitOrder}
               disabled={!paymentMethod || loading}
-              className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-[#d4a853] to-[#c49843] hover:from-[#c49843] hover:to-[#b48833] text-white font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#d4a853]/30"
+              className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] hover:from-[#162d4a] hover:to-[#1e3a5f] text-white font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#1e3a5f]/30"
             >
               {loading ? (
                 <div className="flex items-center justify-center gap-2">
@@ -362,6 +618,45 @@ export default function PaymentModal({
           </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes slide-down {
+          from { opacity: 0; transform: translate(-50%, -20px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .animate-slide-down {
+          animation: slide-down 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }
+
+// Toast Notification Component
+const Toast = ({ toast, onClose }) => {
+  if (!toast.show) return null;
+
+  const typeStyles = {
+    success: 'bg-[#1e3a5f] text-white',
+    error: 'bg-[#1e3a5f]/90 text-white border-2 border-white/20',
+    info: 'bg-[#1e3a5f]/80 text-white'
+  };
+
+  const icons = {
+    success: <Icons.CheckCircle className="w-5 h-5" />,
+    error: <Icons.Error className="w-5 h-5" />,
+    info: <Icons.Info className="w-5 h-5" />
+  };
+
+  return (
+    <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[200] animate-slide-down">
+      <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl ${typeStyles[toast.type]}`}>
+        {icons[toast.type]}
+        <span className="font-medium text-sm">{toast.message}</span>
+        <button onClick={onClose} className="ml-2 opacity-70 hover:opacity-100 transition-opacity">
+          <Icons.Close className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+};

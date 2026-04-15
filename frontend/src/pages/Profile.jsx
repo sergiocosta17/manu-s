@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Cropper from 'react-easy-crop';
 import backgroundImage from '../assets/hamburgueres-de-fundo-16x9.png';
@@ -117,6 +117,26 @@ export default function Profile() {
   // Estados para horários de funcionamento (admin)
   const [businessHours, setBusinessHours] = useState(DEFAULT_BUSINESS_HOURS);
   const [savingHours, setSavingHours] = useState(false);
+
+  // Estados para feedback visual (toast e confirm modal)
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null });
+
+  // Função para mostrar toast
+  const showToast = useCallback((message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3500);
+  }, []);
+
+  // Função para mostrar modal de confirmação
+  const showConfirm = useCallback((title, message, onConfirm) => {
+    setConfirmModal({ show: true, title, message, onConfirm });
+  }, []);
+
+  // Função para fechar modal de confirmação
+  const closeConfirm = useCallback(() => {
+    setConfirmModal({ show: false, title: '', message: '', onConfirm: null });
+  }, []);
 
   // Formata telefone para (XX) XXXXX-XXXX
   const formatPhone = (val) => {
@@ -290,7 +310,8 @@ export default function Profile() {
       else setClientData(prev => ({ ...prev, avatarUrl: croppedImageBase64 }));
       setCropModalOpen(false);
       setImageToCrop(null);
-    } catch (e) { alert('Erro ao processar imagem.'); }
+      showToast('Imagem ajustada! Clique em "Salvar alterações" para confirmar.', 'info');
+    } catch (e) { showToast('Erro ao processar imagem.', 'error'); }
   };
 
   // Atualiza perfil (cliente ou admin) via GraphQL
@@ -317,7 +338,7 @@ export default function Profile() {
         });
         const json = await response.json();
         if (json.errors) throw new Error(json.errors[0].message);
-        alert('Configurações da loja atualizadas!');
+        showToast('Configurações da loja atualizadas com sucesso!', 'success');
       } else {
         const response = await fetch('http://localhost:4000/graphql', {
           method: 'POST',
@@ -336,10 +357,10 @@ export default function Profile() {
         });
         const json = await response.json();
         if (json.errors) throw new Error(json.errors[0].message);
-        alert('Perfil atualizado!');
+        showToast('Perfil atualizado com sucesso!', 'success');
       }
     } catch (err) {
-      alert('Erro ao salvar: ' + err.message);
+      showToast('Erro ao salvar: ' + err.message, 'error');
     }
   };
 
@@ -362,6 +383,7 @@ export default function Profile() {
       newHours[day] = { ...sourceHours };
     });
     setBusinessHours(newHours);
+    showToast('Horário aplicado em todos os dias!', 'success');
   };
 
   // Salvar horários de funcionamento
@@ -390,9 +412,9 @@ export default function Profile() {
 
       const json = await response.json();
       if (json.errors) throw new Error(json.errors[0].message);
-      alert('Horários de funcionamento salvos com sucesso!');
+      showToast('Horários de funcionamento salvos com sucesso!', 'success');
     } catch (err) {
-      alert('Erro ao salvar horários: ' + err.message);
+      showToast('Erro ao salvar horários: ' + err.message, 'error');
     } finally {
       setSavingHours(false);
     }
@@ -476,54 +498,65 @@ export default function Profile() {
       
       setAddresses(updatedAddresses);
       setIsAddressModalOpen(false);
+      showToast(editingAddressId ? 'Endereço atualizado!' : 'Endereço adicionado!', 'success');
       
     } catch (err) {
-      alert('Erro ao salvar endereço: ' + err.message);
+      showToast('Erro ao salvar endereço: ' + err.message, 'error');
     }
   };
 
   // Exclui endereço
   const handleDeleteAddress = async (id) => {
-    if (!window.confirm('Excluir este endereço?')) return;
-    const token = localStorage.getItem('token');
-
-    try {
-      const response = await fetch('http://localhost:4000/graphql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          query: `mutation DeleteAddress($addressId: ID!) { deleteAddress(addressId: $addressId) { id addresses { id label zipCode street number complement neighborhood city state isDefault } } }`,
-          variables: { addressId: id }
-        })
-      });
-      const json = await response.json();
-      if (json.errors) throw new Error(json.errors[0].message);
-      setAddresses(json.data.deleteAddress.addresses);
-    } catch (err) {
-      alert('Erro ao excluir: ' + err.message);
-    }
+    showConfirm(
+      'Excluir endereço',
+      'Tem certeza que deseja excluir este endereço? Esta ação não pode ser desfeita.',
+      async () => {
+        const token = localStorage.getItem('token');
+        try {
+          const response = await fetch('http://localhost:4000/graphql', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+              query: `mutation DeleteAddress($addressId: ID!) { deleteAddress(addressId: $addressId) { id addresses { id label zipCode street number complement neighborhood city state isDefault } } }`,
+              variables: { addressId: id }
+            })
+          });
+          const json = await response.json();
+          if (json.errors) throw new Error(json.errors[0].message);
+          setAddresses(json.data.deleteAddress.addresses);
+          showToast('Endereço excluído com sucesso!', 'success');
+        } catch (err) {
+          showToast('Erro ao excluir: ' + err.message, 'error');
+        }
+        closeConfirm();
+      }
+    );
   };
 
   // Logout do usuário
   const handleLogout = () => {
-    if (window.confirm('Deseja sair da sua conta?')) {
-      localStorage.clear();
-      navigate('/');
-    }
+    showConfirm(
+      'Sair da conta',
+      'Tem certeza que deseja sair da sua conta?',
+      () => {
+        localStorage.clear();
+        navigate('/');
+      }
+    );
   };
 
   // Mapeamento de status para exibição
   const getStatusDisplay = (status) => {
     const map = {
-      PLACED: { label: 'Recebido', color: 'bg-blue-50 text-blue-600 border-blue-200' },
-      CONFIRMED: { label: 'Confirmado', color: 'bg-indigo-50 text-indigo-600 border-indigo-200' },
-      PREPARING: { label: 'Em Produção', color: 'bg-amber-50 text-amber-600 border-amber-200' },
-      OUT_FOR_DELIVERY: { label: 'Saiu p/ Entrega', color: 'bg-purple-50 text-purple-600 border-purple-200' },
-      DELIVERED: { label: 'Entregue', color: 'bg-green-50 text-green-600 border-green-200' },
-      COMPLETED: { label: 'Concluído', color: 'bg-green-50 text-green-600 border-green-200' },
-      CANCELLED: { label: 'Cancelado', color: 'bg-gray-100 text-gray-500 border-gray-200' }
+      PLACED: { label: 'Recebido', color: 'bg-[#1e3a5f]/10 text-[#1e3a5f] border-[#1e3a5f]/20' },
+      CONFIRMED: { label: 'Confirmado', color: 'bg-[#1e3a5f]/10 text-[#1e3a5f] border-[#1e3a5f]/20' },
+      PREPARING: { label: 'Em Produção', color: 'bg-[#1e3a5f]/20 text-[#1e3a5f] border-[#1e3a5f]/30' },
+      OUT_FOR_DELIVERY: { label: 'Saiu p/ Entrega', color: 'bg-[#1e3a5f]/30 text-[#1e3a5f] border-[#1e3a5f]/40' },
+      DELIVERED: { label: 'Entregue', color: 'bg-[#1e3a5f]/10 text-[#1e3a5f] border-[#1e3a5f]/20' },
+      COMPLETED: { label: 'Concluído', color: 'bg-[#1e3a5f]/10 text-[#1e3a5f] border-[#1e3a5f]/20' },
+      CANCELLED: { label: 'Cancelado', color: 'bg-[#1e3a5f]/5 text-[#1e3a5f]/50 border-[#1e3a5f]/10' }
     };
-    return map[status] || { label: status, color: 'bg-gray-100 text-gray-500 border-gray-200' };
+    return map[status] || { label: status, color: 'bg-[#1e3a5f]/5 text-[#1e3a5f]/50 border-[#1e3a5f]/10' };
   };
 
   const formatDate = (timestamp) => new Date(Number(timestamp)).toLocaleDateString('pt-BR', {
@@ -563,6 +596,18 @@ export default function Profile() {
       
       <div className="relative z-10 h-20"></div>
 
+      {/* Toast Notification */}
+      <Toast toast={toast} onClose={() => setToast({ ...toast, show: false })} />
+
+      {/* Confirm Modal */}
+      <ConfirmModal 
+        isOpen={confirmModal.show}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={closeConfirm}
+      />
+
       {loading ? (
         <div className="relative z-10 flex-grow flex flex-col justify-center items-center">
           <div className="relative">
@@ -580,7 +625,7 @@ export default function Profile() {
               
               {/* Cabeçalho do perfil na sidebar */}
               <div className="flex items-center gap-4 mb-8 pb-8 border-b border-[#1e3a5f]/10">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#1e3a5f]/10 to-[#1e3a5f]/5 border-2 border-[#d4a853]/30 overflow-hidden flex-shrink-0 shadow-lg">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#1e3a5f]/10 to-[#1e3a5f]/5 border-2 border-[#1e3a5f]/20 overflow-hidden flex-shrink-0 shadow-lg">
                   {currentAvatar ? (
                     <img src={currentAvatar} className="w-full h-full object-cover" alt="Avatar" />
                   ) : (
@@ -592,7 +637,7 @@ export default function Profile() {
                 <div className="overflow-hidden">
                   <h2 className="text-lg font-bold text-[#1e3a5f] truncate">{currentName || 'Bem-vindo(a)'}</h2>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                    <span className="w-2 h-2 bg-[#1e3a5f] rounded-full"></span>
                     <p className="text-xs font-medium text-[#1e3a5f]/50">{isAdmin ? 'Administrador' : 'Cliente'}</p>
                   </div>
                 </div>
@@ -610,7 +655,7 @@ export default function Profile() {
                         : 'text-[#1e3a5f]/50 hover:bg-[#1e3a5f]/5 hover:text-[#1e3a5f]'
                     }`}
                   >
-                    <span className={activeTab === tab.id ? 'text-[#d4a853]' : ''}>{tab.icon}</span>
+                    <span className={activeTab === tab.id ? 'text-white' : ''}>{tab.icon}</span>
                     {tab.label}
                   </button>
                 ))}
@@ -620,7 +665,7 @@ export default function Profile() {
               <div className="mt-auto pt-8 border-t border-[#1e3a5f]/10 hidden lg:block">
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl font-medium text-sm text-red-500 bg-red-50 hover:bg-red-100 transition-all"
+                  className="w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl font-medium text-sm text-[#1e3a5f]/60 bg-[#1e3a5f]/5 hover:bg-[#1e3a5f]/10 transition-all"
                 >
                   <LogoutIcon />
                   Sair da conta
@@ -702,7 +747,7 @@ export default function Profile() {
                   {isAdmin && (
                     <div className="pt-6 border-t border-[#1e3a5f]/10">
                       <h4 className="font-semibold text-[#1e3a5f] mb-5 flex items-center gap-2">
-                        <LocationIcon className="w-5 h-5 text-[#d4a853]" />
+                        <LocationIcon className="w-5 h-5 text-[#1e3a5f]" />
                         Endereço de Retirada
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -786,7 +831,7 @@ export default function Profile() {
                             type="button"
                             onClick={() => handleDayChange(day, 'isOpen', !businessHours[day]?.isOpen)}
                             className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-                              businessHours[day]?.isOpen ? 'bg-[#1e3a5f]' : 'bg-gray-300'
+                              businessHours[day]?.isOpen ? 'bg-[#1e3a5f]' : 'bg-[#1e3a5f]/20'
                             }`}
                           >
                             <span
@@ -853,7 +898,7 @@ export default function Profile() {
                         className={`px-4 py-3 rounded-xl text-center min-w-[70px] ${
                           businessHours[day]?.isOpen
                             ? 'bg-[#1e3a5f] text-white'
-                            : 'bg-gray-200 text-gray-400'
+                            : 'bg-[#1e3a5f]/10 text-[#1e3a5f]/40'
                         }`}
                       >
                         <div className="text-xs font-bold">{shortLabel}</div>
@@ -918,7 +963,7 @@ export default function Profile() {
                         key={addr.id}
                         className={`p-5 rounded-2xl border-2 transition-all ${
                           addr.isDefault
-                            ? 'border-[#d4a853] bg-gradient-to-br from-[#d4a853]/5 to-transparent'
+                            ? 'border-[#1e3a5f] bg-gradient-to-br from-[#1e3a5f]/5 to-transparent'
                             : 'border-[#1e3a5f]/10 bg-white hover:border-[#1e3a5f]/20'
                         }`}
                       >
@@ -926,7 +971,7 @@ export default function Profile() {
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-[#1e3a5f]">{addr.label || 'Endereço'}</span>
                             {addr.isDefault && (
-                              <span className="bg-[#d4a853] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                              <span className="bg-[#1e3a5f] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                                 Principal
                               </span>
                             )}
@@ -947,7 +992,7 @@ export default function Profile() {
                           </button>
                           <button
                             onClick={() => handleDeleteAddress(addr.id)}
-                            className="text-sm font-medium text-red-500 hover:text-red-600 transition-colors"
+                            className="text-sm font-medium text-[#1e3a5f]/40 hover:text-[#1e3a5f]/60 transition-colors"
                           >
                             Excluir
                           </button>
@@ -1179,7 +1224,7 @@ export default function Profile() {
           <NavBtn onClick={() => navigate('/menu')} icon={<HomeIcon />} label="Início" />
           <NavBtn onClick={() => navigate('/promotions')} icon={<TagIcon />} label="Ofertas" />
           <NavBtn onClick={() => {}} icon={<UserIcon />} label="Perfil" active />
-          <NavBtn onClick={handleLogout} icon={<LogoutIcon />} label="Sair" danger />
+          <NavBtn onClick={handleLogout} icon={<LogoutIcon />} label="Sair" />
         </div>
       </footer>
     </div>
@@ -1187,6 +1232,71 @@ export default function Profile() {
 }
 
 // COMPONENTES AUXILIARES
+
+// Toast Notification Component
+const Toast = ({ toast, onClose }) => {
+  if (!toast.show) return null;
+
+  const typeStyles = {
+    success: 'bg-[#1e3a5f] text-white',
+    error: 'bg-[#1e3a5f]/90 text-white border-2 border-white/20',
+    info: 'bg-[#1e3a5f]/80 text-white'
+  };
+
+  const icons = {
+    success: <CheckCircleIcon className="w-5 h-5" />,
+    error: <ErrorIcon className="w-5 h-5" />,
+    info: <InfoIcon className="w-5 h-5" />
+  };
+
+  return (
+    <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] animate-slide-down">
+      <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl ${typeStyles[toast.type]}`}>
+        {icons[toast.type]}
+        <span className="font-medium text-sm">{toast.message}</span>
+        <button onClick={onClose} className="ml-2 opacity-70 hover:opacity-100 transition-opacity">
+          <CloseIcon className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Confirm Modal Component
+const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm" onClick={onCancel}></div>
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-scale-in">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="w-12 h-12 rounded-full bg-[#1e3a5f]/10 flex items-center justify-center">
+            <AlertIcon className="w-6 h-6 text-[#1e3a5f]" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-[#1e3a5f]">{title}</h3>
+          </div>
+        </div>
+        <p className="text-[#1e3a5f]/60 text-sm mb-6 pl-16">{message}</p>
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-5 py-2.5 rounded-xl font-medium text-[#1e3a5f] bg-[#faf8f5] hover:bg-[#f0eeeb] transition-all"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-5 py-2.5 rounded-xl font-medium text-white bg-[#1e3a5f] hover:bg-[#162d4a] transition-all shadow-lg shadow-[#1e3a5f]/20"
+          >
+            Confirmar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Modal reutilizável
 const Modal = ({ onClose, title, children, noPadding }) => (
@@ -1231,7 +1341,7 @@ const NavBtn = ({ onClick, icon, label, active, danger }) => (
   <button
     onClick={onClick}
     className={`flex flex-col items-center gap-1 p-2 transition-all ${
-      danger ? 'text-red-400' : active ? 'text-[#1e3a5f]' : 'text-[#1e3a5f]/40 hover:text-[#1e3a5f]/60'
+      danger ? 'text-[#1e3a5f]/40' : active ? 'text-[#1e3a5f]' : 'text-[#1e3a5f]/40 hover:text-[#1e3a5f]/60'
     }`}
   >
     {icon}
@@ -1330,5 +1440,29 @@ const SpinnerIcon = ({ className = "w-5 h-5" }) => (
   <svg className={`${className} animate-spin`} fill="none" viewBox="0 0 24 24">
     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+  </svg>
+);
+
+const CheckCircleIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+  </svg>
+);
+
+const ErrorIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+  </svg>
+);
+
+const InfoIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+  </svg>
+);
+
+const AlertIcon = ({ className = "w-6 h-6" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
   </svg>
 );

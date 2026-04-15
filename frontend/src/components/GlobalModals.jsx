@@ -3,7 +3,6 @@ import { useCart } from '../contexts/CartContext';
 import CheckoutModal from './CheckoutModal';
 
 // ÍCONES SVG
-// Componentes funcionais para ícones usados nos modais
 const Icons = {
   Cart: ({ className = "w-5 h-5" }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -87,11 +86,15 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
+  Bell: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+    </svg>
+  ),
 };
 
 // Componente que gerencia os modais globais: Carrinho e Acompanhamento de Pedidos
 export default function GlobalModals() {
-  // Hooks e estado global do carrinho via contexto
   const {
     isCartOpen,
     setIsCartOpen,
@@ -109,7 +112,6 @@ export default function GlobalModals() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false); 
   const [confirmingOrderId, setConfirmingOrderId] = useState(null); 
 
-  // Efeito para buscar pedidos periodicamente quando o modal de rastreio está aberto
   useEffect(() => {
     if (!isTrackingOpen) return;
     fetchMyOrders(); 
@@ -117,121 +119,161 @@ export default function GlobalModals() {
     return () => clearInterval(interval);
   }, [isTrackingOpen, fetchMyOrders]);
 
-  // Retorna informações visuais (ícone, cor, label) para cada status do pedido
+  // Retorna informações visuais para cada status do pedido
+  // Agora considera o tipo de entrega (DELIVERY ou PICKUP)
   const getStatusInfo = (status, deliveryType = 'DELIVERY') => {
     const isPickup = deliveryType === 'PICKUP';
 
-    const statusMap = {
+    // Status base (comum para delivery e pickup)
+    const baseStatusMap = {
       PLACED: {
         label: 'Pedido Recebido',
         icon: <Icons.Clipboard className="w-4 h-4" />,
-        color: 'text-blue-600',
-        bg: 'bg-blue-50',
-        border: 'border-blue-200',
+        color: 'text-[#1e3a5f]',
+        bg: 'bg-[#1e3a5f]/10',
+        border: 'border-[#1e3a5f]/20',
         step: 1,
         description: 'Aguardando confirmação do restaurante',
       },
       CONFIRMED: {
         label: 'Confirmado',
         icon: <Icons.CheckCircle className="w-4 h-4" />,
-        color: 'text-green-600',
-        bg: 'bg-green-50',
-        border: 'border-green-200',
+        color: 'text-[#1e3a5f]',
+        bg: 'bg-[#1e3a5f]/10',
+        border: 'border-[#1e3a5f]/20',
         step: 1,
         description: 'Pedido confirmado pelo restaurante',
       },
       PENDING: {
         label: 'Pedido Recebido',
         icon: <Icons.Clipboard className="w-4 h-4" />,
-        color: 'text-blue-600',
-        bg: 'bg-blue-50',
-        border: 'border-blue-200',
+        color: 'text-[#1e3a5f]',
+        bg: 'bg-[#1e3a5f]/10',
+        border: 'border-[#1e3a5f]/20',
         step: 1,
         description: 'Aguardando confirmação',
       },
       PREPARING: {
         label: 'Em Preparo',
         icon: <Icons.Fire className="w-4 h-4" />,
-        color: 'text-orange-600',
-        bg: 'bg-orange-50',
-        border: 'border-orange-200',
+        color: 'text-[#1e3a5f]',
+        bg: 'bg-[#1e3a5f]/20',
+        border: 'border-[#1e3a5f]/30',
         step: 2,
         description: 'Seu pedido está sendo preparado',
-      },
-      READY: {
-        label: 'Pronto',
-        icon: <Icons.Sparkles className="w-4 h-4" />,
-        color: 'text-amber-600',
-        bg: 'bg-amber-50',
-        border: 'border-amber-200',
-        step: 3,
-        description: isPickup ? 'Pedido pronto para retirada!' : 'Pedido pronto! Saindo para entrega',
-      },
-      OUT_FOR_DELIVERY: {
-        label: 'Saiu para Entrega',
-        icon: <Icons.Motorcycle className="w-4 h-4" />,
-        color: 'text-purple-600',
-        bg: 'bg-purple-50',
-        border: 'border-purple-200',
-        step: 3,
-        description: 'O entregador está a caminho',
-      },
-      DELIVERED: {
-        label: isPickup ? 'Retirado' : 'Entregue',
-        icon: <Icons.Gift className="w-4 h-4" />,
-        color: 'text-green-600',
-        bg: 'bg-green-50',
-        border: 'border-green-200',
-        step: 4,
-        description: isPickup ? 'Confirme a retirada do seu pedido' : 'Confirme o recebimento do seu pedido',
-      },
-      READY_FOR_PICKUP: {
-        label: 'Pronto para Retirada',
-        icon: <Icons.Package className="w-4 h-4" />,
-        color: 'text-purple-600',
-        bg: 'bg-purple-50',
-        border: 'border-purple-200',
-        step: 3,
-        description: 'Seu pedido está pronto! Venha retirar',
-      },
-      PICKED_UP: {
-        label: 'Retirado',
-        icon: <Icons.Gift className="w-4 h-4" />,
-        color: 'text-green-600',
-        bg: 'bg-green-50',
-        border: 'border-green-200',
-        step: 4,
-        description: 'Confirme a retirada do seu pedido',
       },
       COMPLETED: {
         label: 'Finalizado',
         icon: <Icons.CheckCircle className="w-4 h-4" />,
-        color: 'text-green-600',
-        bg: 'bg-green-50',
-        border: 'border-green-200',
+        color: 'text-[#1e3a5f]',
+        bg: 'bg-[#1e3a5f]/10',
+        border: 'border-[#1e3a5f]/20',
         step: 4,
         description: 'Pedido concluído com sucesso!',
       },
       CANCELLED: {
         label: 'Cancelado',
         icon: <Icons.XCircle className="w-4 h-4" />,
-        color: 'text-red-600',
-        bg: 'bg-red-50',
-        border: 'border-red-200',
+        color: 'text-[#1e3a5f]/50',
+        bg: 'bg-[#1e3a5f]/5',
+        border: 'border-[#1e3a5f]/10',
         step: 0,
         description: 'Este pedido foi cancelado',
       },
     };
 
-    return statusMap[status] || statusMap.PENDING;
+    // Status específicos para PICKUP (Retirada)
+    const pickupStatusMap = {
+      ...baseStatusMap,
+      READY: {
+        label: 'Pronto para Retirada',
+        icon: <Icons.Bell className="w-4 h-4" />,
+        color: 'text-[#1e3a5f]',
+        bg: 'bg-[#1e3a5f]/20',
+        border: 'border-[#1e3a5f]/30',
+        step: 3,
+        description: 'Seu pedido está pronto! Venha retirar',
+      },
+      OUT_FOR_DELIVERY: {
+        label: 'Pronto para Retirada',
+        icon: <Icons.Package className="w-4 h-4" />,
+        color: 'text-[#1e3a5f]',
+        bg: 'bg-[#1e3a5f]/30',
+        border: 'border-[#1e3a5f]/40',
+        step: 3,
+        description: 'Seu pedido está pronto! Venha retirar no balcão',
+      },
+      READY_FOR_PICKUP: {
+        label: 'Pronto para Retirada',
+        icon: <Icons.Package className="w-4 h-4" />,
+        color: 'text-[#1e3a5f]',
+        bg: 'bg-[#1e3a5f]/30',
+        border: 'border-[#1e3a5f]/40',
+        step: 3,
+        description: 'Seu pedido está pronto! Venha retirar no balcão',
+      },
+      DELIVERED: {
+        label: 'Retirado',
+        icon: <Icons.Gift className="w-4 h-4" />,
+        color: 'text-[#1e3a5f]',
+        bg: 'bg-[#1e3a5f]/10',
+        border: 'border-[#1e3a5f]/20',
+        step: 4,
+        description: 'Confirme a retirada do seu pedido',
+      },
+      PICKED_UP: {
+        label: 'Retirado',
+        icon: <Icons.Gift className="w-4 h-4" />,
+        color: 'text-[#1e3a5f]',
+        bg: 'bg-[#1e3a5f]/10',
+        border: 'border-[#1e3a5f]/20',
+        step: 4,
+        description: 'Confirme a retirada do seu pedido',
+      },
+    };
+
+    // Status específicos para DELIVERY (Entrega)
+    const deliveryStatusMap = {
+      ...baseStatusMap,
+      READY: {
+        label: 'Pronto',
+        icon: <Icons.Sparkles className="w-4 h-4" />,
+        color: 'text-[#1e3a5f]',
+        bg: 'bg-[#1e3a5f]/20',
+        border: 'border-[#1e3a5f]/30',
+        step: 3,
+        description: 'Pedido pronto! Saindo para entrega',
+      },
+      OUT_FOR_DELIVERY: {
+        label: 'Saiu para Entrega',
+        icon: <Icons.Motorcycle className="w-4 h-4" />,
+        color: 'text-[#1e3a5f]',
+        bg: 'bg-[#1e3a5f]/30',
+        border: 'border-[#1e3a5f]/40',
+        step: 3,
+        description: 'O entregador está a caminho',
+      },
+      DELIVERED: {
+        label: 'Entregue',
+        icon: <Icons.Gift className="w-4 h-4" />,
+        color: 'text-[#1e3a5f]',
+        bg: 'bg-[#1e3a5f]/10',
+        border: 'border-[#1e3a5f]/20',
+        step: 4,
+        description: 'Confirme o recebimento do seu pedido',
+      },
+    };
+
+    // Seleciona o mapa de status correto baseado no tipo de entrega
+    const statusMap = isPickup ? pickupStatusMap : deliveryStatusMap;
+
+    return statusMap[status] || baseStatusMap.PENDING;
   };
 
-  // Verifica se o pedido está no status que exige confirmação do cliente
   const needsConfirmation = (order) => {
     return ['DELIVERED', 'PICKED_UP'].includes(order.status);
   };
 
-  // Retorna textos específicos para o botão de confirmação baseado no tipo de entrega
   const getConfirmationTexts = (order) => {
     const isPickup = order.deliveryType === 'PICKUP';
     if (isPickup) {
@@ -250,7 +292,6 @@ export default function GlobalModals() {
     };
   };
 
-  // Formata timestamp para horário legível
   const formatTime = (timestamp) => {
     return new Date(Number(timestamp)).toLocaleTimeString('pt-BR', {
       hour: '2-digit',
@@ -258,14 +299,12 @@ export default function GlobalModals() {
     });
   };
 
-  // Handler para confirmar entrega/retirada de um pedido
   const onConfirmDelivery = async (orderId) => {
     setConfirmingOrderId(orderId);
     await handleConfirmDelivery(orderId);
     setConfirmingOrderId(null);
   };
 
-  // Cálculo de valores para o carrinho
   const deliveryFee = 5.0;
   const cartTotal = getCartTotal();
   const orderTotal = cartTotal + deliveryFee;
@@ -275,12 +314,10 @@ export default function GlobalModals() {
       {/* MODAL DO CARRINHO */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          {/* Overlay escurecido com blur */}
           <div
             className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm"
             onClick={() => setIsCartOpen(false)}
           />
-          {/* Painel lateral do carrinho */}
           <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-slide-in-right">
             
             {/* Header do carrinho */}
@@ -336,7 +373,7 @@ export default function GlobalModals() {
                               Obs: {item.observation}
                             </p>
                           )}
-                          <p className="text-[#d4a853] font-black text-lg mt-1">
+                          <p className="text-[#1e3a5f] font-black text-lg mt-1">
                             R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}
                           </p>
                           
@@ -360,7 +397,7 @@ export default function GlobalModals() {
                             {/* Botão remover item */}
                             <button
                               onClick={() => removeFromCart(item.id, item.observation)}
-                              className="p-2 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              className="p-2 text-[#1e3a5f]/40 hover:text-[#1e3a5f] hover:bg-[#1e3a5f]/5 rounded-lg transition-colors"
                             >
                               <Icons.Trash className="w-5 h-5" />
                             </button>
@@ -387,7 +424,7 @@ export default function GlobalModals() {
                   </div>
                   <div className="border-t border-[#1e3a5f]/10 pt-3 flex justify-between items-center">
                     <span className="text-[#1e3a5f] font-bold">Total</span>
-                    <span className="text-[#d4a853] font-black text-2xl">
+                    <span className="text-[#1e3a5f] font-black text-2xl">
                       R$ {orderTotal.toFixed(2).replace('.', ',')}
                     </span>
                   </div>
@@ -409,16 +446,15 @@ export default function GlobalModals() {
         </div>
       )}
 
-      {/* MODAL DE CHECKOUT - exibido após clicar em Finalizar Pedido */}
+      {/* MODAL DE CHECKOUT */}
       <CheckoutModal 
         isOpen={isCheckoutOpen} 
         onClose={() => setIsCheckoutOpen(false)} 
       />
 
-      {/* MODAL DE ACOMPANHAR */}
+      {/* MODAL DE ACOMPANHAR PEDIDOS */}
       {isTrackingOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
-          {/* Overlay */}
           <div
             className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm"
             onClick={() => setIsTrackingOpen(false)}
@@ -463,16 +499,19 @@ export default function GlobalModals() {
                     const isCancelled = order.status === 'CANCELLED';
                     const isPickup = order.deliveryType === 'PICKUP';
                     const isConfirming = confirmingOrderId === order.id;
+                    const isReadyForPickup = isPickup && ['OUT_FOR_DELIVERY', 'READY_FOR_PICKUP', 'READY'].includes(order.status);
 
                     return (
                       <div
                         key={order.id}
                         className={`bg-white rounded-xl sm:rounded-2xl overflow-hidden shadow-sm border-2 transition-all ${
                           showConfirmation 
-                            ? 'border-blue-100 shadow-green-100' 
-                            : isCancelled
-                              ? 'border-red-200'
-                              : 'border-[#1e3a5f]/5'
+                            ? 'border-[#1e3a5f]/30 shadow-[#1e3a5f]/10' 
+                            : isReadyForPickup
+                              ? 'border-[#1e3a5f]/40 shadow-[#1e3a5f]/15'
+                              : isCancelled
+                                ? 'border-[#1e3a5f]/10'
+                                : 'border-[#1e3a5f]/5'
                         }`}
                       >
                         {/* Cabeçalho do pedido */}
@@ -483,12 +522,8 @@ export default function GlobalModals() {
                                 <span className="text-[10px] sm:text-xs font-bold text-[#1e3a5f]/40">
                                   #{order.id.slice(-6).toUpperCase()}
                                 </span>
-                                <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold flex items-center gap-1 ${
-                                  isPickup 
-                                    ? 'bg-blue-100 text-[#1e3a5f]' 
-                                    : 'bg-blue-100 text-[#1e3a5f]'
-                                }`}>
-                                  {isPickup ? <Icons.Package className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> : <Icons.Motorcycle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
+                                <span className="px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold flex items-center gap-1 bg-[#1e3a5f]/10 text-[#1e3a5f]">
+                                  {isPickup ? <Icons.Store className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> : <Icons.Motorcycle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
                                   {isPickup ? 'Retirada' : 'Entrega'}
                                 </span>
                               </div>
@@ -529,8 +564,8 @@ export default function GlobalModals() {
 
                         {/* Mensagem para pedidos cancelados */}
                         {isCancelled && (
-                          <div className="px-3 sm:px-4 py-2 sm:py-3 bg-red-50">
-                            <p className="text-red-600 font-medium text-xs sm:text-sm text-center flex items-center justify-center gap-2">
+                          <div className="px-3 sm:px-4 py-2 sm:py-3 bg-[#1e3a5f]/5">
+                            <p className="text-[#1e3a5f]/60 font-medium text-xs sm:text-sm text-center flex items-center justify-center gap-2">
                               <Icons.XCircle className="w-4 h-4" />
                               {statusInfo.description}
                             </p>
@@ -539,25 +574,30 @@ export default function GlobalModals() {
 
                         {/* Endereço de entrega (apenas para delivery) */}
                         {!isPickup && order.deliveryAddress && (
-                          <div className="px-3 sm:px-4 py-2 sm:py-3 bg-blue-50/50 border-t border-blue-100">
-                            <p className="text-[10px] sm:text-xs font-bold text-blue-900 mb-0.5 sm:mb-1 flex items-center gap-1">
+                          <div className="px-3 sm:px-4 py-2 sm:py-3 bg-[#1e3a5f]/5 border-t border-[#1e3a5f]/10">
+                            <p className="text-[10px] sm:text-xs font-bold text-[#1e3a5f] mb-0.5 sm:mb-1 flex items-center gap-1">
                               <Icons.LocationMarker className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                               Entregar em:
                             </p>
-                            <p className="text-[10px] sm:text-xs text-blue-900">
+                            <p className="text-[10px] sm:text-xs text-[#1e3a5f]/70">
                               {order.deliveryAddress.street}, {order.deliveryAddress.number}
                               {order.deliveryAddress.complement && ` - ${order.deliveryAddress.complement}`}
                             </p>
                           </div>
                         )}
 
-                        {/* Aviso para pedidos prontos para retirada */}
-                        {isPickup && order.status === 'READY_FOR_PICKUP' && (
-                          <div className="px-3 sm:px-4 py-2 sm:py-3 bg-purple-50 border-t border-purple-100">
-                            <p className="text-[#2d4a6f] font-bold text-xs sm:text-sm text-center flex items-center justify-center gap-2">
-                              <Icons.Store className="w-4 h-4" />
-                              Retire seu pedido no balcão!
-                            </p>
+                        {/* Aviso especial para pedidos prontos para retirada */}
+                        {isReadyForPickup && (
+                          <div className="px-3 sm:px-4 py-3 sm:py-4 bg-gradient-to-r from-[#1e3a5f]/15 to-[#1e3a5f]/5 border-t border-[#1e3a5f]/20">
+                            <div className="flex items-center justify-center gap-2 text-[#1e3a5f]">
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#1e3a5f] rounded-full flex items-center justify-center animate-pulse">
+                                <Icons.Bell className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                              </div>
+                              <div className="text-center">
+                                <p className="font-bold text-sm sm:text-base">Pedido pronto!</p>
+                                <p className="text-[10px] sm:text-xs text-[#1e3a5f]/70">Retire seu pedido no balcão</p>
+                              </div>
+                            </div>
                           </div>
                         )}
 
@@ -577,7 +617,7 @@ export default function GlobalModals() {
                           </div>
                           <div className="border-t border-[#1e3a5f]/10 pt-2 sm:pt-3 flex justify-between">
                             <span className="font-bold text-[#1e3a5f] text-sm">Total</span>
-                            <span className="font-black text-[#2d4a6f] text-base sm:text-lg">
+                            <span className="font-black text-[#1e3a5f] text-base sm:text-lg">
                               R$ {order.total.toFixed(2).replace('.', ',')}
                             </span>
                           </div>
@@ -585,20 +625,20 @@ export default function GlobalModals() {
 
                         {/* Botão de confirmação (quando entregue/retirado) */}
                         {showConfirmation && (
-                          <div className="p-3 sm:p-4 bg-blue-100 border-t border-blue-100">
+                          <div className="p-3 sm:p-4 bg-[#1e3a5f]/10 border-t border-[#1e3a5f]/20">
                             <div className="text-center mb-2 sm:mb-3">
-                              <p className="text-[#2d4a6f] font-bold text-xs sm:text-sm flex items-center justify-center gap-2">
+                              <p className="text-[#1e3a5f] font-bold text-xs sm:text-sm flex items-center justify-center gap-2">
                                 {confirmTexts.icon}
                                 {confirmTexts.title}
                               </p>
-                              <p className="text-blue-900 text-[10px] sm:text-xs">
+                              <p className="text-[#1e3a5f]/60 text-[10px] sm:text-xs">
                                 {confirmTexts.subtitle}
                               </p>
                             </div>
                             <button
                               onClick={() => onConfirmDelivery(order.id)}
                               disabled={isConfirming}
-                              className={`w-full bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] hover:from-[#2d4a6f] hover:to-[#1e3a5f] text-white font-bold py-2.5 sm:py-3 rounded-xl shadow-lg shadow-white-500/20 transition-all flex items-center justify-center gap-2 text-sm ${
+                              className={`w-full bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] hover:from-[#2d4a6f] hover:to-[#1e3a5f] text-white font-bold py-2.5 sm:py-3 rounded-xl shadow-lg shadow-[#1e3a5f]/20 transition-all flex items-center justify-center gap-2 text-sm ${
                                 isConfirming ? 'opacity-70 cursor-not-allowed' : ''
                               }`}
                             >

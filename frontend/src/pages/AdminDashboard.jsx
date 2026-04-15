@@ -17,7 +17,28 @@ export default function AdminDashboard() {
   const [editingBanner, setEditingBanner] = useState(null);
   const [bannerForm, setBannerForm] = useState({ title: '', subtitle: '', imageUrl: '' });
 
+  // Estado para feedbacks visuais
+  const [feedback, setFeedback] = useState({ show: false, type: '', message: '' });
+
+  // Estado para modal de confirmação
+  const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null });
+
   const navigate = useNavigate();
+
+  // Função para mostrar feedback visual
+  const showFeedback = (type, message) => {
+    setFeedback({ show: true, type, message });
+    setTimeout(() => setFeedback({ show: false, type: '', message: '' }), 4000);
+  };
+
+  // Função para mostrar modal de confirmação
+  const showConfirmModal = (title, message, onConfirm) => {
+    setConfirmModal({ show: true, title, message, onConfirm });
+  };
+
+  const closeConfirmModal = () => {
+    setConfirmModal({ show: false, title: '', message: '', onConfirm: null });
+  };
 
   useEffect(() => { 
     fetchData(); 
@@ -36,7 +57,7 @@ export default function AdminDashboard() {
           query: `
             query {
               orders {
-                id total status createdAt
+                id total status createdAt deliveryType
                 user { name email }
                 items { name quantity price product { name } }
               }
@@ -59,7 +80,7 @@ export default function AdminDashboard() {
   };
 
   // ORDERS
-  const updateOrderStatus = async (orderId, newStatus) => {
+  const updateOrderStatus = async (orderId, newStatus, isPickup = false) => {
     try {
       const response = await fetch('http://localhost:4000/graphql', {
         method: 'POST',
@@ -76,9 +97,18 @@ export default function AdminDashboard() {
       });
       const result = await response.json();
       if (result.errors) throw new Error(result.errors[0].message);
+      
+      // Feedback visual de sucesso - diferenciado para pickup/delivery
+      const statusMessages = {
+        PREPARING: 'Pedido aceito e em preparação!',
+        OUT_FOR_DELIVERY: isPickup ? 'Pedido pronto para retirada!' : 'Pedido saiu para entrega!',
+        DELIVERED: isPickup ? 'Retirada confirmada com sucesso!' : 'Entrega confirmada com sucesso!',
+        CANCELLED: 'Pedido cancelado.'
+      };
+      showFeedback('success', statusMessages[newStatus] || 'Status atualizado!');
       fetchData(); 
     } catch (err) {
-      alert('Erro ao atualizar status: ' + err.message);
+      showFeedback('error', 'Erro ao atualizar status: ' + err.message);
     }
   };
 
@@ -146,6 +176,7 @@ export default function AdminDashboard() {
         });
         const result = await response.json();
         if (result.errors) throw new Error(result.errors[0].message);
+        showFeedback('success', 'Banner atualizado com sucesso!');
       } else {
         // Criar novo banner
         const response = await fetch('http://localhost:4000/graphql', {
@@ -158,24 +189,34 @@ export default function AdminDashboard() {
         });
         const result = await response.json();
         if (result.errors) throw new Error(result.errors[0].message);
+        showFeedback('success', 'Banner publicado com sucesso!');
       }
       closeBannerModal();
       fetchData();
     } catch (err) { 
-      alert('Erro ao salvar banner: ' + err.message); 
+      showFeedback('error', 'Erro ao salvar banner: ' + err.message);
     }
   };
 
   const handleDeleteBanner = async (id) => {
-    if (!window.confirm('Excluir este banner?')) return;
-    try {
-      await fetch('http://localhost:4000/graphql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ query: `mutation { deleteBanner(id: "${id}") }` })
-      });
-      fetchData();
-    } catch (err) {}
+    showConfirmModal(
+      'Excluir Banner',
+      'Tem certeza que deseja excluir este banner? Esta ação não pode ser desfeita.',
+      async () => {
+        try {
+          await fetch('http://localhost:4000/graphql', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            body: JSON.stringify({ query: `mutation { deleteBanner(id: "${id}") }` })
+          });
+          showFeedback('success', 'Banner excluído com sucesso!');
+          fetchData();
+        } catch (err) {
+          showFeedback('error', 'Erro ao excluir banner.');
+        }
+        closeConfirmModal();
+      }
+    );
   };
 
   // HELPERS
@@ -185,19 +226,34 @@ export default function AdminDashboard() {
     day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
   });
 
-  const getStatusDisplay = (status) => {
+  // Função para obter display do status considerando o tipo de entrega
+  const getStatusDisplay = (status, deliveryType = 'DELIVERY') => {
+    const isPickup = deliveryType === 'PICKUP';
+
     const statusMap = {
-      PLACED: { label: 'Novo', color: 'bg-red-50 text-red-600 border-red-200', dot: 'bg-red-500' },
-      CONFIRMED: { label: 'Confirmado', color: 'bg-blue-50 text-blue-600 border-blue-200', dot: 'bg-blue-500' },
-      PENDING: { label: 'Novo', color: 'bg-red-50 text-red-600 border-red-200', dot: 'bg-red-500' },
-      PREPARING: { label: 'Preparando', color: 'bg-amber-50 text-amber-600 border-amber-200', dot: 'bg-amber-500' },
-      READY: { label: 'Pronto', color: 'bg-green-50 text-green-600 border-green-200', dot: 'bg-green-500' },
-      OUT_FOR_DELIVERY: { label: 'Em Entrega', color: 'bg-purple-50 text-purple-600 border-purple-200', dot: 'bg-purple-500' },
-      DELIVERED: { label: 'Entregue', color: 'bg-emerald-50 text-emerald-600 border-emerald-200', dot: 'bg-emerald-500' },
-      COMPLETED: { label: 'Finalizado', color: 'bg-emerald-50 text-emerald-600 border-emerald-200', dot: 'bg-emerald-500' },
-      CANCELLED: { label: 'Cancelado', color: 'bg-gray-100 text-gray-500 border-gray-200', dot: 'bg-gray-400' }
+      PLACED: { label: 'Novo', color: 'bg-[#1e3a5f]/10 text-[#1e3a5f] border-[#1e3a5f]/20', dot: 'bg-[#1e3a5f]' },
+      CONFIRMED: { label: 'Confirmado', color: 'bg-[#1e3a5f]/10 text-[#1e3a5f] border-[#1e3a5f]/20', dot: 'bg-[#1e3a5f]' },
+      PENDING: { label: 'Novo', color: 'bg-[#1e3a5f]/10 text-[#1e3a5f] border-[#1e3a5f]/20', dot: 'bg-[#1e3a5f]' },
+      PREPARING: { label: 'Preparando', color: 'bg-[#1e3a5f]/20 text-[#1e3a5f] border-[#1e3a5f]/30', dot: 'bg-[#1e3a5f]' },
+      READY: { 
+        label: isPickup ? 'Pronto p/ Retirada' : 'Pronto', 
+        color: 'bg-[#1e3a5f]/20 text-[#1e3a5f] border-[#1e3a5f]/30', 
+        dot: 'bg-[#1e3a5f]' 
+      },
+      OUT_FOR_DELIVERY: { 
+        label: isPickup ? 'Pronto p/ Retirada' : 'Em Entrega', 
+        color: 'bg-[#1e3a5f]/30 text-[#1e3a5f] border-[#1e3a5f]/40', 
+        dot: 'bg-[#1e3a5f]' 
+      },
+      DELIVERED: { 
+        label: isPickup ? 'Retirado' : 'Entregue', 
+        color: 'bg-[#1e3a5f]/10 text-[#1e3a5f]/60 border-[#1e3a5f]/10', 
+        dot: 'bg-[#1e3a5f]/40' 
+      },
+      COMPLETED: { label: 'Finalizado', color: 'bg-[#1e3a5f]/10 text-[#1e3a5f]/60 border-[#1e3a5f]/10', dot: 'bg-[#1e3a5f]/40' },
+      CANCELLED: { label: 'Cancelado', color: 'bg-[#1e3a5f]/5 text-[#1e3a5f]/40 border-[#1e3a5f]/10', dot: 'bg-[#1e3a5f]/30' }
     };
-    return statusMap[status] || { label: status, color: 'bg-gray-100 text-gray-500 border-gray-200', dot: 'bg-gray-400' };
+    return statusMap[status] || { label: status, color: 'bg-[#1e3a5f]/10 text-[#1e3a5f]/50 border-[#1e3a5f]/10', dot: 'bg-[#1e3a5f]/30' };
   };
 
   const groupedOrders = orders.reduce((acc, order) => {
@@ -233,7 +289,8 @@ export default function AdminDashboard() {
   const deliveredOrders = orders.filter(o => o.status === 'DELIVERED' || o.status === 'COMPLETED').length;
 
   const renderOrderCard = (order) => {
-    const statusDisplay = getStatusDisplay(order.status);
+    const isPickup = order.deliveryType === 'PICKUP';
+    const statusDisplay = getStatusDisplay(order.status, order.deliveryType);
     const isCompleted = order.status === 'DELIVERED' || order.status === 'COMPLETED' || order.status === 'CANCELLED';
     const isNew = order.status === 'PLACED' || order.status === 'PENDING' || order.status === 'CONFIRMED';
 
@@ -242,18 +299,38 @@ export default function AdminDashboard() {
         key={order.id} 
         className={`bg-white rounded-2xl border flex flex-col h-full transition-all duration-300 overflow-hidden ${
           isNew 
-            ? 'border-red-200 shadow-lg shadow-red-100 ring-1 ring-red-100' 
+            ? 'border-[#1e3a5f] shadow-lg shadow-[#1e3a5f]/20 ring-2 ring-[#1e3a5f]/20' 
             : isCompleted 
-              ? 'border-[#1e3a5f]/5 opacity-70 hover:opacity-100' 
-              : 'border-[#1e3a5f]/10 shadow-sm hover:shadow-lg hover:shadow-[#1e3a5f]/5 hover:-translate-y-1'
+              ? 'border-[#1e3a5f]/10 opacity-70 hover:opacity-100' 
+              : 'border-[#1e3a5f]/20 shadow-sm hover:shadow-lg hover:shadow-[#1e3a5f]/10 hover:-translate-y-1'
         }`}
       >
         <div className={`px-5 py-4 border-b flex justify-between items-center ${
-          isNew ? 'bg-gradient-to-r from-red-50 to-orange-50 border-red-100' : 'bg-[#faf8f5] border-[#1e3a5f]/5'
+          isNew ? 'bg-gradient-to-r from-[#1e3a5f]/10 to-[#1e3a5f]/5 border-[#1e3a5f]/20' : 'bg-[#faf8f5] border-[#1e3a5f]/5'
         }`}>
           <div className="flex items-center gap-3">
             <span className={`w-2.5 h-2.5 rounded-full ${statusDisplay.dot} ${isNew ? 'animate-pulse' : ''}`}></span>
-            <span className="font-bold text-[#1e3a5f] text-sm">#{order.id.slice(-6).toUpperCase()}</span>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-[#1e3a5f] text-sm">#{order.id.slice(-6).toUpperCase()}</span>
+              {/* Badge indicando tipo de entrega */}
+              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold flex items-center gap-1 ${
+                isPickup 
+                  ? 'bg-[#1e3a5f]/20 text-[#1e3a5f]' 
+                  : 'bg-[#1e3a5f]/10 text-[#1e3a5f]/70'
+              }`}>
+                {isPickup ? (
+                  <>
+                    <StoreIcon className="w-2.5 h-2.5" />
+                    Retirada
+                  </>
+                ) : (
+                  <>
+                    <MotorcycleIcon className="w-2.5 h-2.5" />
+                    Entrega
+                  </>
+                )}
+              </span>
+            </div>
           </div>
           <span className={`px-3 py-1 rounded-full text-[10px] font-semibold border ${statusDisplay.color}`}>
             {statusDisplay.label}
@@ -268,11 +345,11 @@ export default function AdminDashboard() {
             </div>
             <div className="text-right">
               <p className="text-xs text-[#1e3a5f]/40 font-medium mb-1">Horário</p>
-              <p className="text-xs font-medium text-[#1e3a5f] bg-[#faf8f5] px-2 py-1 rounded-lg">{formatDate(order.createdAt)}</p>
+              <p className="text-xs font-medium text-[#1e3a5f] bg-[#1e3a5f]/5 px-2 py-1 rounded-lg">{formatDate(order.createdAt)}</p>
             </div>
           </div>
           
-          <div className="bg-[#faf8f5] rounded-xl p-4 mb-5 flex-grow border border-[#1e3a5f]/5">
+          <div className="bg-[#1e3a5f]/5 rounded-xl p-4 mb-5 flex-grow border border-[#1e3a5f]/10">
             <ul className="space-y-2">
               {order.items.map((item, idx) => (
                 <li key={idx} className="flex gap-3 items-center text-sm">
@@ -296,7 +373,7 @@ export default function AdminDashboard() {
           <div className="space-y-2 mt-auto">
             {(order.status === 'PLACED' || order.status === 'PENDING' || order.status === 'CONFIRMED') && (
               <button 
-                onClick={() => updateOrderStatus(order.id, 'PREPARING')} 
+                onClick={() => updateOrderStatus(order.id, 'PREPARING', isPickup)} 
                 className="w-full bg-[#1e3a5f] hover:bg-[#162d4a] text-white font-semibold py-3 rounded-xl shadow-lg shadow-[#1e3a5f]/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
               >
                 <FireIcon className="w-4 h-4" /> Aceitar e Preparar
@@ -305,26 +382,41 @@ export default function AdminDashboard() {
             
             {order.status === 'PREPARING' && (
               <button 
-                onClick={() => updateOrderStatus(order.id, 'OUT_FOR_DELIVERY')} 
-                className="w-full bg-gradient-to-r from-[#d4a853] to-[#c49a4a] hover:from-[#c49a4a] hover:to-[#b38a3a] text-white font-semibold py-3 rounded-xl shadow-lg shadow-[#d4a853]/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                onClick={() => updateOrderStatus(order.id, 'OUT_FOR_DELIVERY', isPickup)} 
+                className="w-full bg-[#1e3a5f] hover:bg-[#162d4a] text-white font-semibold py-3 rounded-xl shadow-lg shadow-[#1e3a5f]/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
               >
-                <RocketIcon className="w-4 h-4" /> Saiu para Entrega
+                {isPickup ? (
+                  <>
+                    <BellIcon className="w-4 h-4" /> Pronto para Retirada
+                  </>
+                ) : (
+                  <>
+                    <RocketIcon className="w-4 h-4" /> Saiu para Entrega
+                  </>
+                )}
               </button>
             )}
             
             {(order.status === 'READY' || order.status === 'OUT_FOR_DELIVERY') && (
               <button 
-                onClick={() => updateOrderStatus(order.id, 'DELIVERED')} 
-                className="w-full bg-gradient-to-r from-green-600 to-emerald-500 text-white font-semibold py-3 rounded-xl shadow-lg shadow-green-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                onClick={() => updateOrderStatus(order.id, 'DELIVERED', isPickup)} 
+                className="w-full bg-[#1e3a5f] hover:bg-[#162d4a] text-white font-semibold py-3 rounded-xl shadow-lg shadow-[#1e3a5f]/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
               >
-                <CheckIcon className="w-4 h-4" /> Confirmar Entrega
+                <CheckIcon className="w-4 h-4" /> {isPickup ? 'Confirmar Retirada' : 'Confirmar Entrega'}
               </button>
             )}
             
             {!isCompleted && (
               <button 
-                onClick={() => updateOrderStatus(order.id, 'CANCELLED')} 
-                className="w-full bg-white text-red-500 border border-red-100 hover:bg-red-50 font-medium py-2.5 rounded-xl transition-all text-sm"
+                onClick={() => showConfirmModal(
+                  'Cancelar Pedido',
+                  'Tem certeza que deseja cancelar este pedido?',
+                  () => {
+                    updateOrderStatus(order.id, 'CANCELLED', isPickup);
+                    closeConfirmModal();
+                  }
+                )}
+                className="w-full bg-white text-[#1e3a5f]/60 border border-[#1e3a5f]/20 hover:bg-[#1e3a5f]/5 hover:text-[#1e3a5f] font-medium py-2.5 rounded-xl transition-all text-sm"
               >
                 Cancelar Pedido
               </button>
@@ -350,13 +442,71 @@ export default function AdminDashboard() {
       
       <div className="relative z-10 h-20"></div>
 
+      {/* FEEDBACK VISUAL - Toast Notification */}
+      {feedback.show && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 animate-slide-down">
+          <div className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-xl border backdrop-blur-xl ${
+            feedback.type === 'success' 
+              ? 'bg-[#1e3a5f] text-white border-[#1e3a5f]' 
+              : 'bg-[#1e3a5f]/90 text-white border-[#1e3a5f]'
+          }`}>
+            {feedback.type === 'success' ? (
+              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                <CheckIcon className="w-5 h-5" />
+              </div>
+            ) : (
+              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                <CloseIcon className="w-5 h-5" />
+              </div>
+            )}
+            <span className="font-medium">{feedback.message}</span>
+            <button 
+              onClick={() => setFeedback({ show: false, type: '', message: '' })}
+              className="ml-2 w-6 h-6 rounded-full hover:bg-white/20 flex items-center justify-center transition-colors"
+            >
+              <CloseIcon className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMAÇÃO - Substituindo window.confirm */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm" onClick={closeConfirmModal}></div>
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fade-in overflow-hidden">
+            <div className="p-6 border-b border-[#1e3a5f]/10">
+              <div className="w-14 h-14 bg-[#1e3a5f]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <AlertIcon className="w-7 h-7 text-[#1e3a5f]" />
+              </div>
+              <h3 className="text-xl font-bold text-[#1e3a5f] text-center">{confirmModal.title}</h3>
+              <p className="text-[#1e3a5f]/60 text-center mt-2">{confirmModal.message}</p>
+            </div>
+            <div className="p-6 flex gap-3">
+              <button 
+                onClick={closeConfirmModal}
+                className="flex-1 py-3.5 rounded-xl font-medium bg-[#1e3a5f]/10 hover:bg-[#1e3a5f]/20 text-[#1e3a5f] transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={confirmModal.onConfirm}
+                className="flex-1 py-3.5 rounded-xl font-medium bg-[#1e3a5f] hover:bg-[#162d4a] text-white shadow-lg shadow-[#1e3a5f]/20 transition-all"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="relative z-10 flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
         
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 bg-[#1e3a5f] rounded-xl flex items-center justify-center">
-                <SettingsIcon className="w-5 h-5 text-[#d4a853]" />
+                <SettingsIcon className="w-5 h-5 text-white" />
               </div>
               <h1 className="text-2xl md:text-3xl font-bold text-[#1e3a5f]">Painel</h1>
             </div>
@@ -387,13 +537,13 @@ export default function AdminDashboard() {
                   : 'bg-white text-[#1e3a5f]/60 hover:bg-[#1e3a5f]/5 border border-[#1e3a5f]/10'
               }`}
             >
-              <span className={activeTab === tab.key ? 'text-[#d4a853]' : ''}>{tab.icon}</span>
+              <span className={activeTab === tab.key ? 'text-white' : ''}>{tab.icon}</span>
               {tab.label}
               {tab.badge > 0 && (
                 <span className={`ml-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
                   activeTab === tab.key 
-                    ? 'bg-red-500 text-white' 
-                    : 'bg-red-100 text-red-600'
+                    ? 'bg-white/20 text-white' 
+                    : 'bg-[#1e3a5f]/10 text-[#1e3a5f]'
                 }`}>
                   {tab.badge}
                 </span>
@@ -411,8 +561,11 @@ export default function AdminDashboard() {
             <p className="mt-6 text-[#1e3a5f]/40 font-medium text-sm">Carregando dados...</p>
           </div>
         ) : error ? (
-          <div className="bg-red-50 border border-red-200 p-8 rounded-2xl text-center">
-            <p className="text-red-500 font-medium">{error}</p>
+          <div className="bg-[#1e3a5f]/5 border border-[#1e3a5f]/20 p-8 rounded-2xl text-center">
+            <div className="w-14 h-14 bg-[#1e3a5f]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <AlertIcon className="w-7 h-7 text-[#1e3a5f]" />
+            </div>
+            <p className="text-[#1e3a5f] font-medium">{error}</p>
           </div>
         ) : (
           <>
@@ -421,16 +574,16 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                   
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#1e3a5f]/5 relative overflow-hidden group hover:shadow-lg transition-all">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#d4a853]/10 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#1e3a5f]/10 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
                     
                     <div className="flex justify-between items-start mb-6 relative z-10">
-                      <div className="w-12 h-12 bg-[#d4a853]/10 rounded-xl flex items-center justify-center">
-                        <DollarIcon className="w-6 h-6 text-[#d4a853]" />
+                      <div className="w-12 h-12 bg-[#1e3a5f]/10 rounded-xl flex items-center justify-center">
+                        <DollarIcon className="w-6 h-6 text-[#1e3a5f]" />
                       </div>
                       <select 
                         value={revenueFilter} 
                         onChange={(e) => setRevenueFilter(e.target.value)} 
-                        className="bg-[#faf8f5] border border-[#1e3a5f]/10 text-[#1e3a5f] text-xs font-medium rounded-lg px-3 py-2 outline-none focus:border-[#1e3a5f]/30"
+                        className="bg-[#1e3a5f]/5 border border-[#1e3a5f]/10 text-[#1e3a5f] text-xs font-medium rounded-lg px-3 py-2 outline-none focus:border-[#1e3a5f]/30"
                       >
                         <option value="DAY">Hoje</option>
                         <option value="WEEK">Semana</option>
@@ -451,15 +604,15 @@ export default function AdminDashboard() {
 
                   <div className="bg-[#1e3a5f] rounded-2xl p-6 shadow-lg shadow-[#1e3a5f]/20 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#d4a853]/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2"></div>
+                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2"></div>
                     
                     <div className="flex justify-between items-start mb-6 relative z-10">
                       <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center">
-                        <ClockIcon className="w-6 h-6 text-[#d4a853]" />
+                        <ClockIcon className="w-6 h-6 text-white" />
                       </div>
                       {pendingOrders.length > 0 && (
-                        <span className="flex items-center gap-2 bg-red-500/20 text-red-300 px-3 py-1 rounded-full text-xs font-medium">
-                          <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></span>
+                        <span className="flex items-center gap-2 bg-white/10 text-white/80 px-3 py-1 rounded-full text-xs font-medium">
+                          <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
                           Ativo
                         </span>
                       )}
@@ -472,11 +625,11 @@ export default function AdminDashboard() {
                   </div>
                   
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#1e3a5f]/5 relative overflow-hidden group hover:shadow-lg transition-all">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-500/10 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#1e3a5f]/10 to-transparent rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
                     
                     <div className="flex justify-between items-start mb-6 relative z-10">
-                      <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
-                        <CheckCircleIcon className="w-6 h-6 text-green-500" />
+                      <div className="w-12 h-12 bg-[#1e3a5f]/10 rounded-xl flex items-center justify-center">
+                        <CheckCircleIcon className="w-6 h-6 text-[#1e3a5f]" />
                       </div>
                     </div>
                     
@@ -491,7 +644,7 @@ export default function AdminDashboard() {
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#1e3a5f]/5">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="font-bold text-[#1e3a5f] flex items-center gap-2">
-                        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                        <span className="w-2 h-2 bg-[#1e3a5f] rounded-full animate-pulse"></span>
                         Pedidos em Andamento
                       </h3>
                       <button 
@@ -526,17 +679,17 @@ export default function AdminDashboard() {
                     return (
                       <div key={monthYear}>
                         <div className="flex items-center gap-4 mb-6">
-                          <div className="bg-white border border-[#1e3a5f]/10 text-[#1e3a5f] px-4 py-2 rounded-xl font-semibold text-sm">
+                          <div className="bg-[#1e3a5f] text-white px-4 py-2 rounded-xl font-semibold text-sm">
                             {monthYear}
                           </div>
-                          <div className="h-px flex-grow bg-gradient-to-r from-[#1e3a5f]/10 to-transparent"></div>
+                          <div className="h-px flex-grow bg-gradient-to-r from-[#1e3a5f]/20 to-transparent"></div>
                         </div>
 
                         <div className="space-y-8">
                           {pendingList.length > 0 && (
                             <div>
-                              <h4 className="text-sm font-semibold text-red-500 mb-4 flex items-center gap-2">
-                                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                              <h4 className="text-sm font-semibold text-[#1e3a5f] mb-4 flex items-center gap-2">
+                                <span className="w-2 h-2 bg-[#1e3a5f] rounded-full animate-pulse"></span>
                                 Novos Pedidos ({pendingList.length})
                               </h4>
                               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -547,8 +700,8 @@ export default function AdminDashboard() {
 
                           {activeList.length > 0 && (
                             <div>
-                              <h4 className="text-sm font-semibold text-amber-600 mb-4 flex items-center gap-2">
-                                <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
+                              <h4 className="text-sm font-semibold text-[#1e3a5f]/70 mb-4 flex items-center gap-2">
+                                <span className="w-2 h-2 bg-[#1e3a5f]/60 rounded-full"></span>
                                 Em Andamento ({activeList.length})
                               </h4>
                               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -561,10 +714,10 @@ export default function AdminDashboard() {
                             <div>
                               <button 
                                 onClick={() => toggleHistory(monthYear)} 
-                                className="flex items-center justify-between w-full md:w-auto text-left mb-4 bg-white px-5 py-3 rounded-xl shadow-sm border border-[#1e3a5f]/5 hover:shadow-md transition-all"
+                                className="flex items-center justify-between w-full md:w-auto text-left mb-4 bg-white px-5 py-3 rounded-xl shadow-sm border border-[#1e3a5f]/10 hover:shadow-md transition-all"
                               >
                                 <h4 className="text-sm font-semibold text-[#1e3a5f]/50 flex items-center gap-2">
-                                  <span className="w-2 h-2 bg-gray-300 rounded-full"></span>
+                                  <span className="w-2 h-2 bg-[#1e3a5f]/30 rounded-full"></span>
                                   Histórico ({completedList.length})
                                 </h4>
                                 <ChevronIcon className={`w-4 h-4 text-[#1e3a5f]/30 ml-4 transition-transform ${expandedHistory[monthYear] ? 'rotate-180' : ''}`} />
@@ -626,7 +779,7 @@ export default function AdminDashboard() {
                             </button>
                             <button 
                               onClick={() => handleDeleteBanner(b.id)} 
-                              className="bg-red-500 hover:bg-red-600 text-white w-9 h-9 rounded-xl flex items-center justify-center shadow-lg transition-colors"
+                              className="bg-[#1e3a5f] hover:bg-[#162d4a] text-white w-9 h-9 rounded-xl flex items-center justify-center shadow-lg transition-colors"
                               title="Excluir banner"
                             >
                               <TrashIcon className="w-4 h-4" />
@@ -653,7 +806,7 @@ export default function AdminDashboard() {
               {bannerForm.imageUrl ? (
                 <>
                   <img src={bannerForm.imageUrl} className="w-full h-full object-cover" alt="Preview" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <div className="absolute inset-0 bg-[#1e3a5f]/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
                     <span className="bg-white text-[#1e3a5f] px-4 py-2 rounded-lg font-medium text-sm">
                       Trocar imagem
                     </span>
@@ -692,7 +845,7 @@ export default function AdminDashboard() {
               <button 
                 type="button" 
                 onClick={closeBannerModal} 
-                className="flex-1 py-3.5 rounded-xl font-medium bg-[#faf8f5] hover:bg-[#f0eeeb] text-[#1e3a5f] transition-colors"
+                className="flex-1 py-3.5 rounded-xl font-medium bg-[#1e3a5f]/10 hover:bg-[#1e3a5f]/20 text-[#1e3a5f] transition-colors"
               >
                 Cancelar
               </button>
@@ -717,6 +870,24 @@ export default function AdminDashboard() {
           <NavBtn onClick={() => navigate('/profile')} icon={<UserIcon />} label="Perfil" />
         </div>
       </footer>
+
+      {/* Estilos de animação */}
+      <style>{`
+        @keyframes fade-in {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.2s ease-out;
+        }
+        @keyframes slide-down {
+          from { opacity: 0; transform: translate(-50%, -20px); }
+          to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .animate-slide-down {
+          animation: slide-down 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }
@@ -730,7 +901,7 @@ const Modal = ({ onClose, title, children }) => (
         <h2 className="text-xl font-bold text-[#1e3a5f]">{title}</h2>
         <button
           onClick={onClose}
-          className="w-10 h-10 rounded-xl bg-[#faf8f5] hover:bg-[#f0eeeb] flex items-center justify-center text-[#1e3a5f]/50 hover:text-[#1e3a5f] transition-all"
+          className="w-10 h-10 rounded-xl bg-[#1e3a5f]/10 hover:bg-[#1e3a5f]/20 flex items-center justify-center text-[#1e3a5f]/50 hover:text-[#1e3a5f] transition-all"
         >
           <CloseIcon />
         </button>
@@ -744,7 +915,7 @@ const InputField = ({ label, className = '', ...props }) => (
   <div className={className}>
     {label && <label className="block text-xs font-medium text-[#1e3a5f]/50 mb-2">{label}</label>}
     <input
-      className="w-full px-4 py-3.5 rounded-xl bg-[#faf8f5] border border-[#1e3a5f]/10 focus:border-[#1e3a5f]/30 focus:bg-white outline-none transition-all text-[#1e3a5f] placeholder-[#1e3a5f]/30"
+      className="w-full px-4 py-3.5 rounded-xl bg-[#1e3a5f]/5 border border-[#1e3a5f]/10 focus:border-[#1e3a5f]/30 focus:bg-white outline-none transition-all text-[#1e3a5f] placeholder-[#1e3a5f]/30"
       {...props}
     />
   </div>
@@ -848,6 +1019,12 @@ const CloseIcon = ({ className = "w-5 h-5" }) => (
   </svg>
 );
 
+const AlertIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+  </svg>
+);
+
 const HomeIcon = ({ className = "w-6 h-6" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
@@ -882,5 +1059,23 @@ const RocketIcon = ({ className = "w-5 h-5" }) => (
 const CheckIcon = ({ className = "w-5 h-5" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+  </svg>
+);
+
+const BellIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+  </svg>
+);
+
+const StoreIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+  </svg>
+);
+
+const MotorcycleIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"></path>
   </svg>
 );
