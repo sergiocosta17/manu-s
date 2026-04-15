@@ -193,11 +193,15 @@ const typeDefs = gql`
     estimatedDays: Int!
   }
 
-  # Configurações da loja para checkout/retirada
+  # Configurações da loja (inclui horários de funcionamento)
   type StoreSettings {
+    id: ID!
     storeName: String
     storeAddress: String
     storePhone: String
+    businessHours: String
+    createdAt: String
+    updatedAt: String
   }
 
   # INPUTS
@@ -312,6 +316,14 @@ const typeDefs = gql`
     newPassword: String!
   }
 
+  # Input para configurações da loja (horários de funcionamento)
+  input StoreSettingsInput {
+    storeName: String
+    storeAddress: String
+    storePhone: String
+    businessHours: String
+  }
+
   # QUERIES
   type Query {
     # Auth
@@ -353,7 +365,7 @@ const typeDefs = gql`
     # Store info (para pickup - retorna usuário admin)
     storeInfo: User
     
-    # Store settings (para checkout - retorna apenas dados da loja formatados)
+    # Store settings (para checkout e horários de funcionamento)
     storeSettings: StoreSettings
   }
 
@@ -369,6 +381,9 @@ const typeDefs = gql`
     
     # Store Profile (Admin)
     updateStore(input: UpdateStoreInput!): User!
+    
+    # Store Settings - Horários de Funcionamento (Admin)
+    updateStoreSettings(input: StoreSettingsInput!): StoreSettings!
     
     # Addresses (Client)
     addAddress(input: AddressInput!): User!

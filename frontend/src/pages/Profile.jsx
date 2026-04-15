@@ -26,6 +26,38 @@ async function getCroppedImg(imageSrc, pixelCrop) {
   return canvas.toDataURL('image/jpeg', 0.8);
 }
 
+// Configuração padrão dos horários de funcionamento
+const DEFAULT_BUSINESS_HOURS = {
+  monday: { isOpen: true, openTime: '18:00', closeTime: '23:00' },
+  tuesday: { isOpen: true, openTime: '18:00', closeTime: '23:00' },
+  wednesday: { isOpen: true, openTime: '18:00', closeTime: '23:00' },
+  thursday: { isOpen: true, openTime: '18:00', closeTime: '23:00' },
+  friday: { isOpen: true, openTime: '18:00', closeTime: '23:00' },
+  saturday: { isOpen: true, openTime: '18:00', closeTime: '23:00' },
+  sunday: { isOpen: true, openTime: '18:00', closeTime: '23:00' },
+};
+
+// Mapeamento de dias para exibição
+const DAY_LABELS = {
+  monday: 'Segunda-feira',
+  tuesday: 'Terça-feira',
+  wednesday: 'Quarta-feira',
+  thursday: 'Quinta-feira',
+  friday: 'Sexta-feira',
+  saturday: 'Sábado',
+  sunday: 'Domingo',
+};
+
+const DAY_SHORT_LABELS = {
+  monday: 'Seg',
+  tuesday: 'Ter',
+  wednesday: 'Qua',
+  thursday: 'Qui',
+  friday: 'Sex',
+  saturday: 'Sáb',
+  sunday: 'Dom',
+};
+
 // Página de perfil do usuário (cliente ou administrador)
 export default function Profile() {
   const navigate = useNavigate();
@@ -81,6 +113,10 @@ export default function Profile() {
   // Pedidos do cliente
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Estados para horários de funcionamento (admin)
+  const [businessHours, setBusinessHours] = useState(DEFAULT_BUSINESS_HOURS);
+  const [savingHours, setSavingHours] = useState(false);
 
   // Formata telefone para (XX) XXXXX-XXXX
   const formatPhone = (val) => {
@@ -178,6 +214,24 @@ export default function Profile() {
               state: user.storeAddress.state || '',
               isDefault: true
             });
+          }
+
+          // Busca horários de funcionamento
+          const settingsRes = await fetch('http://localhost:4000/graphql', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+              query: `query { storeSettings { id businessHours } }`
+            })
+          });
+          const settingsJson = await settingsRes.json();
+          if (settingsJson.data?.storeSettings?.businessHours) {
+            try {
+              const parsed = JSON.parse(settingsJson.data.storeSettings.businessHours);
+              setBusinessHours(parsed);
+            } catch (e) {
+              console.error('Erro ao parsear horários:', e);
+            }
           }
         } else {
           setClientData({
@@ -286,6 +340,61 @@ export default function Profile() {
       }
     } catch (err) {
       alert('Erro ao salvar: ' + err.message);
+    }
+  };
+
+  // Handler para atualizar horário de um dia específico
+  const handleDayChange = (day, field, value) => {
+    setBusinessHours(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        [field]: value
+      }
+    }));
+  };
+
+  // Handler para aplicar horário em todos os dias
+  const handleApplyToAll = (sourceDay) => {
+    const sourceHours = businessHours[sourceDay];
+    const newHours = {};
+    Object.keys(businessHours).forEach(day => {
+      newHours[day] = { ...sourceHours };
+    });
+    setBusinessHours(newHours);
+  };
+
+  // Salvar horários de funcionamento
+  const handleSaveBusinessHours = async () => {
+    setSavingHours(true);
+    const token = localStorage.getItem('token');
+
+    try {
+      const response = await fetch('http://localhost:4000/graphql', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          query: `mutation UpdateStoreSettings($input: StoreSettingsInput!) { 
+            updateStoreSettings(input: $input) { 
+              id 
+              businessHours 
+            } 
+          }`,
+          variables: {
+            input: {
+              businessHours: JSON.stringify(businessHours)
+            }
+          }
+        })
+      });
+
+      const json = await response.json();
+      if (json.errors) throw new Error(json.errors[0].message);
+      alert('Horários de funcionamento salvos com sucesso!');
+    } catch (err) {
+      alert('Erro ao salvar horários: ' + err.message);
+    } finally {
+      setSavingHours(false);
     }
   };
 
@@ -431,7 +540,8 @@ export default function Profile() {
 
   // Definição das abas para admin
   const adminTabs = [
-    { id: 'STORE_INFO', label: 'Dados da Loja', icon: <StoreIcon /> }
+    { id: 'STORE_INFO', label: 'Dados da Loja', icon: <StoreIcon /> },
+    { id: 'BUSINESS_HOURS', label: 'Funcionamento', icon: <ClockIcon /> }
   ];
 
   const tabs = isAdmin ? adminTabs : clientTabs;
@@ -646,6 +756,135 @@ export default function Profile() {
                     Salvar alterações
                   </button>
                 </form>
+              </div>
+            )}
+
+            {/* Horários de Funcionamento (admin) */}
+            {activeTab === 'BUSINESS_HOURS' && isAdmin && (
+              <div className="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-[#1e3a5f]/5 p-6 lg:p-10">
+                <div className="flex items-center justify-between mb-8 pb-6 border-b border-[#1e3a5f]/10">
+                  <div>
+                    <h3 className="text-xl lg:text-2xl font-bold text-[#1e3a5f]">Horários de Funcionamento</h3>
+                    <p className="text-[#1e3a5f]/40 text-sm mt-1">Defina quando sua loja estará aberta para pedidos</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {Object.entries(DAY_LABELS).map(([day, label]) => (
+                    <div
+                      key={day}
+                      className={`p-5 rounded-2xl border-2 transition-all ${
+                        businessHours[day]?.isOpen
+                          ? 'border-[#1e3a5f]/20 bg-gradient-to-r from-[#1e3a5f]/5 to-transparent'
+                          : 'border-[#1e3a5f]/10 bg-[#faf8f5]'
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                        {/* Toggle e Nome do dia */}
+                        <div className="flex items-center gap-4 min-w-[180px]">
+                          <button
+                            type="button"
+                            onClick={() => handleDayChange(day, 'isOpen', !businessHours[day]?.isOpen)}
+                            className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
+                              businessHours[day]?.isOpen ? 'bg-[#1e3a5f]' : 'bg-gray-300'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${
+                                businessHours[day]?.isOpen ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                          <span className={`font-semibold ${businessHours[day]?.isOpen ? 'text-[#1e3a5f]' : 'text-[#1e3a5f]/40'}`}>
+                            {label}
+                          </span>
+                        </div>
+
+                        {/* Horários */}
+                        {businessHours[day]?.isOpen && (
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className="text-sm text-[#1e3a5f]/50">Abre</span>
+                            <input
+                              type="time"
+                              value={businessHours[day]?.openTime || '18:00'}
+                              onChange={(e) => handleDayChange(day, 'openTime', e.target.value)}
+                              className="px-3 py-2 rounded-xl bg-white border border-[#1e3a5f]/10 focus:border-[#1e3a5f]/30 focus:ring-2 focus:ring-[#1e3a5f]/10 outline-none text-[#1e3a5f] font-medium"
+                            />
+                            <span className="text-sm text-[#1e3a5f]/50">até</span>
+                            <span className="text-sm text-[#1e3a5f]/50">Fecha</span>
+                            <input
+                              type="time"
+                              value={businessHours[day]?.closeTime || '23:00'}
+                              onChange={(e) => handleDayChange(day, 'closeTime', e.target.value)}
+                              className="px-3 py-2 rounded-xl bg-white border border-[#1e3a5f]/10 focus:border-[#1e3a5f]/30 focus:ring-2 focus:ring-[#1e3a5f]/10 outline-none text-[#1e3a5f] font-medium"
+                            />
+
+                            {/* Botão editar em todos */}
+                            <button
+                              type="button"
+                              onClick={() => handleApplyToAll(day)}
+                              className="ml-2 text-xs text-[#1e3a5f] hover:text-[#1e3a5f]/70 hover:bg-[#1e3a5f]/10 px-3 py-2 rounded-lg transition-all flex items-center gap-1 font-medium border border-[#1e3a5f]/20"
+                              title="Aplicar este horário para todos os dias"
+                            >
+                              <EditIcon className="w-4 h-4" />
+                              Editar em todos
+                            </button>
+                          </div>
+                        )}
+
+                        {!businessHours[day]?.isOpen && (
+                          <span className="text-sm text-[#1e3a5f]/30 italic">Fechado</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Resumo da Semana */}
+                <div className="mt-8 p-6 bg-[#faf8f5] rounded-2xl border border-[#1e3a5f]/5">
+                  <h4 className="font-semibold text-[#1e3a5f] mb-4 flex items-center gap-2">
+                    <ClockIcon className="w-5 h-5 text-[#1e3a5f]" />
+                    Resumo da Semana
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(DAY_SHORT_LABELS).map(([day, shortLabel]) => (
+                      <div
+                        key={day}
+                        className={`px-4 py-3 rounded-xl text-center min-w-[70px] ${
+                          businessHours[day]?.isOpen
+                            ? 'bg-[#1e3a5f] text-white'
+                            : 'bg-gray-200 text-gray-400'
+                        }`}
+                      >
+                        <div className="text-xs font-bold">{shortLabel}</div>
+                        {businessHours[day]?.isOpen && (
+                          <div className="text-[10px] opacity-80 mt-1">
+                            {businessHours[day]?.openTime}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveBusinessHours}
+                  disabled={savingHours}
+                  className="mt-8 w-full sm:w-auto bg-[#1e3a5f] hover:bg-[#162d4a] text-white font-medium py-4 px-8 rounded-xl transition-all shadow-lg shadow-[#1e3a5f]/20 hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-70"
+                >
+                  {savingHours ? (
+                    <>
+                      <SpinnerIcon className="w-5 h-5" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <SaveIcon />
+                      Salvar horários
+                    </>
+                  )}
+                </button>
               </div>
             )}
 
@@ -1033,6 +1272,12 @@ const StoreIcon = ({ className = "w-6 h-6" }) => (
   </svg>
 );
 
+const ClockIcon = ({ className = "w-6 h-6" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+  </svg>
+);
+
 const LogoutIcon = ({ className = "w-6 h-6" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
@@ -1072,5 +1317,18 @@ const SaveIcon = ({ className = "w-5 h-5" }) => (
 const CloseIcon = ({ className = "w-5 h-5" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+  </svg>
+);
+
+const EditIcon = ({ className = "w-4 h-4" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+  </svg>
+);
+
+const SpinnerIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={`${className} animate-spin`} fill="none" viewBox="0 0 24 24">
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
   </svg>
 );

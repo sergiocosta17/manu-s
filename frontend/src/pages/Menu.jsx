@@ -87,14 +87,103 @@ const Icons = {
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
     </svg>
   ),
+  AlertCircle: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
 };
 
-// Função auxiliar para verificar se o usuário está logado (não é ADMIN e tem token)
-const checkIsLoggedIn = () => {
-  const token = localStorage.getItem('token');
-  const userRole = localStorage.getItem('userRole');
-  // Está logado se tem token E não é ADMIN
-  return !!token && userRole !== 'ADMIN';
+// Mapeamento de dias da semana
+const DAY_MAP = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+// Função para verificar status da loja baseado nos horários
+const getStoreStatus = (businessHours) => {
+  if (!businessHours) {
+    return { isOpen: true, message: '', closingSoon: false, opensAt: '', closesAt: '' };
+  }
+
+  try {
+    const now = new Date();
+    const currentDay = DAY_MAP[now.getDay()];
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const todayHours = businessHours[currentDay];
+
+    // Se não tem configuração para hoje ou está fechado
+    if (!todayHours || !todayHours.isOpen) {
+      // Procura o próximo dia que abre
+      for (let i = 1; i <= 7; i++) {
+        const nextDayIndex = (now.getDay() + i) % 7;
+        const nextDay = DAY_MAP[nextDayIndex];
+        const nextDayHours = businessHours[nextDay];
+        if (nextDayHours && nextDayHours.isOpen) {
+          const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+          return {
+            isOpen: false,
+            message: i === 1 ? `Abre amanhã às ${nextDayHours.openTime}` : `Abre ${dayNames[nextDayIndex]} às ${nextDayHours.openTime}`,
+            closingSoon: false,
+            opensAt: nextDayHours.openTime,
+            closesAt: ''
+          };
+        }
+      }
+      return { isOpen: false, message: 'Fechado', closingSoon: false, opensAt: '', closesAt: '' };
+    }
+
+    const [openHour, openMin] = (todayHours.openTime || '00:00').split(':').map(Number);
+    const [closeHour, closeMin] = (todayHours.closeTime || '23:59').split(':').map(Number);
+
+    const openMinutes = openHour * 60 + openMin;
+    const closeMinutes = closeHour * 60 + closeMin;
+
+    // Ainda não abriu
+    if (currentMinutes < openMinutes) {
+      return {
+        isOpen: false,
+        message: `Abre às ${todayHours.openTime}`,
+        closingSoon: false,
+        opensAt: todayHours.openTime,
+        closesAt: todayHours.closeTime
+      };
+    }
+
+    // Já fechou
+    if (currentMinutes >= closeMinutes) {
+      // Procura o próximo dia que abre
+      for (let i = 1; i <= 7; i++) {
+        const nextDayIndex = (now.getDay() + i) % 7;
+        const nextDay = DAY_MAP[nextDayIndex];
+        const nextDayHours = businessHours[nextDay];
+        if (nextDayHours && nextDayHours.isOpen) {
+          const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+          return {
+            isOpen: false,
+            message: i === 1 ? `Abre amanhã às ${nextDayHours.openTime}` : `Abre ${dayNames[nextDayIndex]} às ${nextDayHours.openTime}`,
+            closingSoon: false,
+            opensAt: nextDayHours.openTime,
+            closesAt: ''
+          };
+        }
+      }
+      return { isOpen: false, message: 'Fechado', closingSoon: false, opensAt: '', closesAt: '' };
+    }
+
+    // Está aberto - verifica se está próximo de fechar (30 minutos)
+    const minutesUntilClose = closeMinutes - currentMinutes;
+    const closingSoon = minutesUntilClose <= 30;
+
+    return {
+      isOpen: true,
+      message: closingSoon ? `Fecha em ${minutesUntilClose} min` : `Fecha às ${todayHours.closeTime}`,
+      closingSoon,
+      opensAt: todayHours.openTime,
+      closesAt: todayHours.closeTime
+    };
+  } catch (e) {
+    console.error('Erro ao verificar horário:', e);
+    return { isOpen: true, message: '', closingSoon: false, opensAt: '', closesAt: '' };
+  }
 };
 
 // Página principal do cardápio
@@ -106,6 +195,10 @@ export default function Menu() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  // Estados para horário de funcionamento
+  const [businessHours, setBusinessHours] = useState(null);
+  const [storeStatus, setStoreStatus] = useState({ isOpen: true, message: '', closingSoon: false, opensAt: '', closesAt: '' });
 
   const navigate = useNavigate();
   const userRole = localStorage.getItem('userRole');
@@ -137,6 +230,43 @@ export default function Menu() {
     { id: 'DRINK', label: 'Bebidas' },
     { id: 'DESSERT', label: 'Doces' },
   ];
+
+  // Busca horários de funcionamento do servidor
+  useEffect(() => {
+    const fetchBusinessHours = async () => {
+      try {
+        const response = await fetch('http://localhost:4000/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: `query { storeSettings { id businessHours } }`
+          })
+        });
+        const result = await response.json();
+
+        if (result.data?.storeSettings?.businessHours) {
+          const parsed = JSON.parse(result.data.storeSettings.businessHours);
+          setBusinessHours(parsed);
+          setStoreStatus(getStoreStatus(parsed));
+        }
+      } catch (err) {
+        console.error('Erro ao buscar horários:', err);
+      }
+    };
+
+    fetchBusinessHours();
+  }, []);
+
+  // Atualiza o status da loja a cada minuto
+  useEffect(() => {
+    if (!businessHours) return;
+
+    const interval = setInterval(() => {
+      setStoreStatus(getStoreStatus(businessHours));
+    }, 60000); // Atualiza a cada 1 minuto
+
+    return () => clearInterval(interval);
+  }, [businessHours]);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -197,6 +327,12 @@ export default function Menu() {
   };
 
   const handleCheckout = async () => {
+    // Verifica se a loja está aberta antes de finalizar
+    if (!storeStatus.isOpen) {
+      alert('A loja está fechada no momento. Não é possível finalizar o pedido.');
+      return;
+    }
+
     setCheckoutLoading(true);
     try {
       const response = await fetch('http://localhost:4000/graphql', {
@@ -247,22 +383,28 @@ export default function Menu() {
     navigate(`/product/${productId}`);
   };
 
-  // verifica se tem token, se não tiver redireciona para login
+  // Verifica se tem token e se a loja está aberta
   const handleAddToCart = (e, product) => {
     e.stopPropagation();
-    
+
+    // Verifica se a loja está aberta
+    if (!storeStatus.isOpen) {
+      alert('A loja está fechada no momento. Volte no horário de funcionamento para fazer seu pedido.');
+      return;
+    }
+
     // Verifica se tem token (está logado)
     const token = localStorage.getItem('token');
     if (!token) {
       navigate('/login');
       return;
     }
-    
+
     addToCart(product);
   };
 
   const safeProducts = Array.isArray(products) ? products : [];
-  
+
   const filteredProducts = activeCategory === 'FEATURED'
     ? safeProducts.filter((p) => p.isFeatured === true)
     : safeProducts.filter((p) => p.category === activeCategory);
@@ -287,7 +429,7 @@ export default function Menu() {
   }, [visibleCategories, activeCategory]);
 
   return (
-    <div 
+    <div
       className="min-h-screen flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white"
       style={{
         backgroundImage: `url(${backgroundImage})`,
@@ -298,11 +440,83 @@ export default function Menu() {
       }}
     >
       <div className="absolute inset-0 bg-[#faf8f5]/85 pointer-events-none"></div>
-      
+
       <div className="relative z-10 h-20"></div>
 
       <main className="relative z-10 flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
-        
+
+{/* Card de Status da Loja*/}
+{businessHours && (
+  <div className="mb-6 md:mb-8 rounded-2xl p-4 md:p-5 shadow-lg border-2 transition-all bg-gradient-to-r from-[#1e3a5f]/10 to-[#1e3a5f]/5 border-[#1e3a5f]/30">
+    <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-center gap-3">
+        {/* Indicador de status */}
+        <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-[#1e3a5f]/20">
+          <div className={`w-3 h-3 rounded-full ${
+            storeStatus.isOpen
+              ? storeStatus.closingSoon
+                ? 'bg-amber-500'
+                : 'bg-green-500'
+              : 'bg-red-500'
+          }`}></div>
+          {storeStatus.isOpen && !storeStatus.closingSoon && (
+            <div className="absolute inset-0 rounded-full bg-green-500 animate-ping opacity-30"></div>
+          )}
+          {storeStatus.closingSoon && (
+            <div className="absolute inset-0 rounded-full bg-amber-400 animate-pulse opacity-30"></div>
+          )}
+        </div>
+
+        <div>
+          <h3 className="font-bold text-lg text-[#1e3a5f]">
+            {storeStatus.isOpen 
+              ? storeStatus.closingSoon 
+                ? 'Fechando em Breve' 
+                : 'Loja Aberta' 
+              : 'Loja Fechada'
+            }
+          </h3>
+          <p className="text-sm text-[#1e3a5f]/70">
+            {storeStatus.message}
+          </p>
+        </div>
+      </div>
+
+      {/* Horários do dia */}
+      {storeStatus.isOpen && storeStatus.closesAt && (
+        <div className="flex items-center gap-2 bg-white/80 px-4 py-2 rounded-xl">
+          <Icons.Clock className="w-5 h-5 text-[#1e3a5f]/70" />
+          <span className="text-sm font-medium text-[#1e3a5f]/80">
+            Hoje: {storeStatus.opensAt} - {storeStatus.closesAt}
+          </span>
+        </div>
+      )}
+    </div>
+
+    {/* Aviso quando fechado */}
+    {!storeStatus.isOpen && (
+      <div className="mt-3 pt-3 border-t border-[#1e3a5f]/20 flex items-center gap-2">
+        <Icons.AlertCircle className="w-5 h-5 text-[#1e3a5f]/60" />
+        <span className="text-sm text-[#1e3a5f]/70">
+          Não é possível fazer pedidos no momento. Volte no horário de funcionamento!
+        </span>
+      </div>
+    )}
+
+    {/* Aviso quando próximo de fechar */}
+    {storeStatus.isOpen && storeStatus.closingSoon && (
+      <div className="mt-3 pt-3 border-t border-[#1e3a5f]/20 flex items-center gap-2">
+        <Icons.AlertCircle className="w-5 h-5 text-[#1e3a5f]/60" />
+        <span className="text-sm text-[#1e3a5f]/70">
+          A loja está prestes a fechar. Finalize seu pedido em breve!
+        </span>
+      </div>
+    )}
+  </div>
+)}
+
+
+
         {/* Seção de banners com setas de navegação */}
         {banners.length > 0 && (
           <div className="relative w-full max-w-5xl mx-auto h-56 md:h-80 rounded-2xl md:rounded-3xl overflow-hidden mb-10 md:mb-14 shadow-[0_20px_60px_rgba(30,58,95,0.15)] group">
@@ -335,7 +549,7 @@ export default function Menu() {
                 </div>
               </div>
             ))}
-            
+
             {banners.length > 1 && (
               <>
                 <button
@@ -355,7 +569,7 @@ export default function Menu() {
                 </button>
               </>
             )}
-            
+
             {banners.length > 1 && (
               <div className="absolute bottom-4 md:bottom-6 right-4 md:right-6 flex gap-2 z-20">
                 {banners.map((_, idx) => (
@@ -395,8 +609,8 @@ export default function Menu() {
                 {cat.label}
                 {cat.id === 'FEATURED' && featuredCount > 0 && (
                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                    activeCategory === cat.id 
-                      ? 'bg-white/20 text-white' 
+                    activeCategory === cat.id
+                      ? 'bg-white/20 text-white'
                       : 'bg-[#d4a853]/10 text-[#d4a853]'
                   }`}>
                     {featuredCount}
@@ -439,7 +653,7 @@ export default function Menu() {
                   onClick={() => handleProductClick(p.id)}
                   className="bg-white rounded-2xl md:rounded-3xl shadow-sm hover:shadow-xl hover:shadow-[#1e3a5f]/8 border border-[#1e3a5f]/5 flex flex-col overflow-hidden transition-all duration-500 group hover:-translate-y-1 relative cursor-pointer"
                 >
-                  {/* Badges */}
+                  {/* Badges - APENAS OFERTA E DESTAQUE (sem badge de Fechado) */}
                   <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
                     {hasValidPromoPrice(p) && (
                       <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-lg">
@@ -453,7 +667,7 @@ export default function Menu() {
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="h-44 md:h-52 bg-gradient-to-br from-[#f5f3f0] to-[#ebe8e4] relative overflow-hidden">
                     {p.imageUrl ? (
                       <img
@@ -467,7 +681,7 @@ export default function Menu() {
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="p-5 md:p-6 flex-grow flex flex-col">
                     <h3 className="text-base md:text-lg font-bold text-[#1e3a5f] leading-tight mb-2 line-clamp-2 group-hover:text-[#1e3a5f] transition-colors">
                       {p.name}
@@ -475,7 +689,7 @@ export default function Menu() {
                     <p className="text-[#1e3a5f]/40 text-xs md:text-sm mb-5 line-clamp-2 leading-relaxed">
                       {p.description || 'Delicioso smash burger artesanal.'}
                     </p>
-                    
+
                     <div className="mt-auto flex items-end justify-between">
                       <div className="flex flex-col">
                         {hasValidPromoPrice(p) ? (
@@ -493,14 +707,19 @@ export default function Menu() {
                           </span>
                         )}
                       </div>
-                      
+
                       {!isAdmin && (
                         <button
                           onClick={(e) => handleAddToCart(e, p)}
-                          className="bg-[#1e3a5f] hover:bg-[#162d4a] text-white w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 shadow-lg shadow-[#1e3a5f]/20 hover:shadow-xl hover:shadow-[#1e3a5f]/30 active:scale-95 group/btn"
-                          title="Adicionar ao carrinho"
+                          disabled={!storeStatus.isOpen}
+                          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 shadow-lg active:scale-95 group/btn ${
+                            storeStatus.isOpen
+                              ? 'bg-[#1e3a5f] hover:bg-[#162d4a] text-white shadow-[#1e3a5f]/20 hover:shadow-xl hover:shadow-[#1e3a5f]/30'
+                              : 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-gray-200'
+                          }`}
+                          title={storeStatus.isOpen ? 'Adicionar ao carrinho' : 'Loja fechada'}
                         >
-                          <Icons.Plus className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
+                          <Icons.Plus className={`w-5 h-5 ${storeStatus.isOpen ? 'group-hover/btn:scale-110' : ''} transition-transform`} />
                         </button>
                       )}
                     </div>
@@ -519,7 +738,7 @@ export default function Menu() {
                   )}
                 </div>
                 <p className="text-[#1e3a5f]/40 font-medium">
-                  {activeCategory === 'FEATURED' 
+                  {activeCategory === 'FEATURED'
                     ? 'Nenhum produto em destaque no momento'
                     : 'Nenhum item disponível nesta categoria'
                   }
@@ -557,46 +776,46 @@ export default function Menu() {
         <div className="flex justify-around items-center py-2 px-4">
           {isAdmin ? (
             <>
-              <NavButton 
-                onClick={() => navigate('/promotions')} 
-                icon={<Icons.Tag className="w-6 h-6" />} 
-                label="Ofertas" 
+              <NavButton
+                onClick={() => navigate('/promotions')}
+                icon={<Icons.Tag className="w-6 h-6" />}
+                label="Ofertas"
               />
-              <NavButton 
-                onClick={() => navigate('/admin')} 
-                icon={<Icons.Settings className="w-6 h-6" />} 
-                label="Painel" 
+              <NavButton
+                onClick={() => navigate('/admin')}
+                icon={<Icons.Settings className="w-6 h-6" />}
+                label="Painel"
               />
-              <NavButton 
-                onClick={() => navigate('/admin/products')} 
-                icon={<Icons.Box className="w-6 h-6" />} 
-                label="Produtos" 
+              <NavButton
+                onClick={() => navigate('/admin/products')}
+                icon={<Icons.Box className="w-6 h-6" />}
+                label="Produtos"
               />
-              <NavButton 
-                onClick={() => navigate('/profile')} 
-                icon={<Icons.User className="w-6 h-6" />} 
-                label="Perfil" 
+              <NavButton
+                onClick={() => navigate('/profile')}
+                icon={<Icons.User className="w-6 h-6" />}
+                label="Perfil"
               />
             </>
           ) : (
             <>
-              <NavButton 
-                onClick={() => window.scrollTo(0, 0)} 
-                icon={<Icons.Home className="w-6 h-6" />} 
+              <NavButton
+                onClick={() => window.scrollTo(0, 0)}
+                icon={<Icons.Home className="w-6 h-6" />}
                 label="Início"
                 active
               />
-              <NavButton 
-                onClick={() => navigate('/promotions')} 
-                icon={<Icons.Tag className="w-6 h-6" />} 
-                label="Ofertas" 
+              <NavButton
+                onClick={() => navigate('/promotions')}
+                icon={<Icons.Tag className="w-6 h-6" />}
+                label="Ofertas"
               />
-              <NavButton 
-                onClick={() => navigate('/profile')} 
-                icon={<Icons.User className="w-6 h-6" />} 
-                label="Perfil" 
+              <NavButton
+                onClick={() => navigate('/profile')}
+                icon={<Icons.User className="w-6 h-6" />}
+                label="Perfil"
               />
-              
+
               {cartItemsCount > 0 && (
                 <button
                   onClick={() => setIsCartOpen(true)}
@@ -631,11 +850,11 @@ export default function Menu() {
       {/* Sidebar do carrinho */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div 
+          <div
             className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm"
             onClick={() => setIsCartOpen(false)}
           ></div>
-          
+
           <div className="relative w-full max-w-md bg-[#faf8f5] h-full flex flex-col shadow-2xl animate-slide-left">
             <div className="bg-[#1e3a5f] p-6 md:p-8 flex justify-between items-center relative overflow-hidden">
               <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full blur-3xl"></div>
@@ -646,14 +865,24 @@ export default function Menu() {
                 </h2>
                 <p className="text-white/50 text-sm mt-1">{cartItemsCount} {cartItemsCount === 1 ? 'item' : 'itens'}</p>
               </div>
-              <button 
-                onClick={() => setIsCartOpen(false)} 
+              <button
+                onClick={() => setIsCartOpen(false)}
                 className="relative z-10 text-white/50 hover:text-white bg-white/10 hover:bg-white/20 w-10 h-10 rounded-xl flex items-center justify-center transition-all"
               >
                 <Icons.Close className="w-5 h-5" />
               </button>
             </div>
-            
+
+            {/* Aviso de loja fechada no carrinho */}
+            {!storeStatus.isOpen && cart.length > 0 && (
+              <div className="bg-[#1e3a5f] p-4 flex items-center gap-3">
+                <Icons.Clock className="w-5 h-5 text-white/70 flex-shrink-0" />
+                <p className="text-sm text-white/80">
+                  A loja está fechada. Você não poderá finalizar o pedido agora.
+                </p>
+              </div>
+            )}
+
             <div className="flex-grow overflow-y-auto p-6 space-y-4">
               {cart.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center py-12">
@@ -665,8 +894,8 @@ export default function Menu() {
                 </div>
               ) : (
                 cart.map((item) => (
-                  <div 
-                    key={item.id} 
+                  <div
+                    key={item.id}
                     className="bg-white p-4 rounded-2xl border border-[#1e3a5f]/5 flex items-center gap-4 group hover:shadow-lg hover:shadow-[#1e3a5f]/5 transition-all"
                   >
                     <div className="w-16 h-16 bg-gradient-to-br from-[#f5f3f0] to-[#ebe8e4] rounded-xl overflow-hidden flex-shrink-0">
@@ -678,19 +907,19 @@ export default function Menu() {
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="flex-grow min-w-0">
                       <h4 className="font-semibold text-[#1e3a5f] truncate">{item.name}</h4>
                       <p className="text-[#1e3a5f] font-bold mt-1">
                         R$ {((hasValidPromoPrice(item) ? Number(item.promotionalPrice) : Number(item.price)) * item.quantity).toFixed(2).replace('.', ',')}
                       </p>
                     </div>
-                    
+
                     <div className="flex items-center gap-3">
                       <span className="bg-[#faf8f5] text-[#1e3a5f] px-3 py-1.5 rounded-lg text-sm font-bold border border-[#1e3a5f]/10">
                         x{item.quantity}
                       </span>
-                      <button 
+                      <button
                         onClick={() => removeFromCart(item.id)}
                         className="text-red-400 hover:text-red-500 hover:bg-red-50 w-8 h-8 rounded-lg flex items-center justify-center transition-all"
                       >
@@ -719,16 +948,25 @@ export default function Menu() {
                     <span className="text-2xl font-bold text-[#1e3a5f]">R$ {cartTotalValue.toFixed(2).replace('.', ',')}</span>
                   </div>
                 </div>
-                
-                <button 
-                  onClick={handleCheckout} 
-                  disabled={checkoutLoading}
-                  className="w-full bg-[#1e3a5f] hover:bg-[#162d4a] text-white font-semibold py-4 rounded-xl transition-all shadow-lg shadow-[#1e3a5f]/20 hover:shadow-xl disabled:opacity-70 flex justify-center items-center gap-3 group"
+
+                <button
+                  onClick={handleCheckout}
+                  disabled={checkoutLoading || !storeStatus.isOpen}
+                  className={`w-full font-semibold py-4 rounded-xl transition-all shadow-lg flex justify-center items-center gap-3 group ${
+                    storeStatus.isOpen
+                      ? 'bg-[#1e3a5f] hover:bg-[#162d4a] text-white shadow-[#1e3a5f]/20 hover:shadow-xl'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-gray-200'
+                  } disabled:opacity-70`}
                 >
                   {checkoutLoading ? (
                     <>
                       <Icons.Spinner className="w-5 h-5" />
                       <span>Processando...</span>
+                    </>
+                  ) : !storeStatus.isOpen ? (
+                    <>
+                      <Icons.Clock className="w-5 h-5" />
+                      <span>Loja Fechada</span>
                     </>
                   ) : (
                     <>
@@ -764,8 +1002,8 @@ export default function Menu() {
 }
 
 const NavButton = ({ onClick, icon, label, active }) => (
-  <button 
-    onClick={onClick} 
+  <button
+    onClick={onClick}
     className={`flex flex-col items-center gap-1 p-2 transition-all ${
       active ? 'text-[#1e3a5f]' : 'text-[#1e3a5f]/40 hover:text-[#1e3a5f]/60'
     }`}

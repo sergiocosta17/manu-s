@@ -40,6 +40,16 @@ const Icons = {
       <path d="M12 23c-3.866 0-7-3.134-7-7 0-2.277 1.09-4.34 2.75-5.65.276-.218.675-.078.753.26.107.462.243.893.405 1.29.081.199.021.424-.14.564-.47.406-.768.998-.768 1.536 0 1.105.895 2 2 2s2-.895 2-2c0-.014 0-.027-.001-.041.008-.576.073-1.141.205-1.688.084-.347.466-.489.756-.278C15.91 13.827 17 15.89 17 18c0 3.866-3.134 7-7 7zm0-14c-.552 0-1-.448-1-1V4c0-.552.448-1 1-1s1 .448 1 1v4c0 .552-.448 1-1 1z"/>
     </svg>
   ),
+  Clock: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  AlertCircle: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
 };
 
 const GET_PRODUCT = `
@@ -56,6 +66,15 @@ const GET_PRODUCT = `
   }
 `;
 
+const GET_STORE_SETTINGS = `
+  query GetStoreSettings {
+    storeSettings {
+      id
+      businessHours
+    }
+  }
+`;
+
 const categoryLabels = {
   BURGER: 'Burger',
   CHICKEN: 'Frango',
@@ -63,6 +82,27 @@ const categoryLabels = {
   SIDE: 'Acompanhamento',
   DRINK: 'Bebida',
   DESSERT: 'Sobremesa',
+};
+
+// Mapeamento de dias
+const DAY_MAP = {
+  0: 'sunday',
+  1: 'monday',
+  2: 'tuesday',
+  3: 'wednesday',
+  4: 'thursday',
+  5: 'friday',
+  6: 'saturday',
+};
+
+const DAY_LABELS_PT = {
+  sunday: 'Domingo',
+  monday: 'Segunda-feira',
+  tuesday: 'Terça-feira',
+  wednesday: 'Quarta-feira',
+  thursday: 'Quinta-feira',
+  friday: 'Sexta-feira',
+  saturday: 'Sábado',
 };
 
 export default function ProductPage() {
@@ -77,38 +117,164 @@ export default function ProductPage() {
   const [addedToCart, setAddedToCart] = useState(false);
   const [observations, setObservations] = useState('');
   
+  // Estados para horário de funcionamento
+  const [isStoreOpen, setIsStoreOpen] = useState(true);
+  const [storeHoursMessage, setStoreHoursMessage] = useState('');
+  const [todayHours, setTodayHours] = useState(null);
+  const [isClosingSoon, setIsClosingSoon] = useState(false);
+  
   const isAddingRef = useRef(false);
   const isAdmin = localStorage.getItem('userRole') === 'ADMIN';
 
+  // Função para verificar se a loja está aberta
+  const checkStoreOpen = (businessHours) => {
+    if (!businessHours) {
+      return { isOpen: true, message: '', todayHours: null, closingSoon: false };
+    }
+
+    try {
+      const hours = typeof businessHours === 'string' ? JSON.parse(businessHours) : businessHours;
+      const now = new Date();
+      const currentDay = DAY_MAP[now.getDay()];
+      const todayConfig = hours[currentDay];
+
+      if (!todayConfig || !todayConfig.isOpen) {
+        const nextOpenDay = findNextOpenDay(hours, now.getDay());
+        return {
+          isOpen: false,
+          message: nextOpenDay 
+            ? `Abrimos ${nextOpenDay.label} às ${nextOpenDay.openTime}`
+            : 'Loja fechada',
+          todayHours: null,
+          closingSoon: false
+        };
+      }
+
+      const [openHour, openMinute] = todayConfig.openTime.split(':').map(Number);
+      const [closeHour, closeMinute] = todayConfig.closeTime.split(':').map(Number);
+      
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const openMinutes = openHour * 60 + openMinute;
+      const closeMinutes = closeHour * 60 + closeMinute;
+
+      const isWithinHours = currentMinutes >= openMinutes && currentMinutes < closeMinutes;
+
+      if (!isWithinHours) {
+        if (currentMinutes < openMinutes) {
+          return {
+            isOpen: false,
+            message: `Abrimos hoje às ${todayConfig.openTime}`,
+            todayHours: todayConfig,
+            closingSoon: false
+          };
+        } else {
+          const nextOpenDay = findNextOpenDay(hours, now.getDay());
+          return {
+            isOpen: false,
+            message: nextOpenDay 
+              ? `Abrimos ${nextOpenDay.label} às ${nextOpenDay.openTime}`
+              : 'Loja fechada',
+            todayHours: todayConfig,
+            closingSoon: false
+          };
+        }
+      }
+
+      const minutesUntilClose = closeMinutes - currentMinutes;
+      const closingSoon = minutesUntilClose <= 30;
+      let closingMessage = '';
+      
+      if (closingSoon) {
+        closingMessage = `Fechamos em ${minutesUntilClose} minutos`;
+      }
+
+      return {
+        isOpen: true,
+        message: closingMessage,
+        todayHours: todayConfig,
+        closingSoon
+      };
+
+    } catch (e) {
+      console.error('Erro ao parsear horários:', e);
+      return { isOpen: true, message: '', todayHours: null, closingSoon: false };
+    }
+  };
+
+  const findNextOpenDay = (hours, currentDayIndex) => {
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    
+    for (let i = 1; i <= 7; i++) {
+      const nextIndex = (currentDayIndex + i) % 7;
+      const nextDay = days[nextIndex];
+      const config = hours[nextDay];
+      
+      if (config && config.isOpen) {
+        return {
+          day: nextDay,
+          label: i === 1 ? 'amanhã' : DAY_LABELS_PT[nextDay],
+          openTime: config.openTime
+        };
+      }
+    }
+    
+    return null;
+  };
+
   useEffect(() => {
-    const fetchProduct = async () => {
+    const fetchData = async () => {
       setLoading(true);
       setError('');
 
       try {
-        const response = await fetch('http://localhost:4000/graphql', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
-          },
-          body: JSON.stringify({
-            query: GET_PRODUCT,
-            variables: { id },
+        const token = localStorage.getItem('token') || '';
+        
+        const [productRes, settingsRes] = await Promise.all([
+          fetch('http://localhost:4000/graphql', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              query: GET_PRODUCT,
+              variables: { id },
+            }),
           }),
-        });
+          fetch('http://localhost:4000/graphql', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              query: GET_STORE_SETTINGS,
+            }),
+          })
+        ]);
 
-        const result = await response.json();
+        const [productResult, settingsResult] = await Promise.all([
+          productRes.json(),
+          settingsRes.json()
+        ]);
 
-        if (result.errors) {
-          throw new Error(result.errors[0].message);
+        if (productResult.errors) {
+          throw new Error(productResult.errors[0].message);
         }
 
-        if (!result.data?.product) {
+        if (!productResult.data?.product) {
           throw new Error('Produto não encontrado');
         }
 
-        setProduct(result.data.product);
+        setProduct(productResult.data.product);
+
+        if (settingsResult.data?.storeSettings?.businessHours) {
+          const storeStatus = checkStoreOpen(settingsResult.data.storeSettings.businessHours);
+          setIsStoreOpen(storeStatus.isOpen);
+          setStoreHoursMessage(storeStatus.message);
+          setTodayHours(storeStatus.todayHours);
+          setIsClosingSoon(storeStatus.closingSoon);
+        }
+
       } catch (err) {
         setError(err.message || 'Erro ao carregar produto');
       } finally {
@@ -117,9 +283,22 @@ export default function ProductPage() {
     };
 
     if (id) {
-      fetchProduct();
+      fetchData();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (!todayHours) return;
+
+    const interval = setInterval(() => {
+      const storeStatus = checkStoreOpen(JSON.stringify({ [DAY_MAP[new Date().getDay()]]: todayHours }));
+      setIsStoreOpen(storeStatus.isOpen);
+      setStoreHoursMessage(storeStatus.message);
+      setIsClosingSoon(storeStatus.closingSoon);
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [todayHours]);
 
   const hasValidPromoPrice = (p) => {
     if (!p || p.promotionalPrice === null || p.promotionalPrice === undefined) return false;
@@ -145,14 +324,16 @@ export default function ProductPage() {
     return Math.round(((original - promo) / original) * 100);
   };
 
-  // verifica se tem token antes de adicionar ao carrinho
   const handleAddToCart = () => {
     if (!product || isAddingRef.current || addedToCart) return;
     
-    // Verifica se tem token (está logado)
     const token = localStorage.getItem('token');
     if (!token) {
       navigate('/login');
+      return;
+    }
+
+    if (!isStoreOpen) {
       return;
     }
     
@@ -174,7 +355,6 @@ export default function ProductPage() {
     setQuantity((prev) => Math.max(prev - 1, 1));
   };
 
-  // Estado de carregamento
   if (loading) {
     return (
       <div 
@@ -198,7 +378,6 @@ export default function ProductPage() {
     );
   }
 
-  // Estado de erro ou produto não encontrado
   if (error || !product) {
     return (
       <div 
@@ -264,6 +443,67 @@ export default function ProductPage() {
           </div>
         </div>
       </div>
+
+      {/* Aviso de Loja Fechada - Visível para admin e cliente */}
+      {!isStoreOpen && (
+        <div className="relative z-20 max-w-5xl mx-auto px-4 mb-4">
+          <div className="rounded-2xl p-4 md:p-5 shadow-lg border-2 bg-gradient-to-r from-[#1e3a5f]/10 to-[#1e3a5f]/5 border-[#1e3a5f]/30">
+            <div className="flex items-center gap-3">
+              {/* Indicador de status */}
+              <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-[#1e3a5f]/20 flex-shrink-0">
+                <div className="w-3 h-3 rounded-full bg-red-500"></div>
+              </div>
+
+              <div className="flex-grow">
+                <h3 className="font-bold text-lg text-[#1e3a5f]">Loja Fechada</h3>
+                <p className="text-sm text-[#1e3a5f]/70">{storeHoursMessage}</p>
+              </div>
+            </div>
+
+            {/* Aviso adicional */}
+            <div className="mt-3 pt-3 border-t border-[#1e3a5f]/20 flex items-center gap-2">
+              <Icons.AlertCircle className="w-5 h-5 text-[#1e3a5f]/60" />
+              <span className="text-sm text-[#1e3a5f]/70">
+                {isAdmin 
+                  ? 'Os clientes não podem fazer pedidos no momento.' 
+                  : 'Não é possível fazer pedidos no momento.'
+                }
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Aviso de Fechando em Breve - Visível para admin e cliente */}
+      {isStoreOpen && isClosingSoon && (
+        <div className="relative z-20 max-w-5xl mx-auto px-4 mb-4">
+          <div className="rounded-2xl p-4 md:p-5 shadow-lg border-2 bg-gradient-to-r from-[#1e3a5f]/10 to-[#1e3a5f]/5 border-[#1e3a5f]/30">
+            <div className="flex items-center gap-3">
+              {/* Indicador de status */}
+              <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-[#1e3a5f]/20 flex-shrink-0">
+                <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                <div className="absolute inset-0 rounded-full bg-amber-400 animate-pulse opacity-30"></div>
+              </div>
+
+              <div className="flex-grow">
+                <h3 className="font-bold text-lg text-[#1e3a5f]">Fechando em Breve</h3>
+                <p className="text-sm text-[#1e3a5f]/70">{storeHoursMessage}</p>
+              </div>
+            </div>
+
+            {/* Aviso adicional */}
+            <div className="mt-3 pt-3 border-t border-[#1e3a5f]/20 flex items-center gap-2">
+              <Icons.AlertCircle className="w-5 h-5 text-[#1e3a5f]/60" />
+              <span className="text-sm text-[#1e3a5f]/70">
+                {isAdmin 
+                  ? 'Os clientes devem finalizar os pedidos em breve!' 
+                  : 'Finalize seu pedido em breve!'
+                }
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Conteúdo principal */}
       <main className="relative z-10 max-w-5xl mx-auto px-4 py-6 md:py-10">
@@ -333,16 +573,17 @@ export default function ProductPage() {
               )}
             </div>
 
+            {/* Área de ações - Apenas para clientes */}
             {!isAdmin && (
               <>
                 {/* Seletor de quantidade */}
-                <div className="bg-white rounded-2xl p-5 border border-[#1e3a5f]/5 mb-6 shadow-sm">
+                <div className={`bg-white rounded-2xl p-5 border border-[#1e3a5f]/5 mb-6 shadow-sm ${!isStoreOpen ? 'opacity-50 pointer-events-none' : ''}`}>
                   <p className="text-sm text-[#1e3a5f]/50 mb-3">Quantidade</p>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <button
                         onClick={decrementQuantity}
-                        disabled={quantity <= 1}
+                        disabled={quantity <= 1 || !isStoreOpen}
                         className="w-12 h-12 bg-[#faf8f5] rounded-xl flex items-center justify-center border border-[#1e3a5f]/10 hover:bg-[#1e3a5f]/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         <Icons.Minus className="w-5 h-5 text-[#1e3a5f]" />
@@ -352,7 +593,7 @@ export default function ProductPage() {
                       </span>
                       <button
                         onClick={incrementQuantity}
-                        disabled={quantity >= 999}
+                        disabled={quantity >= 999 || !isStoreOpen}
                         className="w-12 h-12 bg-[#faf8f5] rounded-xl flex items-center justify-center border border-[#1e3a5f]/10 hover:bg-[#1e3a5f]/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         <Icons.Plus className="w-5 h-5 text-[#1e3a5f]" />
@@ -368,7 +609,7 @@ export default function ProductPage() {
                 </div>
 
                 {/* Campo de observações */}
-                <div className="bg-white rounded-2xl p-5 border border-[#1e3a5f]/5 mb-6 shadow-sm">
+                <div className={`bg-white rounded-2xl p-5 border border-[#1e3a5f]/5 mb-6 shadow-sm ${!isStoreOpen ? 'opacity-50 pointer-events-none' : ''}`}>
                   <p className="text-sm text-[#1e3a5f]/50 mb-3">
                     Observações para o pedido (opcional)
                   </p>
@@ -377,7 +618,8 @@ export default function ProductPage() {
                     onChange={(e) => setObservations(e.target.value)}
                     placeholder="Ex: sem cebola, molho separado..."
                     maxLength={200}
-                    className="w-full h-24 resize-none rounded-xl border border-[#1e3a5f]/10 p-3 text-sm outline-none focus:border-[#1e3a5f] bg-[#faf8f5]"
+                    disabled={!isStoreOpen}
+                    className="w-full h-24 resize-none rounded-xl border border-[#1e3a5f]/10 p-3 text-sm outline-none focus:border-[#1e3a5f] bg-[#faf8f5] disabled:cursor-not-allowed"
                   />
                   <div className="text-right text-xs text-[#1e3a5f]/30 mt-1">
                     {observations.length}/200
@@ -387,14 +629,21 @@ export default function ProductPage() {
                 {/* Botão de adicionar ao carrinho */}
                 <button
                   onClick={handleAddToCart}
-                  disabled={addedToCart}
+                  disabled={addedToCart || !isStoreOpen}
                   className={`w-full py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-3 ${
-                    addedToCart
-                      ? 'bg-green-500 text-white cursor-not-allowed'
-                      : 'bg-[#1e3a5f] text-white hover:bg-[#162d4a] shadow-lg shadow-[#1e3a5f]/20'
+                    !isStoreOpen
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : addedToCart
+                        ? 'bg-green-500 text-white cursor-not-allowed'
+                        : 'bg-[#1e3a5f] text-white hover:bg-[#162d4a] shadow-lg shadow-[#1e3a5f]/20'
                   }`}
                 >
-                  {addedToCart ? (
+                  {!isStoreOpen ? (
+                    <>
+                      <Icons.Clock className="w-5 h-5" />
+                      <span>Loja Fechada</span>
+                    </>
+                  ) : addedToCart ? (
                     <>
                       <Icons.Check className="w-5 h-5" />
                       <span>Adicionado ao Carrinho!</span>

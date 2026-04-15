@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Banner = require('../models/Banner');
 const Promotion = require('../models/Promotion');
 const Coupon = require('../models/Coupon');
+const StoreSettings = require('../models/StoreSettings');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config/env');
@@ -25,28 +26,28 @@ const resolvers = {
     // AUTH 
     me: async (_, __, { user }) => {
       requireAuth(user);
-      return await User.findById(user.userId); // Retorna dados do usuário logado
+      return await User.findById(user.userId);
     },
 
     // PRODUCTS
     products: async (_, { category, onlyAvailable = true }) => {
       const filter = {};
       if (category) filter.category = category;
-      if (onlyAvailable) filter.isAvailable = true; // Filtra apenas produtos disponíveis
+      if (onlyAvailable) filter.isAvailable = true;
       return await Product.find(filter).sort({ createdAt: -1 });
     },
 
     product: async (_, { id }) => {
-      return await Product.findById(id); // Busca produto por ID
+      return await Product.findById(id);
     },
 
     featuredProducts: async () => {
-      return await Product.find({ isFeatured: true, isAvailable: true }); // Produtos em destaque
+      return await Product.find({ isFeatured: true, isAvailable: true });
     },
 
     productsOnSale: async () => {
       return await Product.find({ 
-        promotionalPrice: { $ne: null, $exists: true }, // Produtos com preço promocional
+        promotionalPrice: { $ne: null, $exists: true },
         isAvailable: true 
       });
     },
@@ -54,7 +55,7 @@ const resolvers = {
     // BANNERS
     banners: async (_, { location }) => {
       const filter = { isActive: true };
-      if (location) filter.location = location; // Filtra por localização (HOME, etc)
+      if (location) filter.location = location;
       return await Banner.find(filter).sort({ order: 1 });
     },
 
@@ -64,7 +65,7 @@ const resolvers = {
       const filter = {};
       
       if (user.role !== 'ADMIN') {
-        filter.user = user.userId; // Cliente vê apenas seus pedidos
+        filter.user = user.userId;
       }
       
       if (status) filter.status = status;
@@ -85,7 +86,6 @@ const resolvers = {
       
       if (!order) throw new Error('Pedido não encontrado');
       
-      // Verifica se o usuário tem permissão para ver este pedido
       if (user.role !== 'ADMIN' && order.user._id.toString() !== user.userId) {
         throw new Error('Não autorizado');
       }
@@ -96,7 +96,7 @@ const resolvers = {
     activeOrders: async (_, __, { user }) => {
       requireAuth(user);
       const filter = {
-        status: { $nin: ['COMPLETED', 'CANCELLED'] } // Pedidos em andamento
+        status: { $nin: ['COMPLETED', 'CANCELLED'] }
       };
       
       if (user.role !== 'ADMIN') {
@@ -113,7 +113,7 @@ const resolvers = {
       requireAuth(user);
       const filter = {
         user: user.userId,
-        status: { $in: ['COMPLETED', 'CANCELLED'] } // Histórico de pedidos finalizados
+        status: { $in: ['COMPLETED', 'CANCELLED'] }
       };
       
       return await Order.find(filter)
@@ -131,7 +131,7 @@ const resolvers = {
         const now = new Date();
         filter.isActive = true;
         filter.startDate = { $lte: now };
-        filter.endDate = { $gte: now }; // Apenas promoções dentro do período válido
+        filter.endDate = { $gte: now };
       }
       return await Promotion.find(filter).populate('products');
     },
@@ -186,7 +186,6 @@ const resolvers = {
         };
       }
 
-      // Calcula o desconto
       const discount = coupon.discountType === 'PERCENTAGE'
         ? (orderTotal * coupon.discountValue) / 100
         : coupon.discountValue;
@@ -247,7 +246,6 @@ const resolvers = {
 
     // SHIPPING
     calculateShipping: async (_, { zipCode }) => {
-      // Lógica simples - pode ser expandida
       const fee = 5.0;
       const estimatedDays = 1;
       return { fee, estimatedDays };
@@ -255,32 +253,36 @@ const resolvers = {
 
     // STORE
     storeInfo: async () => {
-      return await User.findOne({ role: 'ADMIN' }); // Dados do administrador da loja
+      return await User.findOne({ role: 'ADMIN' });
     },
 
     storeSettings: async () => {
-      const admin = await User.findOne({ role: 'ADMIN' });
-      
-      if (!admin) {
+      try {
+        let settings = await StoreSettings.findOne();
+        
+        if (!settings) {
+          // Cria documento padrão se não existir
+          settings = await StoreSettings.create({
+            storeName: null,
+            storeAddress: null,
+            storePhone: null,
+            businessHours: null
+          });
+        }
+        
         return {
-          storeName: 'Nossa Loja',
-          storeAddress: 'Endereço não configurado',
-          storePhone: null
+          id: settings._id.toString(),
+          storeName: settings.storeName,
+          storeAddress: settings.storeAddress,
+          storePhone: settings.storePhone,
+          businessHours: settings.businessHours,
+          createdAt: settings.createdAt?.toISOString(),
+          updatedAt: settings.updatedAt?.toISOString()
         };
+      } catch (error) {
+        console.error('Erro ao buscar storeSettings:', error);
+        throw new Error('Erro ao buscar configurações da loja');
       }
-      
-      // Formatar endereço se existir
-      let formattedAddress = 'Endereço não configurado';
-      if (admin.storeAddress) {
-        const addr = admin.storeAddress;
-        formattedAddress = `${addr.street}, ${addr.number}${addr.complement ? ' - ' + addr.complement : ''}, ${addr.neighborhood}, ${addr.city} - ${addr.state}`;
-      }
-      
-      return {
-        storeName: admin.storeName || 'Nossa Loja',
-        storeAddress: formattedAddress,
-        storePhone: admin.storePhone || null
-      };
     }
   },
 
@@ -366,6 +368,53 @@ const resolvers = {
       );
     },
 
+    // STORE SETTINGS (HORÁRIOS DE FUNCIONAMENTO)
+    updateStoreSettings: async (_, { input }, { user }) => {
+      try {
+        requireAdmin(user);
+
+        console.log('updateStoreSettings - Input recebido:', input);
+
+        let settings = await StoreSettings.findOne();
+        
+        console.log('updateStoreSettings - Settings encontrado:', settings);
+
+        if (!settings) {
+          settings = new StoreSettings({
+            storeName: input.storeName || null,
+            storeAddress: input.storeAddress || null,
+            storePhone: input.storePhone || null,
+            businessHours: input.businessHours || null
+          });
+          console.log('updateStoreSettings - Criando novo:', settings);
+        } else {
+          if (input.storeName !== undefined) settings.storeName = input.storeName;
+          if (input.storeAddress !== undefined) settings.storeAddress = input.storeAddress;
+          if (input.storePhone !== undefined) settings.storePhone = input.storePhone;
+          if (input.businessHours !== undefined) settings.businessHours = input.businessHours;
+          console.log('updateStoreSettings - Atualizando:', settings);
+        }
+
+        await settings.save();
+        
+        console.log('updateStoreSettings - Salvo com sucesso:', settings);
+
+        return {
+          id: settings._id.toString(),
+          storeName: settings.storeName,
+          storeAddress: settings.storeAddress,
+          storePhone: settings.storePhone,
+          businessHours: settings.businessHours,
+          createdAt: settings.createdAt?.toISOString(),
+          updatedAt: settings.updatedAt?.toISOString()
+        };
+        
+      } catch (error) {
+        console.error('Erro ao salvar storeSettings:', error);
+        throw new Error('Erro ao salvar horários: ' + error.message);
+      }
+    },
+
     // ADDRESSES
     addAddress: async (_, { input }, { user }) => {
       requireAuth(user);
@@ -374,10 +423,9 @@ const resolvers = {
       
       if (dbUser.addresses.length === 0 || input.isDefault) {
         dbUser.addresses.forEach(addr => addr.isDefault = false);
-        input.isDefault = true; // Primeiro endereço ou definido como padrão
+        input.isDefault = true;
       }
       
-      // Garantir que label tenha valor
       if (!input.label) {
         input.label = dbUser.addresses.length === 0 ? 'Casa' : `Endereço ${dbUser.addresses.length + 1}`;
       }
@@ -423,7 +471,6 @@ const resolvers = {
         addr => addr._id.toString() !== addressId
       );
       
-      // Se deletou o padrão, torna o primeiro da lista como novo padrão
       if (wasDefault && dbUser.addresses.length > 0) {
         dbUser.addresses[0].isDefault = true;
       }
@@ -574,7 +621,7 @@ const resolvers = {
         });
         
         if (coupon) {
-          coupon.usedCount += 1; // Incrementa contagem de uso do cupom
+          coupon.usedCount += 1;
           await coupon.save();
         }
       }
@@ -663,7 +710,6 @@ const resolvers = {
         isActive: input.isActive !== false
       });
       
-      // Se desconto fixo, atualiza preço promocional nos produtos relacionados
       if (input.discountType === 'FIXED') {
         await Product.updateMany(
           { _id: { $in: input.products } },
@@ -689,7 +735,6 @@ const resolvers = {
       
       const promotion = await Promotion.findById(id);
       if (promotion) {
-        // Remove preço promocional dos produtos
         await Product.updateMany(
           { _id: { $in: promotion.products } },
           { $set: { promotionalPrice: null } }
