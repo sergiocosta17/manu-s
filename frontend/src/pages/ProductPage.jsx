@@ -145,8 +145,16 @@ export default function ProductPage() {
     return Math.round(((original - promo) / original) * 100);
   };
 
+  // verifica se tem token antes de adicionar ao carrinho
   const handleAddToCart = () => {
     if (!product || isAddingRef.current || addedToCart) return;
+    
+    // Verifica se tem token (está logado)
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
     
     isAddingRef.current = true;
     addToCart(product, quantity, observations);

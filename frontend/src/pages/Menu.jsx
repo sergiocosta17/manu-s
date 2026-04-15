@@ -89,6 +89,14 @@ const Icons = {
   ),
 };
 
+// Função auxiliar para verificar se o usuário está logado (não é ADMIN e tem token)
+const checkIsLoggedIn = () => {
+  const token = localStorage.getItem('token');
+  const userRole = localStorage.getItem('userRole');
+  // Está logado se tem token E não é ADMIN
+  return !!token && userRole !== 'ADMIN';
+};
+
 // Página principal do cardápio
 export default function Menu() {
   const [products, setProducts] = useState([]);
@@ -239,8 +247,17 @@ export default function Menu() {
     navigate(`/product/${productId}`);
   };
 
+  // verifica se tem token, se não tiver redireciona para login
   const handleAddToCart = (e, product) => {
     e.stopPropagation();
+    
+    // Verifica se tem token (está logado)
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    
     addToCart(product);
   };
 
