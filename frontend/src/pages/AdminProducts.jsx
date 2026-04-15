@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import backgroundImage from '../assets/hamburgueres-de-fundo-16x9.png';
 
 // Página de administração para gerenciar o catálogo de produtos
 export default function AdminProducts() {
@@ -260,7 +261,7 @@ export default function AdminProducts() {
       category: productForm.category,
       imageUrl: productForm.imageUrl || '',
       promotionalPrice: productForm.promotionalPrice ? parseFloat(productForm.promotionalPrice) : null,
-      isFeatured: productForm.isFeatured // NOVO: envia o campo isFeatured
+      isFeatured: productForm.isFeatured
     };
 
     const mutation = editingProduct 
@@ -328,7 +329,7 @@ export default function AdminProducts() {
       description: '', 
       category: activeCategory === 'ALL' || activeCategory === 'FEATURED' ? 'BURGER' : activeCategory, 
       imageUrl: '',
-      isFeatured: activeCategory === 'FEATURED' // Se estiver na aba Destaques, marca como destaque por padrão
+      isFeatured: activeCategory === 'FEATURED'
     });
     setIsModalOpen(true);
   };
@@ -369,16 +370,26 @@ export default function AdminProducts() {
   const stats = {
     total: products.length,
     promos: products.filter(p => p.promotionalPrice).length,
-    featured: products.filter(p => p.isFeatured).length, // NOVO
+    featured: products.filter(p => p.isFeatured).length,
     byCategory: categories.slice(2).map(c => ({ ...c, count: products.filter(p => p.category === c.value).length }))
   };
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white">
+    <div 
+      className="min-h-screen flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white"
+      style={{
+        backgroundImage: `url(${backgroundImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+      }}
+    >
+      <div className="absolute inset-0 bg-[#faf8f5]/85 pointer-events-none"></div>
       
-      <div className="h-20"></div>
+      <div className="relative z-10 h-20"></div>
 
-      <main className="flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
+      <main className="relative z-10 flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
         
         {/* Cabeçalho da página */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-8">
@@ -695,7 +706,7 @@ export default function AdminProducts() {
                 />
               </div>
 
-              {/* NOVO: Checkbox para Destaque */}
+              {/* Checkbox para Destaque */}
               <div 
                 onClick={() => setProductForm({ ...productForm, isFeatured: !productForm.isFeatured })}
                 className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import backgroundImage from '../assets/hamburgueres-de-fundo-16x9.png';
 
 // Painel administrativo para gerenciar pedidos, banners e visualizar métricas
 export default function AdminDashboard() {
@@ -335,11 +336,21 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white">
+    <div 
+      className="min-h-screen flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white"
+      style={{
+        backgroundImage: `url(${backgroundImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+      }}
+    >
+      <div className="absolute inset-0 bg-[#faf8f5]/85 pointer-events-none"></div>
       
-      <div className="h-20"></div>
+      <div className="relative z-10 h-20"></div>
 
-      <main className="flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
+      <main className="relative z-10 flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
         
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
@@ -405,7 +416,6 @@ export default function AdminDashboard() {
           </div>
         ) : (
           <>
-            {/* OVERVIEW TAB */}
             {activeTab === 'OVERVIEW' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
@@ -499,7 +509,6 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* ORDERS TAB */}
             {activeTab === 'ORDERS' && (
               <div className="space-y-8">
                 {Object.keys(groupedOrders).length === 0 ? (
@@ -821,7 +830,6 @@ const TrashIcon = ({ className = "w-5 h-5" }) => (
   </svg>
 );
 
-// NOVO: Ícone de editar
 const EditIcon = ({ className = "w-5 h-5" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>

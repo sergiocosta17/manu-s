@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
+import backgroundImage from '../assets/hamburgueres-de-fundo-16x9.png';
 
 // Página de ofertas/promoções - exibe produtos com preço promocional
 export default function Promotions() {
@@ -61,12 +62,21 @@ export default function Promotions() {
   };
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white">
+    <div 
+      className="min-h-screen flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white"
+      style={{
+        backgroundImage: `url(${backgroundImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+      }}
+    >
+      <div className="absolute inset-0 bg-[#faf8f5]/85 pointer-events-none"></div>
       
-      {/* Espaço para o Header fixo */}
-      <div className="h-20"></div>
+      <div className="relative z-10 h-20"></div>
 
-      <main className="flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
+      <main className="relative z-10 flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
         
         {/* cabeçalho destacado com informações de ofertas */}
         <div className="bg-gradient-to-br from-[#1e3a5f] to-[#162d4a] rounded-2xl md:rounded-3xl p-8 md:p-12 mb-10 relative overflow-hidden">
@@ -99,7 +109,7 @@ export default function Promotions() {
           </div>
         </div>
 
-        {/* Conteúdo principal (loading, vazio ou grid de produtos) */}
+        {/* Conteúdo principal */}
         {loading ? (
           <div className="flex flex-col justify-center items-center py-32">
             <div className="relative">
@@ -161,13 +171,11 @@ export default function Promotions() {
                       </div>
                     )}
                     
-                    {/* Overlay gradiente ao hover */}
                     <div className="absolute inset-0 bg-gradient-to-t from-[#1e3a5f]/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   </div>
                   
                   {/* Informações do produto */}
                   <div className="p-5 md:p-6 flex-grow flex flex-col">
-                    {/* Categoria */}
                     <span className="text-[10px] font-semibold text-[#1e3a5f]/40 uppercase tracking-wider mb-2">
                       {categories.find(c => c.value === p.category)?.label}
                     </span>

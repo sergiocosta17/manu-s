@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
+import backgroundImage from '../assets/hamburgueres-de-fundo-16x9.png';
 
 // ÍCONES SVG
 const Icons = {
@@ -93,7 +94,7 @@ export default function Menu() {
   const [products, setProducts] = useState([]);
   const [banners, setBanners] = useState([]);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
-  const [activeCategory, setActiveCategory] = useState('FEATURED'); // Inicia em Destaques
+  const [activeCategory, setActiveCategory] = useState('FEATURED');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -140,7 +141,6 @@ export default function Menu() {
             Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
           },
           body: JSON.stringify({
-            // ATUALIZADO: Busca também o campo isFeatured
             query: `query { 
               products { id name price promotionalPrice description category imageUrl isFeatured } 
               banners { id title subtitle imageUrl }
@@ -176,7 +176,7 @@ export default function Menu() {
     if (banners.length <= 1) return;
     const interval = setInterval(() => {
       setCurrentBannerIndex((prev) => (prev + 1) % banners.length);
-    }, 5000);
+    }, 8000);
     return () => clearInterval(interval);
   }, [banners]);
 
@@ -246,37 +246,45 @@ export default function Menu() {
 
   const safeProducts = Array.isArray(products) ? products : [];
   
-  // Lógica de filtro para incluir Destaques
   const filteredProducts = activeCategory === 'FEATURED'
     ? safeProducts.filter((p) => p.isFeatured === true)
     : safeProducts.filter((p) => p.category === activeCategory);
 
-  // Conta quantos produtos em destaque existem
   const featuredCount = safeProducts.filter((p) => p.isFeatured === true).length;
-const visibleCategories = categories.filter((cat) => {
-  if (cat.id === 'FEATURED') {
-    return featuredCount > 0;
-  }
 
-  return safeProducts.some((p) => p.category === cat.id);
-});
+  const visibleCategories = categories.filter((cat) => {
+    if (cat.id === 'FEATURED') {
+      return featuredCount > 0;
+    }
+    return safeProducts.some((p) => p.category === cat.id);
+  });
 
-useEffect(() => {
-  const stillExists = visibleCategories.some(
-    (cat) => cat.id === activeCategory
-  );
+  useEffect(() => {
+    const stillExists = visibleCategories.some(
+      (cat) => cat.id === activeCategory
+    );
 
-  if (!stillExists && visibleCategories.length > 0) {
-    setActiveCategory(visibleCategories[0].id);
-  }
-}, [visibleCategories, activeCategory]);
+    if (!stillExists && visibleCategories.length > 0) {
+      setActiveCategory(visibleCategories[0].id);
+    }
+  }, [visibleCategories, activeCategory]);
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white">
+    <div 
+      className="min-h-screen flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white"
+      style={{
+        backgroundImage: `url(${backgroundImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+      }}
+    >
+      <div className="absolute inset-0 bg-[#faf8f5]/85 pointer-events-none"></div>
       
-      <div className="h-20"></div>
+      <div className="relative z-10 h-20"></div>
 
-      <main className="flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
+      <main className="relative z-10 flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
         
         {/* Seção de banners com setas de navegação */}
         {banners.length > 0 && (
@@ -295,7 +303,7 @@ useEffect(() => {
                   className="absolute inset-0 w-full h-full object-cover"
                   alt={b.title}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#1e3a5f] via-[#1e3a5f]/40 to-transparent"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#1e3a5f]/30 via-[#1e3a5f]/10 to-transparent"></div>
                 <div className="absolute bottom-0 left-0 w-full p-6 md:p-10 z-10">
                   {b.title && (
                     <h2 className="text-2xl md:text-4xl font-bold text-white mb-2 tracking-tight">

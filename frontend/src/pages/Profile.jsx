@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Cropper from 'react-easy-crop';
+import backgroundImage from '../assets/hamburgueres-de-fundo-16x9.png';
 
 // Função auxiliar para criar objeto Image a partir de URL
 const createImage = (url) => new Promise((resolve, reject) => {
@@ -70,7 +71,7 @@ export default function Profile() {
   });
   const [isCepLoading, setIsCepLoading] = useState(false);
 
-  // Estados para crop de imagem (avatar)
+  // Estados para crop de imagem
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -213,7 +214,7 @@ export default function Profile() {
     fetchAllData();
   }, [isAdmin, navigate]);
 
-  // Handler para seleção de arquivo de imagem (abre modal de crop)
+  // Handler para seleção de arquivo de imagem
   const handleFileSelect = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       const reader = new FileReader();
@@ -304,74 +305,73 @@ export default function Profile() {
   };
 
   // Salva endereço (criação ou edição)
-const handleSaveAddress = async (e) => {
-  e.preventDefault();
-  const token = localStorage.getItem('token');
+  const handleSaveAddress = async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
 
-  try {
-    const mutation = editingAddressId
-      ? `mutation UpdateAddress($addressId: ID!, $input: AddressInput!) { 
-          updateAddress(addressId: $addressId, input: $input) { 
-            id 
-            addresses { id label zipCode street number complement neighborhood city state isDefault } 
-          } 
-        }`
-      : `mutation AddAddress($input: AddressInput!) { 
-          addAddress(input: $input) { 
-            id 
-            addresses { id label zipCode street number complement neighborhood city state isDefault } 
-          } 
-        }`;
+    try {
+      const mutation = editingAddressId
+        ? `mutation UpdateAddress($addressId: ID!, $input: AddressInput!) { 
+            updateAddress(addressId: $addressId, input: $input) { 
+              id 
+              addresses { id label zipCode street number complement neighborhood city state isDefault } 
+            } 
+          }`
+        : `mutation AddAddress($input: AddressInput!) { 
+            addAddress(input: $input) { 
+              id 
+              addresses { id label zipCode street number complement neighborhood city state isDefault } 
+            } 
+          }`;
 
-    // Remove campos que não pertencem ao AddressInput
-    const { id, __typename, ...cleanAddressData } = addressForm;
+      // Remove campos que não pertencem ao AddressInput
+      const { id, __typename, ...cleanAddressData } = addressForm;
 
-    // Cria objeto limpo com apenas os campos aceitos
-    const addressInput = {
-      label: cleanAddressData.label || '',
-      zipCode: cleanAddressData.zipCode || '',
-      street: cleanAddressData.street || '',
-      number: cleanAddressData.number || '',
-      complement: cleanAddressData.complement || null,
-      neighborhood: cleanAddressData.neighborhood || '',
-      city: cleanAddressData.city || '',
-      state: cleanAddressData.state || '',
-      isDefault: cleanAddressData.isDefault || false
-    };
+      // Cria objeto limpo com apenas os campos aceitos
+      const addressInput = {
+        label: cleanAddressData.label || '',
+        zipCode: cleanAddressData.zipCode || '',
+        street: cleanAddressData.street || '',
+        number: cleanAddressData.number || '',
+        complement: cleanAddressData.complement || null,
+        neighborhood: cleanAddressData.neighborhood || '',
+        city: cleanAddressData.city || '',
+        state: cleanAddressData.state || '',
+        isDefault: cleanAddressData.isDefault || false
+      };
 
-    // Monta as variáveis corretamente
-    const variables = editingAddressId
-      ? { addressId: editingAddressId, input: addressInput }
-      : { input: addressInput };
+      // Monta as variáveis corretamente
+      const variables = editingAddressId
+        ? { addressId: editingAddressId, input: addressInput }
+        : { input: addressInput };
 
-    const response = await fetch('http://localhost:4000/graphql', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json', 
-        'Authorization': `Bearer ${token}` 
-      },
-      body: JSON.stringify({ query: mutation, variables })
-    });
+      const response = await fetch('http://localhost:4000/graphql', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ query: mutation, variables })
+      });
 
-    const json = await response.json();
-    
-    if (json.errors) {
-      throw new Error(json.errors[0].message);
+      const json = await response.json();
+      
+      if (json.errors) {
+        throw new Error(json.errors[0].message);
+      }
+      
+      // Atualiza a lista de endereços
+      const updatedAddresses = editingAddressId 
+        ? json.data.updateAddress.addresses 
+        : json.data.addAddress.addresses;
+      
+      setAddresses(updatedAddresses);
+      setIsAddressModalOpen(false);
+      
+    } catch (err) {
+      alert('Erro ao salvar endereço: ' + err.message);
     }
-    
-    // Atualiza a lista de endereços
-    const updatedAddresses = editingAddressId 
-      ? json.data.updateAddress.addresses 
-      : json.data.addAddress.addresses;
-    
-    setAddresses(updatedAddresses);
-    setIsAddressModalOpen(false);
-    
-  } catch (err) {
-    alert('Erro ao salvar endereço: ' + err.message);
-  }
-};
-
+  };
 
   // Exclui endereço
   const handleDeleteAddress = async (id) => {
@@ -417,7 +417,6 @@ const handleSaveAddress = async (e) => {
     return map[status] || { label: status, color: 'bg-gray-100 text-gray-500 border-gray-200' };
   };
 
-  // Formata data para exibição
   const formatDate = (timestamp) => new Date(Number(timestamp)).toLocaleDateString('pt-BR', {
     day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
   });
@@ -440,13 +439,22 @@ const handleSaveAddress = async (e) => {
   const currentName = isAdmin ? adminData.storeName : clientData.name;
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white">
+    <div 
+      className="min-h-screen flex flex-col relative pb-28 md:pb-0 font-sans selection:bg-[#1e3a5f] selection:text-white"
+      style={{
+        backgroundImage: `url(${backgroundImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+      }}
+    >
+      <div className="absolute inset-0 bg-[#faf8f5]/85 pointer-events-none"></div>
       
-      {/* Espaço para o Header fixo */}
-      <div className="h-20"></div>
+      <div className="relative z-10 h-20"></div>
 
       {loading ? (
-        <div className="flex-grow flex flex-col justify-center items-center">
+        <div className="relative z-10 flex-grow flex flex-col justify-center items-center">
           <div className="relative">
             <div className="w-16 h-16 border-4 border-[#1e3a5f]/10 rounded-full"></div>
             <div className="w-16 h-16 border-4 border-[#1e3a5f] border-t-transparent rounded-full animate-spin absolute inset-0"></div>
@@ -454,7 +462,7 @@ const handleSaveAddress = async (e) => {
           <p className="mt-6 text-[#1e3a5f]/40 font-medium text-sm">Carregando perfil...</p>
         </div>
       ) : (
-        <main className="flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10 flex flex-col lg:flex-row gap-6 lg:gap-8">
+        <main className="relative z-10 flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10 flex flex-col lg:flex-row gap-6 lg:gap-8">
 
           {/* Sidebar com navegação entre abas */}
           <aside className="w-full lg:w-80 flex-shrink-0">
@@ -498,7 +506,7 @@ const handleSaveAddress = async (e) => {
                 ))}
               </nav>
 
-              {/* Botão de logout (apenas desktop) */}
+              {/* Botão de logout */}
               <div className="mt-auto pt-8 border-t border-[#1e3a5f]/10 hidden lg:block">
                 <button
                   onClick={handleLogout}
@@ -511,10 +519,9 @@ const handleSaveAddress = async (e) => {
             </div>
           </aside>
 
-          {/* Conteúdo principal da aba selecionada */}
           <section className="flex-grow">
 
-            {/* Aba: Informações Pessoais (cliente) ou Dados da Loja (admin) */}
+            {/* Informações Pessoais (cliente) ou Dados da Loja (admin) */}
             {(activeTab === 'INFO' || activeTab === 'STORE_INFO') && (
               <div className="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-[#1e3a5f]/5 p-6 lg:p-10">
                 <div className="flex items-center justify-between mb-8 pb-6 border-b border-[#1e3a5f]/10">
@@ -642,7 +649,7 @@ const handleSaveAddress = async (e) => {
               </div>
             )}
 
-            {/* Aba: Endereços (cliente) */}
+            {/* Endereços (cliente) */}
             {activeTab === 'ADDRESSES' && (
               <div className="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-[#1e3a5f]/5 p-6 lg:p-10">
                 <div className="flex items-center justify-between mb-8 pb-6 border-b border-[#1e3a5f]/10">
@@ -713,7 +720,7 @@ const handleSaveAddress = async (e) => {
               </div>
             )}
 
-            {/* Aba: Pedidos (cliente) */}
+            {/* Pedidos (cliente) */}
             {activeTab === 'ORDERS' && (
               <div className="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-[#1e3a5f]/5 p-6 lg:p-10">
                 <div className="flex items-center justify-between mb-8 pb-6 border-b border-[#1e3a5f]/10">
@@ -769,7 +776,7 @@ const handleSaveAddress = async (e) => {
               </div>
             )}
 
-            {/* Aba: Pagamentos (placeholder) */}
+            {/* Pagamentos */}
             {activeTab === 'PAYMENTS' && (
               <div className="bg-white rounded-2xl lg:rounded-3xl shadow-sm border border-[#1e3a5f]/5 p-6 lg:p-10">
                 <div className="flex items-center justify-between mb-8 pb-6 border-b border-[#1e3a5f]/10">
