@@ -75,7 +75,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
   const [loadingCep, setLoadingCep] = useState(false);
   const [cepError, setCepError] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [deliveryType, setDeliveryType] = useState('DELIVERY'); // 'DELIVERY' ou 'PICKUP'
+  const [deliveryType, setDeliveryType] = useState('DELIVERY');
   const [storeAddress, setStoreAddress] = useState(null);
   const [loadingStore, setLoadingStore] = useState(false);
 

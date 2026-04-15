@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
+import logoManus from '../assets/logo-manus-sem-fundo.png';
 
 // Componente Header principal com navegação responsiva e estados de autenticação
 export default function Header() {
@@ -78,35 +79,30 @@ export default function Header() {
     <header 
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         isScrolled 
-          ? 'bg-white/95 backdrop-blur-xl shadow-lg shadow-[#1e3a5f]/5 border-b border-[#1e3a5f]/5' 
-          : 'bg-white/80 backdrop-blur-md'
+          ? 'bg-white/60 backdrop-blur-2xl shadow-xl shadow-black/10 border-b border-white/20' 
+          : 'bg-white/40 backdrop-blur-xl border-b border-white/10'
       }`}
+      style={{
+        WebkitBackdropFilter: isScrolled ? 'blur(24px) saturate(180%)' : 'blur(16px) saturate(150%)',
+        backdropFilter: isScrolled ? 'blur(24px) saturate(180%)' : 'blur(16px) saturate(150%)',
+      }}
     >
       <div className="max-w-7xl mx-auto px-4 md:px-8">
-        <div className="flex items-center justify-between h-20">
+        <div className="flex items-center justify-between h-24 md:h-28">
           
-          {/* Logo com fallback para texto caso imagem não carregue */}
+          {/* Logo */}
           <button 
             onClick={() => navigate('/menu')} 
-            className="flex items-center gap-3 group"
+            className="flex items-center group"
           >
             <img 
-              src="/logo.png" 
+              src={logoManus} 
               alt="Manu's Smash Burger" 
-              className="h-10 md:h-12 w-auto transition-transform group-hover:scale-105"
-              onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'flex';
-              }}
+              className="h-24 md:h-28 lg:h-36 w-auto transition-all duration-300 group-hover:scale-105 drop-shadow-lg"
             />
-            <div className="hidden items-center">
-              <span className="text-2xl font-black text-[#1e3a5f] italic tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
-                Manu's
-              </span>
-            </div>
           </button>
 
-          {/* Navegação para desktop (telas médias e maiores) */}
+          {/* Navegação para desktop */}
           <nav className="hidden md:flex items-center gap-1">
             <NavLink onClick={() => navigate('/menu')} active={isActive('/menu')}>
               <HomeIcon className="w-4 h-4" />
@@ -142,10 +138,10 @@ export default function Header() {
                 {!isAdmin && (
                   <button
                     onClick={() => setIsTrackingOpen?.(true)}
-                    className={`relative flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-medium text-sm ${
+                    className={`relative flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all font-medium text-sm backdrop-blur-md ${
                       activeOrdersCount > 0
-                        ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-lg shadow-green-500/20'
-                        : 'bg-[#faf8f5] hover:bg-[#f0eeeb] text-[#1e3a5f] border border-[#1e3a5f]/10'
+                        ? 'bg-gradient-to-r from-[#1e3a5f] to-[#1e3a5f] hover:from-white/70 hover:to-white/90 text-white hover:text-[#1e3a5f] shadow-lg shadow-white/50'
+                        : 'bg-white/70 hover:bg-white/90 text-[#1e3a5f] border border-white/50 shadow-sm'
                     }`}
                   >
                     {activeOrdersCount > 0 && (
@@ -168,10 +164,10 @@ export default function Header() {
                 {!isAdmin && (
                   <button 
                     onClick={() => setIsCartOpen?.(true)}
-                    className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all ${
+                    className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all backdrop-blur-md ${
                       hasItemsInCart
-                        ? 'bg-[#1e3a5f] hover:bg-[#162d4a] text-white shadow-md hover:shadow-lg'
-                        : 'bg-[#faf8f5] hover:bg-[#f0eeeb] text-[#1e3a5f] border border-[#1e3a5f]/10'
+                        ? 'bg-[#1e3a5f]/90 hover:bg-[#1e3a5f] text-white shadow-lg shadow-[#1e3a5f]/20'
+                        : 'bg-white/70 hover:bg-white/90 text-[#1e3a5f] border border-white/50 shadow-sm'
                     }`}
                   >
                     <CartIcon className="w-5 h-5" />
@@ -192,10 +188,10 @@ export default function Header() {
                 {/* Botão Perfil */}
                 <button 
                   onClick={() => navigate('/profile')}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all backdrop-blur-md ${
                     isActive('/profile')
-                      ? 'bg-[#1e3a5f] text-white shadow-md'
-                      : 'bg-[#faf8f5] hover:bg-[#f0eeeb] text-[#1e3a5f] border border-[#1e3a5f]/10'
+                      ? 'bg-[#1e3a5f]/90 text-white shadow-lg shadow-[#1e3a5f]/20'
+                      : 'bg-white/70 hover:bg-white/90 text-[#1e3a5f] border border-white/50 shadow-sm'
                   }`}
                 >
                   <UserIcon className="w-5 h-5" />
@@ -205,7 +201,7 @@ export default function Header() {
                 {/* Botão Logout */}
                 <button 
                   onClick={handleLogout}
-                  className="w-10 h-10 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition-all border border-red-100"
+                  className="w-10 h-10 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 flex items-center justify-center transition-all border border-red-500/20 backdrop-blur-md"
                   title="Sair"
                 >
                   <LogoutIcon className="w-5 h-5" />
@@ -216,7 +212,7 @@ export default function Header() {
               <>
                 <button 
                   onClick={() => navigate('/login')}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all bg-[#faf8f5] hover:bg-[#f0eeeb] text-[#1e3a5f] border border-[#1e3a5f]/10 font-medium text-sm"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all bg-white/70 hover:bg-white/90 text-[#1e3a5f] border border-white/50 font-medium text-sm backdrop-blur-md shadow-sm"
                 >
                   <UserIcon className="w-5 h-5" />
                   <span>Entrar</span>
@@ -224,7 +220,7 @@ export default function Header() {
                 
                 <button 
                   onClick={() => navigate('/login?mode=register')}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all bg-[#1e3a5f] hover:bg-[#162d4a] text-white shadow-md hover:shadow-lg font-medium text-sm"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl transition-all bg-[#1e3a5f]/90 hover:bg-[#1e3a5f] text-white shadow-lg shadow-[#1e3a5f]/20 font-medium text-sm backdrop-blur-md"
                 >
                   <span>Criar Conta</span>
                 </button>
@@ -243,10 +239,10 @@ export default function Header() {
                   <div className="relative" ref={adminMenuRef}>
                     <button
                       onClick={() => setIsAdminMenuOpen(!isAdminMenuOpen)}
-                      className={`p-2.5 rounded-xl transition-all ${
+                      className={`p-2.5 rounded-xl transition-all backdrop-blur-md ${
                         isAdminMenuOpen
-                          ? 'bg-[#1e3a5f] text-white'
-                          : 'bg-[#faf8f5] text-[#1e3a5f] border border-[#1e3a5f]/10'
+                          ? 'bg-[#1e3a5f]/90 text-white'
+                          : 'bg-white/70 text-[#1e3a5f] border border-white/50'
                       }`}
                     >
                       {isAdminMenuOpen ? (
@@ -258,7 +254,7 @@ export default function Header() {
 
                     {/* Dropdown do menu administrativo (mobile) */}
                     {isAdminMenuOpen && (
-                      <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-[#1e3a5f]/10 overflow-hidden animate-fade-in z-50">
+                      <div className="absolute right-0 top-full mt-2 w-56 bg-white/80 backdrop-blur-2xl rounded-2xl shadow-xl border border-white/50 overflow-hidden animate-fade-in z-50">
                         <div className="p-2">
                           {adminMenuItems.map((item) => (
                             <button
@@ -266,8 +262,8 @@ export default function Header() {
                               onClick={() => handleAdminNavigate(item.path)}
                               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left ${
                                 isActive(item.path)
-                                  ? 'bg-[#1e3a5f] text-white'
-                                  : 'text-[#1e3a5f] hover:bg-[#faf8f5]'
+                                  ? 'bg-[#1e3a5f]/90 text-white'
+                                  : 'text-[#1e3a5f] hover:bg-white/50'
                               }`}
                             >
                               {item.icon}
@@ -285,8 +281,8 @@ export default function Header() {
                             onClick={() => handleAdminNavigate('/profile')}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left ${
                               isActive('/profile')
-                                ? 'bg-[#1e3a5f] text-white'
-                                : 'text-[#1e3a5f] hover:bg-[#faf8f5]'
+                                ? 'bg-[#1e3a5f]/90 text-white'
+                                : 'text-[#1e3a5f] hover:bg-white/50'
                             }`}
                           >
                             <UserIcon className="w-5 h-5" />
@@ -295,7 +291,7 @@ export default function Header() {
                           
                           <button
                             onClick={handleLogout}
-                            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left text-red-500 hover:bg-red-50"
+                            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left text-red-500 hover:bg-red-50/50"
                           >
                             <LogoutIcon className="w-5 h-5" />
                             <span className="font-medium text-sm">Sair</span>
@@ -310,17 +306,17 @@ export default function Header() {
                 {!isAdmin && (
                   <button
                     onClick={() => setIsTrackingOpen?.(true)}
-                    className={`relative p-2.5 rounded-xl transition-all ${
+                    className={`relative p-2.5 rounded-xl transition-all backdrop-blur-md ${
                       activeOrdersCount > 0
-                        ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/20'
-                        : 'bg-[#faf8f5] text-[#1e3a5f] border border-[#1e3a5f]/10'
+                        ? 'bg-gradient-to-r from-[#1e3a5f] to-[#1e3a5f] text-white shadow-lg shadow-white/50'
+                        : 'bg-white/70 text-[#1e3a5f] border border-white/50'
                     }`}
                   >
                     <DeliveryIcon className="w-5 h-5" />
                     {activeOrdersCount > 0 && (
                       <span className="absolute -top-1 -right-1 flex h-4 w-4">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-4 w-4 bg-white text-green-600 text-[9px] font-bold items-center justify-center">
+                        <span className="relative inline-flex rounded-full h-4 w-4 bg-white text-[#1e3a5f] text-[9px] font-bold items-center justify-center">
                           {activeOrdersCount}
                         </span>
                       </span>
@@ -332,10 +328,10 @@ export default function Header() {
                 {!isAdmin && (
                   <button 
                     onClick={() => setIsCartOpen?.(true)}
-                    className={`relative p-2.5 rounded-xl transition-all ${
+                    className={`relative p-2.5 rounded-xl transition-all backdrop-blur-md ${
                       hasItemsInCart
-                        ? 'bg-[#1e3a5f] text-white'
-                        : 'bg-[#faf8f5] text-[#1e3a5f] border border-[#1e3a5f]/10'
+                        ? 'bg-[#1e3a5f]/90 text-white'
+                        : 'bg-white/70 text-[#1e3a5f] border border-white/50'
                     }`}
                   >
                     <CartIcon className="w-5 h-5" />
@@ -351,7 +347,7 @@ export default function Header() {
                 {!isAdmin && (
                   <button 
                     onClick={handleLogout}
-                    className="p-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 transition-all border border-red-100"
+                    className="p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 transition-all border border-red-500/20 backdrop-blur-md"
                     title="Sair"
                   >
                     <LogoutIcon className="w-5 h-5" />
@@ -363,7 +359,7 @@ export default function Header() {
               <>
                 <button 
                   onClick={() => navigate('/login')}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all bg-[#faf8f5] hover:bg-[#f0eeeb] text-[#1e3a5f] border border-[#1e3a5f]/10 font-medium text-sm"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all bg-white/70 hover:bg-white/90 text-[#1e3a5f] border border-white/50 font-medium text-sm backdrop-blur-md"
                 >
                   <UserIcon className="w-5 h-5" />
                   <span>Entrar</span>
@@ -371,7 +367,7 @@ export default function Header() {
                 
                 <button 
                   onClick={() => navigate('/login?mode=register')}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all bg-[#1e3a5f] hover:bg-[#162d4a] text-white shadow-md font-medium text-sm"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all bg-[#1e3a5f]/90 hover:bg-[#1e3a5f] text-white shadow-md font-medium text-sm backdrop-blur-md"
                 >
                   <span>Criar Conta</span>
                 </button>
@@ -381,15 +377,13 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Overlay escuro para fechar o dropdown ao clicar fora (mobile) */}
       {isAdminMenuOpen && (
         <div 
-          className="fixed inset-0 z-40 md:hidden" 
+          className="fixed inset-0 z-40 md:hidden bg-black/10 backdrop-blur-sm" 
           onClick={() => setIsAdminMenuOpen(false)}
         />
       )}
 
-      {/* Estilos de animação CSS para o dropdown */}
       <style>{`
         @keyframes fade-in {
           from { opacity: 0; transform: translateY(-10px); }
@@ -409,10 +403,10 @@ export default function Header() {
 const NavLink = ({ onClick, active, children }) => (
   <button
     onClick={onClick}
-    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${
+    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all backdrop-blur-md ${
       active
-        ? 'bg-[#1e3a5f] text-white shadow-md'
-        : 'text-[#1e3a5f]/60 hover:text-[#1e3a5f] hover:bg-[#1e3a5f]/5'
+        ? 'bg-[#1e3a5f]/90 text-white shadow-lg shadow-[#1e3a5f]/20'
+        : 'text-[#1e3a5f]/70 hover:text-[#1e3a5f] hover:bg-white/50'
     }`}
   >
     {children}

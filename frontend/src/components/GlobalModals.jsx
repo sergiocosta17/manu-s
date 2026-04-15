@@ -415,7 +415,7 @@ export default function GlobalModals() {
         onClose={() => setIsCheckoutOpen(false)} 
       />
 
-      {/* MODAL DE ACOMPANHAMENTO */}
+      {/* MODAL DE ACOMPANHAR */}
       {isTrackingOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
           {/* Overlay */}
@@ -431,7 +431,7 @@ export default function GlobalModals() {
                 <div>
                   <h2 className="text-lg sm:text-xl font-bold text-white">Meus Pedidos</h2>
                   <p className="text-white/60 text-xs sm:text-sm flex items-center gap-2 mt-1">
-                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                    <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
                     Atualizando em tempo real
                   </p>
                 </div>
@@ -469,7 +469,7 @@ export default function GlobalModals() {
                         key={order.id}
                         className={`bg-white rounded-xl sm:rounded-2xl overflow-hidden shadow-sm border-2 transition-all ${
                           showConfirmation 
-                            ? 'border-green-300 shadow-green-100' 
+                            ? 'border-blue-100 shadow-green-100' 
                             : isCancelled
                               ? 'border-red-200'
                               : 'border-[#1e3a5f]/5'
@@ -485,8 +485,8 @@ export default function GlobalModals() {
                                 </span>
                                 <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold flex items-center gap-1 ${
                                   isPickup 
-                                    ? 'bg-purple-100 text-purple-700' 
-                                    : 'bg-blue-100 text-blue-700'
+                                    ? 'bg-blue-100 text-[#1e3a5f]' 
+                                    : 'bg-blue-100 text-[#1e3a5f]'
                                 }`}>
                                   {isPickup ? <Icons.Package className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> : <Icons.Motorcycle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
                                   {isPickup ? 'Retirada' : 'Entrega'}
@@ -515,7 +515,7 @@ export default function GlobalModals() {
                                   key={step}
                                   className={`flex-1 h-1 sm:h-1.5 rounded-full transition-all duration-500 ${
                                     step <= statusInfo.step
-                                      ? 'bg-gradient-to-r from-[#1e3a5f] to-[#d4a853]'
+                                      ? 'bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f]'
                                       : 'bg-[#1e3a5f]/10'
                                   }`}
                                 />
@@ -540,7 +540,7 @@ export default function GlobalModals() {
                         {/* Endereço de entrega (apenas para delivery) */}
                         {!isPickup && order.deliveryAddress && (
                           <div className="px-3 sm:px-4 py-2 sm:py-3 bg-blue-50/50 border-t border-blue-100">
-                            <p className="text-[10px] sm:text-xs font-bold text-blue-700 mb-0.5 sm:mb-1 flex items-center gap-1">
+                            <p className="text-[10px] sm:text-xs font-bold text-blue-900 mb-0.5 sm:mb-1 flex items-center gap-1">
                               <Icons.LocationMarker className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                               Entregar em:
                             </p>
@@ -554,7 +554,7 @@ export default function GlobalModals() {
                         {/* Aviso para pedidos prontos para retirada */}
                         {isPickup && order.status === 'READY_FOR_PICKUP' && (
                           <div className="px-3 sm:px-4 py-2 sm:py-3 bg-purple-50 border-t border-purple-100">
-                            <p className="text-purple-700 font-bold text-xs sm:text-sm text-center flex items-center justify-center gap-2">
+                            <p className="text-[#2d4a6f] font-bold text-xs sm:text-sm text-center flex items-center justify-center gap-2">
                               <Icons.Store className="w-4 h-4" />
                               Retire seu pedido no balcão!
                             </p>
@@ -577,7 +577,7 @@ export default function GlobalModals() {
                           </div>
                           <div className="border-t border-[#1e3a5f]/10 pt-2 sm:pt-3 flex justify-between">
                             <span className="font-bold text-[#1e3a5f] text-sm">Total</span>
-                            <span className="font-black text-[#d4a853] text-base sm:text-lg">
+                            <span className="font-black text-[#2d4a6f] text-base sm:text-lg">
                               R$ {order.total.toFixed(2).replace('.', ',')}
                             </span>
                           </div>
@@ -585,20 +585,20 @@ export default function GlobalModals() {
 
                         {/* Botão de confirmação (quando entregue/retirado) */}
                         {showConfirmation && (
-                          <div className="p-3 sm:p-4 bg-green-50 border-t border-green-200">
+                          <div className="p-3 sm:p-4 bg-blue-100 border-t border-blue-100">
                             <div className="text-center mb-2 sm:mb-3">
-                              <p className="text-green-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-2">
+                              <p className="text-[#2d4a6f] font-bold text-xs sm:text-sm flex items-center justify-center gap-2">
                                 {confirmTexts.icon}
                                 {confirmTexts.title}
                               </p>
-                              <p className="text-green-600 text-[10px] sm:text-xs">
+                              <p className="text-blue-900 text-[10px] sm:text-xs">
                                 {confirmTexts.subtitle}
                               </p>
                             </div>
                             <button
                               onClick={() => onConfirmDelivery(order.id)}
                               disabled={isConfirming}
-                              className={`w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white font-bold py-2.5 sm:py-3 rounded-xl shadow-lg shadow-green-500/20 transition-all flex items-center justify-center gap-2 text-sm ${
+                              className={`w-full bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] hover:from-[#2d4a6f] hover:to-[#1e3a5f] text-white font-bold py-2.5 sm:py-3 rounded-xl shadow-lg shadow-white-500/20 transition-all flex items-center justify-center gap-2 text-sm ${
                                 isConfirming ? 'opacity-70 cursor-not-allowed' : ''
                               }`}
                             >
@@ -629,7 +629,6 @@ export default function GlobalModals() {
         </div>
       )}
 
-      {/* Estilos de animação para o carrinho */}
       <style>{`
         @keyframes slide-in-right {
           from { transform: translateX(100%); }
