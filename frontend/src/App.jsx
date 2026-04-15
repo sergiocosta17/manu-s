@@ -9,6 +9,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminProducts from './pages/AdminProducts';
 import Header from './components/Header';
 import MobileFooter from './components/MobileFooter';
+import Footer from './components/Footer';
 import GlobalModals from './components/GlobalModals';
 import ProductPage from './pages/ProductPage';
 
@@ -42,11 +43,12 @@ function AdminRoute({ children }) {
 // Layout principal que envolve as rotas com Header, Footer e Modais globais
 function AppLayout() {
   return (
-    <div className="relative">
+    <div className="relative flex flex-col min-h-screen">
       <Header />
-      <main className="pt-20 pb-20 md:pb-0">
-        <Outlet /> {/* Renderiza o conteúdo da rota filha */}
+      <main className="flex-grow pt-20 pb-20 md:pb-0">
+        <Outlet />
       </main>
+      <Footer />
       <MobileFooter />
       <GlobalModals />
     </div>
