@@ -20,18 +20,12 @@ O desenvolvimento foi pautado no cumprimento rigoroso dos seguintes critérios t
 
 = GraphQL: Interface flexível para consultas de cardápio e gestão complexa de pedidos.
 
-📂 Estrutura do Projeto
-src/
-├── graphql/      # Definições de Tipos (Schemas) e Resolvers
-├── middleware/   # Validação de tokens e controle de acesso
-├── models/       # Modelagem de dados (User, Product, Order)
-├── routes/       # Definição de rotas REST
-└── server.js     # Ponto de entrada e configuração do servidor
-
 ⚙️ Instalação e Execução
 - Clonar o repositório:
-git clone https://github.com/seu-usuario/manus-burger-backend.git
-cd manus-burger-backend
+git clone https://github.com/sergiocosta17/manu-s.git
+
+- Navegar para o diretório do backend:
+cd backend
 
 - Instalar dependências:
 npm install
@@ -41,9 +35,21 @@ Crie um arquivo .env na raiz do projeto:
 PORT=4000
 MONGO_URI=sua_url_do_mongodb_atlas
 JWT_SECRET=sua_chave_secreta
+ADMIN_ACCESS_KEY=sua_chave-adm
 
-Rodar o servidor:
+- Rodar o servidor:
 npm start
+
+- Abrir um novo terminal
+
+- Navegar para o diretório do backend:
+cd frontend
+
+- Instalar dependências:
+npm install
+
+- Rodar o servidor:
+npm run dev
 
 👨‍💻 Desenvolvedor
 Projeto desenvolvido como parte do currículo acadêmico, focado em escalabilidade e segurança de aplicações web.
