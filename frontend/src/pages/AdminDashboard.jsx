@@ -12,26 +12,20 @@ export default function AdminDashboard() {
   const [expandedHistory, setExpandedHistory] = useState({});
   const [revenueFilter, setRevenueFilter] = useState('DAY');
   
-  // Estados do modal de criação/edição de banner
   const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
   const [editingBanner, setEditingBanner] = useState(null);
   const [bannerForm, setBannerForm] = useState({ title: '', subtitle: '', imageUrl: '' });
 
-  // Estado para feedbacks visuais
   const [feedback, setFeedback] = useState({ show: false, type: '', message: '' });
-
-  // Estado para modal de confirmação
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null });
 
   const navigate = useNavigate();
 
-  // Função para mostrar feedback visual
   const showFeedback = (type, message) => {
     setFeedback({ show: true, type, message });
     setTimeout(() => setFeedback({ show: false, type: '', message: '' }), 4000);
   };
 
-  // Função para mostrar modal de confirmação
   const showConfirmModal = (title, message, onConfirm) => {
     setConfirmModal({ show: true, title, message, onConfirm });
   };
@@ -79,7 +73,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // ORDERS
   const updateOrderStatus = async (orderId, newStatus, isPickup = false) => {
     try {
       const response = await fetch('http://localhost:4000/graphql', {
@@ -98,7 +91,6 @@ export default function AdminDashboard() {
       const result = await response.json();
       if (result.errors) throw new Error(result.errors[0].message);
       
-      // Feedback visual de sucesso - diferenciado para pickup/delivery
       const statusMessages = {
         PREPARING: 'Pedido aceito e em preparação!',
         OUT_FOR_DELIVERY: isPickup ? 'Pedido pronto para retirada!' : 'Pedido saiu para entrega!',
@@ -112,7 +104,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // BANNERS
   const handleBannerImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -134,14 +125,12 @@ export default function AdminDashboard() {
     reader.readAsDataURL(file);
   };
 
-  // Abre modal para criar novo banner
   const openCreateBannerModal = () => {
     setEditingBanner(null);
     setBannerForm({ title: '', subtitle: '', imageUrl: '' });
     setIsBannerModalOpen(true);
   };
 
-  // Abre modal para editar banner existente
   const openEditBannerModal = (banner) => {
     setEditingBanner(banner);
     setBannerForm({
@@ -152,14 +141,12 @@ export default function AdminDashboard() {
     setIsBannerModalOpen(true);
   };
 
-  // Fecha o modal e limpa estados
   const closeBannerModal = () => {
     setIsBannerModalOpen(false);
     setEditingBanner(null);
     setBannerForm({ title: '', subtitle: '', imageUrl: '' });
   };
 
-  // Salva banner (criar ou atualizar)
   const handleSaveBanner = async (e) => {
     e.preventDefault();
     try {
@@ -178,7 +165,6 @@ export default function AdminDashboard() {
         if (result.errors) throw new Error(result.errors[0].message);
         showFeedback('success', 'Banner atualizado com sucesso!');
       } else {
-        // Criar novo banner
         const response = await fetch('http://localhost:4000/graphql', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
@@ -219,14 +205,12 @@ export default function AdminDashboard() {
     );
   };
 
-  // HELPERS
   const toggleHistory = (monthYear) => setExpandedHistory(prev => ({ ...prev, [monthYear]: !prev[monthYear] }));
   
   const formatDate = (timestamp) => new Date(Number(timestamp)).toLocaleString('pt-BR', { 
     day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
   });
 
-  // Função para obter display do status considerando o tipo de entrega
   const getStatusDisplay = (status, deliveryType = 'DELIVERY') => {
     const isPickup = deliveryType === 'PICKUP';
 
@@ -293,6 +277,7 @@ export default function AdminDashboard() {
     const statusDisplay = getStatusDisplay(order.status, order.deliveryType);
     const isCompleted = order.status === 'DELIVERED' || order.status === 'COMPLETED' || order.status === 'CANCELLED';
     const isNew = order.status === 'PLACED' || order.status === 'PENDING' || order.status === 'CONFIRMED';
+    const isFinished = order.status === 'DELIVERED' || order.status === 'COMPLETED';
 
     return (
       <div 
@@ -312,7 +297,6 @@ export default function AdminDashboard() {
             <span className={`w-2.5 h-2.5 rounded-full ${statusDisplay.dot} ${isNew ? 'animate-pulse' : ''}`}></span>
             <div className="flex items-center gap-2">
               <span className="font-bold text-[#1e3a5f] text-sm">#{order.id.slice(-6).toUpperCase()}</span>
-              {/* Badge indicando tipo de entrega */}
               <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold flex items-center gap-1 ${
                 isPickup 
                   ? 'bg-[#1e3a5f]/20 text-[#1e3a5f]' 
@@ -405,6 +389,16 @@ export default function AdminDashboard() {
                 <CheckIcon className="w-4 h-4" /> {isPickup ? 'Confirmar Retirada' : 'Confirmar Entrega'}
               </button>
             )}
+
+            {isFinished && (
+              <button 
+                onClick={() => {}}
+                className="w-full bg-[#1e3a5f] hover:bg-[#162d4a] text-white font-medium py-3 rounded-xl shadow-lg shadow-[#1e3a5f]/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                <ReceiptIcon className="w-4 h-4" />
+                Gerar Nota Fiscal
+              </button>
+            )}
             
             {!isCompleted && (
               <button 
@@ -442,7 +436,6 @@ export default function AdminDashboard() {
       
       <div className="relative z-10 h-20"></div>
 
-      {/* FEEDBACK VISUAL - Toast Notification */}
       {feedback.show && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-50 animate-slide-down">
           <div className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-xl border backdrop-blur-xl ${
@@ -470,7 +463,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* MODAL DE CONFIRMAÇÃO - Substituindo window.confirm */}
       {confirmModal.show && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm" onClick={closeConfirmModal}></div>
@@ -737,7 +729,6 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* BANNERS TAB */}
             {activeTab === 'BANNERS' && (
               <div className="space-y-6">
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#1e3a5f]/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -796,7 +787,6 @@ export default function AdminDashboard() {
         )}
       </main>
 
-      {/* MODAL DE CRIAÇÃO/EDIÇÃO DE BANNER */}
       {isBannerModalOpen && (
         <Modal onClose={closeBannerModal} title={editingBanner ? "Editar Banner" : "Novo Banner"}>
           <form onSubmit={handleSaveBanner} className="space-y-5">
@@ -860,7 +850,6 @@ export default function AdminDashboard() {
         </Modal>
       )}
 
-      {/* FOOTER DE NAVEGAÇÃO MOBILE */}
       <footer className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-[#1e3a5f]/10 pb-safe">
         <div className="flex justify-around items-center py-2 px-4">
           <NavBtn onClick={() => navigate('/menu')} icon={<HomeIcon />} label="Loja" />
@@ -871,7 +860,6 @@ export default function AdminDashboard() {
         </div>
       </footer>
 
-      {/* Estilos de animação */}
       <style>{`
         @keyframes fade-in {
           from { opacity: 0; transform: scale(0.95); }
@@ -1077,5 +1065,11 @@ const StoreIcon = ({ className = "w-5 h-5" }) => (
 const MotorcycleIcon = ({ className = "w-5 h-5" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"></path>
+  </svg>
+);
+
+const ReceiptIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
   </svg>
 );
