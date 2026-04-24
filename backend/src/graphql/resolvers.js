@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Banner = require('../models/Banner');
 const Promotion = require('../models/Promotion');
 const Coupon = require('../models/Coupon');
+const Courier = require('../models/Courier');
 const StoreSettings = require('../models/StoreSettings');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -21,7 +22,35 @@ const requireAdmin = (user) => {
   return user;
 };
 
+// Helper para calcular datas de período
+const getPeriodDates = (period) => {
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
+  switch (period) {
+    case 'DAY':
+      return { start: startOfDay, end: now };
+    case 'WEEK':
+      const startOfWeek = new Date(startOfDay);
+      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+      return { start: startOfWeek, end: now };
+    case 'MONTH':
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { start: startOfMonth, end: now };
+    case 'YEAR':
+      const startOfYear = new Date(now.getFullYear(), 0, 1);
+      return { start: startOfYear, end: now };
+    default:
+      return { start: new Date(0), end: now };
+  }
+};
+
 const resolvers = {
+  // Field resolver para Courier
+  Courier: {
+    fullName: (parent) => `${parent.firstName} ${parent.lastName}`
+  },
+
   Query: {
     // AUTH 
     me: async (_, __, { user }) => {
@@ -59,6 +88,110 @@ const resolvers = {
       return await Banner.find(filter).sort({ order: 1 });
     },
 
+    // COURIERS (ENTREGADORES)
+    couriers: async (_, { onlyActive }, { user }) => {
+      requireAdmin(user);
+      const filter = {};
+      if (onlyActive) filter.isActive = true;
+      return await Courier.find(filter).sort({ createdAt: -1 });
+    },
+
+    courier: async (_, { id }, { user }) => {
+      requireAdmin(user);
+      return await Courier.findById(id);
+    },
+
+    availableCouriers: async (_, __, { user }) => {
+      requireAdmin(user);
+      return await Courier.find({ isActive: true }).sort({ firstName: 1 });
+    },
+
+    couriersMetrics: async (_, { period }, { user }) => {
+      requireAdmin(user);
+      
+      const { start, end } = getPeriodDates(period);
+      
+      // Total de entregadores
+      const totalCouriers = await Courier.countDocuments();
+      const activeCouriers = await Courier.countDocuments({ isActive: true });
+      
+      // Totais gerais (all time)
+      const allCouriers = await Courier.find();
+      const totalDeliveries = allCouriers.reduce((acc, c) => acc + c.totalDeliveries, 0);
+      const totalEarnings = allCouriers.reduce((acc, c) => acc + c.totalEarnings, 0);
+      
+      // Métricas do período - buscar pedidos entregues no período
+      const periodOrders = await Order.find({
+        status: { $in: ['DELIVERED', 'COMPLETED'] },
+        deliveryType: 'DELIVERY',
+        courier: { $ne: null },
+        updatedAt: { $gte: start, $lte: end }
+      }).populate('courier');
+      
+      const periodDeliveries = periodOrders.length;
+      const periodEarnings = periodOrders.reduce((acc, o) => acc + (o.shippingFee || 0), 0);
+      
+      // Métricas por entregador no período
+      const courierMetricsMap = {};
+      
+      periodOrders.forEach(order => {
+        if (order.courier) {
+          const courierId = order.courier._id.toString();
+          if (!courierMetricsMap[courierId]) {
+            courierMetricsMap[courierId] = {
+              courierId,
+              courierName: `${order.courier.firstName} ${order.courier.lastName}`,
+              deliveries: 0,
+              earnings: 0
+            };
+          }
+          courierMetricsMap[courierId].deliveries += 1;
+          courierMetricsMap[courierId].earnings += order.shippingFee || 0;
+        }
+      });
+      
+      // Incluir entregadores ativos sem entregas no período
+      for (const courier of allCouriers) {
+        const courierId = courier._id.toString();
+        if (!courierMetricsMap[courierId]) {
+          courierMetricsMap[courierId] = {
+            courierId,
+            courierName: `${courier.firstName} ${courier.lastName}`,
+            deliveries: 0,
+            earnings: 0
+          };
+        }
+      }
+      
+      const courierMetrics = Object.values(courierMetricsMap).sort((a, b) => b.deliveries - a.deliveries);
+      
+      return {
+        totalCouriers,
+        activeCouriers,
+        totalDeliveries,
+        totalEarnings,
+        periodDeliveries,
+        periodEarnings,
+        courierMetrics
+      };
+    },
+
+    courierDeliveries: async (_, { courierId, period }, { user }) => {
+      requireAdmin(user);
+      
+      const { start, end } = getPeriodDates(period);
+      
+      return await Order.find({
+        courier: courierId,
+        status: { $in: ['DELIVERED', 'COMPLETED'] },
+        updatedAt: { $gte: start, $lte: end }
+      })
+        .populate('user')
+        .populate('items.product')
+        .populate('courier')
+        .sort({ updatedAt: -1 });
+    },
+
     // ORDERS 
     orders: async (_, { status, limit = 50, offset = 0 }, { user }) => {
       requireAuth(user);
@@ -73,6 +206,7 @@ const resolvers = {
       return await Order.find(filter)
         .populate('user')
         .populate('items.product')
+        .populate('courier')
         .sort({ createdAt: -1 })
         .skip(offset)
         .limit(limit);
@@ -82,7 +216,8 @@ const resolvers = {
       requireAuth(user);
       const order = await Order.findById(id)
         .populate('user')
-        .populate('items.product');
+        .populate('items.product')
+        .populate('courier');
       
       if (!order) throw new Error('Pedido não encontrado');
       
@@ -106,6 +241,7 @@ const resolvers = {
       return await Order.find(filter)
         .populate('user')
         .populate('items.product')
+        .populate('courier')
         .sort({ createdAt: -1 });
     },
 
@@ -118,6 +254,7 @@ const resolvers = {
       
       return await Order.find(filter)
         .populate('items.product')
+        .populate('courier')
         .sort({ createdAt: -1 })
         .skip(offset)
         .limit(limit);
@@ -261,7 +398,6 @@ const resolvers = {
         let settings = await StoreSettings.findOne();
         
         if (!settings) {
-          // Cria documento padrão se não existir
           settings = await StoreSettings.create({
             storeName: null,
             storeAddress: null,
@@ -368,16 +504,12 @@ const resolvers = {
       );
     },
 
-    // STORE SETTINGS (HORÁRIOS DE FUNCIONAMENTO)
+    // STORE SETTINGS
     updateStoreSettings: async (_, { input }, { user }) => {
       try {
         requireAdmin(user);
 
-        console.log('updateStoreSettings - Input recebido:', input);
-
         let settings = await StoreSettings.findOne();
-        
-        console.log('updateStoreSettings - Settings encontrado:', settings);
 
         if (!settings) {
           settings = new StoreSettings({
@@ -386,18 +518,14 @@ const resolvers = {
             storePhone: input.storePhone || null,
             businessHours: input.businessHours || null
           });
-          console.log('updateStoreSettings - Criando novo:', settings);
         } else {
           if (input.storeName !== undefined) settings.storeName = input.storeName;
           if (input.storeAddress !== undefined) settings.storeAddress = input.storeAddress;
           if (input.storePhone !== undefined) settings.storePhone = input.storePhone;
           if (input.businessHours !== undefined) settings.businessHours = input.businessHours;
-          console.log('updateStoreSettings - Atualizando:', settings);
         }
 
         await settings.save();
-        
-        console.log('updateStoreSettings - Salvo com sucesso:', settings);
 
         return {
           id: settings._id.toString(),
@@ -609,6 +737,87 @@ const resolvers = {
       return true;
     },
 
+    // COURIERS (ENTREGADORES)
+    createCourier: async (_, { input }, { user }) => {
+      requireAdmin(user);
+      
+      // Verificar se já existe entregador com mesmo email ou CPF
+      const existingEmail = await Courier.findOne({ email: input.email });
+      if (existingEmail) throw new Error('Já existe um entregador com este e-mail');
+      
+      const existingCpf = await Courier.findOne({ cpf: input.cpf });
+      if (existingCpf) throw new Error('Já existe um entregador com este CPF');
+      
+      const courier = new Courier({
+        ...input,
+        isActive: input.isActive !== false,
+        totalDeliveries: 0,
+        totalEarnings: 0
+      });
+      
+      return await courier.save();
+    },
+
+    updateCourier: async (_, { id, input }, { user }) => {
+      requireAdmin(user);
+      
+      // Verificar duplicatas se email ou CPF estão sendo atualizados
+      if (input.email) {
+        const existingEmail = await Courier.findOne({ email: input.email, _id: { $ne: id } });
+        if (existingEmail) throw new Error('Já existe um entregador com este e-mail');
+      }
+      
+      if (input.cpf) {
+        const existingCpf = await Courier.findOne({ cpf: input.cpf, _id: { $ne: id } });
+        if (existingCpf) throw new Error('Já existe um entregador com este CPF');
+      }
+      
+      return await Courier.findByIdAndUpdate(
+        id,
+        { $set: input },
+        { new: true, runValidators: true }
+      );
+    },
+
+    deleteCourier: async (_, { id }, { user }) => {
+      requireAdmin(user);
+      
+      // Verificar se há pedidos em andamento com este entregador
+      const activeOrders = await Order.countDocuments({
+        courier: id,
+        status: { $in: ['OUT_FOR_DELIVERY'] }
+      });
+      
+      if (activeOrders > 0) {
+        throw new Error('Não é possível excluir entregador com entregas em andamento');
+      }
+      
+      await Courier.findByIdAndDelete(id);
+      return true;
+    },
+
+    toggleCourierActive: async (_, { id }, { user }) => {
+      requireAdmin(user);
+      const courier = await Courier.findById(id);
+      
+      if (!courier) throw new Error('Entregador não encontrado');
+      
+      // Se for desativar, verificar se há entregas em andamento
+      if (courier.isActive) {
+        const activeOrders = await Order.countDocuments({
+          courier: id,
+          status: { $in: ['OUT_FOR_DELIVERY'] }
+        });
+        
+        if (activeOrders > 0) {
+          throw new Error('Não é possível desativar entregador com entregas em andamento');
+        }
+      }
+      
+      courier.isActive = !courier.isActive;
+      return await courier.save();
+    },
+
     // ORDERS
     createOrder: async (_, { input }, { user }) => {
       requireAuth(user);
@@ -637,7 +846,10 @@ const resolvers = {
       });
       
       await order.save();
-      return await Order.findById(order._id).populate('user').populate('items.product');
+      return await Order.findById(order._id)
+        .populate('user')
+        .populate('items.product')
+        .populate('courier');
     },
 
     updateOrderStatus: async (_, { id, status }, { user }) => {
@@ -653,8 +865,55 @@ const resolvers = {
         order.paymentStatus = 'PAID';
       }
       
+      // Se o pedido foi entregue, atualizar estatísticas do entregador
+      if (status === 'DELIVERED' && order.courier) {
+        await Courier.findByIdAndUpdate(order.courier, {
+          $inc: {
+            totalDeliveries: 1,
+            totalEarnings: order.shippingFee || 0
+          }
+        });
+      }
+      
       await order.save();
-      return await Order.findById(id).populate('user').populate('items.product');
+      return await Order.findById(id)
+        .populate('user')
+        .populate('items.product')
+        .populate('courier');
+    },
+
+    // ASSIGN COURIER TO ORDER
+    assignCourier: async (_, { orderId, courierId }, { user }) => {
+      requireAdmin(user);
+      
+      const order = await Order.findById(orderId);
+      if (!order) throw new Error('Pedido não encontrado');
+      
+      if (order.deliveryType !== 'DELIVERY') {
+        throw new Error('Não é possível atribuir entregador a pedido de retirada');
+      }
+      
+      const courier = await Courier.findById(courierId);
+      if (!courier) throw new Error('Entregador não encontrado');
+      
+      if (!courier.isActive) {
+        throw new Error('Entregador está inativo');
+      }
+      
+      order.courier = courierId;
+      
+      // Se ainda não está em entrega, atualizar status
+      if (order.status === 'PREPARING') {
+        order.status = 'OUT_FOR_DELIVERY';
+        order.statusHistory.push({ status: 'OUT_FOR_DELIVERY', timestamp: new Date() });
+      }
+      
+      await order.save();
+      
+      return await Order.findById(orderId)
+        .populate('user')
+        .populate('items.product')
+        .populate('courier');
     },
 
     confirmOrderReceived: async (_, { id }, { user }) => {
@@ -676,7 +935,10 @@ const resolvers = {
       order.statusHistory.push({ status: 'COMPLETED', timestamp: new Date() });
       
       await order.save();
-      return await Order.findById(id).populate('user').populate('items.product');
+      return await Order.findById(id)
+        .populate('user')
+        .populate('items.product')
+        .populate('courier');
     },
 
     confirmDelivery: async (_, { id }, { user }) => {
@@ -698,7 +960,10 @@ const resolvers = {
       order.statusHistory.push({ status: 'COMPLETED', timestamp: new Date() });
       
       await order.save();
-      return await Order.findById(id).populate('user').populate('items.product');
+      return await Order.findById(id)
+        .populate('user')
+        .populate('items.product')
+        .populate('courier');
     },
 
     // PROMOTIONS

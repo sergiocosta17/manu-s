@@ -100,6 +100,51 @@ const typeDefs = gql`
     isActive: Boolean!
   }
 
+  # Informações do veículo do entregador
+  type Vehicle {
+    brand: String!
+    model: String!
+    plate: String!
+    year: Int!
+    color: String!
+  }
+
+  # Entregador
+  type Courier {
+    id: ID!
+    firstName: String!
+    lastName: String!
+    fullName: String!
+    phone: String!
+    email: String!
+    cpf: String!
+    vehicle: Vehicle!
+    isActive: Boolean!
+    totalDeliveries: Int!
+    totalEarnings: Float!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  # Métricas do entregador por período
+  type CourierMetrics {
+    courierId: ID!
+    courierName: String!
+    deliveries: Int!
+    earnings: Float!
+  }
+
+  # Métricas gerais de entregadores
+  type CouriersOverviewMetrics {
+    totalCouriers: Int!
+    activeCouriers: Int!
+    totalDeliveries: Int!
+    totalEarnings: Float!
+    periodDeliveries: Int!
+    periodEarnings: Float!
+    courierMetrics: [CourierMetrics!]!
+  }
+
   # Item do pedido
   type OrderItem {
     product: Product
@@ -130,6 +175,7 @@ const typeDefs = gql`
     paymentStatus: PaymentStatus!
     status: OrderStatus!
     statusHistory: [StatusHistory!]!
+    courier: Courier
     customerConfirmedAt: String
     createdAt: String!
     updatedAt: String!
@@ -249,6 +295,37 @@ const typeDefs = gql`
     isActive: Boolean
   }
 
+  # Input para informações do veículo
+  input VehicleInput {
+    brand: String!
+    model: String!
+    plate: String!
+    year: Int!
+    color: String!
+  }
+
+  # Input para criação de entregador
+  input CourierInput {
+    firstName: String!
+    lastName: String!
+    phone: String!
+    email: String!
+    cpf: String!
+    vehicle: VehicleInput!
+    isActive: Boolean
+  }
+
+  # Input para atualização de entregador
+  input UpdateCourierInput {
+    firstName: String
+    lastName: String
+    phone: String
+    email: String
+    cpf: String
+    vehicle: VehicleInput
+    isActive: Boolean
+  }
+
   # Input para item de pedido
   input OrderItemInput {
     product: ID!
@@ -338,6 +415,13 @@ const typeDefs = gql`
     # Banners
     banners(location: BannerLocation): [Banner!]!
     
+    # Couriers (Entregadores)
+    couriers(onlyActive: Boolean): [Courier!]!
+    courier(id: ID!): Courier
+    couriersMetrics(period: String!): CouriersOverviewMetrics!
+    courierDeliveries(courierId: ID!, period: String!): [Order!]!
+    availableCouriers: [Courier!]!
+    
     # Orders
     orders(status: OrderStatus, limit: Int, offset: Int): [Order!]!
     order(id: ID!): Order
@@ -408,11 +492,20 @@ const typeDefs = gql`
     updateBanner(id: ID!, input: BannerInput!): Banner!
     deleteBanner(id: ID!): Boolean!
     
+    # Couriers (Admin)
+    createCourier(input: CourierInput!): Courier!
+    updateCourier(id: ID!, input: UpdateCourierInput!): Courier!
+    deleteCourier(id: ID!): Boolean!
+    toggleCourierActive(id: ID!): Courier!
+    
     # Orders
     createOrder(input: OrderInput!): Order!
     
     # Order Status (Admin)
     updateOrderStatus(id: ID!, status: OrderStatus!): Order!
+    
+    # Assign Courier to Order (Admin)
+    assignCourier(orderId: ID!, courierId: ID!): Order!
     
     # Order Confirmation (Client)
     confirmOrderReceived(id: ID!): Order!
