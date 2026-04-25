@@ -35,6 +35,15 @@ const typeDefs = gql`
   enum DiscountType { PERCENTAGE FIXED }
 
   # TYPES
+
+  # Resultado da validação de endereço de entrega
+  type DeliveryValidationResult {
+    valid: Boolean!
+    message: String!
+    allowedCity: String
+    allowedState: String
+  }
+  
   # Endereço do usuário
   type Address {
     id: ID!
@@ -403,6 +412,10 @@ const typeDefs = gql`
 
   # QUERIES
   type Query {
+
+    # Validação de endereço de entrega (área permitida)
+    validateDeliveryAddress(city: String!, state: String!): DeliveryValidationResult!
+
     # Auth
     me: User!
     

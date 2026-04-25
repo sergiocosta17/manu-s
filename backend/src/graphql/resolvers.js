@@ -1,3 +1,4 @@
+// graphql/resolvers.js
 const Product = require('../models/Product');
 const Order = require('../models/Order');
 const User = require('../models/User');
@@ -20,6 +21,36 @@ const requireAdmin = (user) => {
   requireAuth(user);
   if (user.role !== 'ADMIN') throw new Error('Não autorizado');
   return user;
+};
+
+// ============================================
+// VALIDAÇÃO DE ÁREA DE ENTREGA
+// ============================================
+const normalizeString = (str) => {
+  if (!str) return '';
+  return str
+    .toUpperCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, ''); // Remove acentos
+};
+
+const validateDeliveryArea = (city, state) => {
+  const normalizedCity = normalizeString(city);
+  const normalizedState = normalizeString(state);
+  
+  // Aceita variações de Campina Grande e Paraíba
+  const validCities = ['CAMPINA GRANDE'];
+  const validStates = ['PB', 'PARAIBA'];
+  
+  const isCityValid = validCities.includes(normalizedCity);
+  const isStateValid = validStates.includes(normalizedState);
+  
+  return isCityValid && isStateValid;
+};
+
+const throwDeliveryAreaError = () => {
+  throw new Error('Desculpe, nosso delivery atende apenas a cidade de Campina Grande - PB.');
 };
 
 // Helper para calcular datas de período
@@ -330,6 +361,29 @@ const resolvers = {
       return { valid: true, message: 'Cupom válido!', discount };
     },
 
+    // ============================================
+    // VALIDAÇÃO DE CEP/ENDEREÇO
+    // ============================================
+    validateDeliveryAddress: async (_, { city, state }) => {
+      const isValid = validateDeliveryArea(city, state);
+      
+      if (!isValid) {
+        return {
+          valid: false,
+          message: 'Desculpe, nosso delivery atende apenas a cidade de Campina Grande - PB.',
+          allowedCity: 'Campina Grande',
+          allowedState: 'PB'
+        };
+      }
+      
+      return {
+        valid: true,
+        message: 'Endereço dentro da área de entrega!',
+        allowedCity: 'Campina Grande',
+        allowedState: 'PB'
+      };
+    },
+
     // DASHBOARD
     dashboardMetrics: async (_, __, { user }) => {
       requireAdmin(user);
@@ -543,9 +597,16 @@ const resolvers = {
       }
     },
 
-    // ADDRESSES
+    // ============================================
+    // ADDRESSES - COM VALIDAÇÃO DE ÁREA
+    // ============================================
     addAddress: async (_, { input }, { user }) => {
       requireAuth(user);
+      
+      // VALIDAÇÃO DE ÁREA DE ENTREGA
+      if (!validateDeliveryArea(input.city, input.state)) {
+        throwDeliveryAreaError();
+      }
       
       const dbUser = await User.findById(user.userId);
       
@@ -566,6 +627,19 @@ const resolvers = {
 
     updateAddress: async (_, { addressId, input }, { user }) => {
       requireAuth(user);
+      
+      // VALIDAÇÃO DE ÁREA DE ENTREGA (se cidade ou estado forem alterados)
+      if (input.city || input.state) {
+        const dbUser = await User.findById(user.userId);
+        const currentAddress = dbUser.addresses.find(addr => addr._id.toString() === addressId);
+        
+        const cityToValidate = input.city || currentAddress?.city;
+        const stateToValidate = input.state || currentAddress?.state;
+        
+        if (!validateDeliveryArea(cityToValidate, stateToValidate)) {
+          throwDeliveryAreaError();
+        }
+      }
       
       const dbUser = await User.findById(user.userId);
       const addressIndex = dbUser.addresses.findIndex(
@@ -818,9 +892,19 @@ const resolvers = {
       return await courier.save();
     },
 
-    // ORDERS
+    // ============================================
+    // ORDERS - COM VALIDAÇÃO DE ÁREA
+    // ============================================
     createOrder: async (_, { input }, { user }) => {
       requireAuth(user);
+      
+      // VALIDAÇÃO DE ÁREA DE ENTREGA (apenas para delivery)
+      if (input.deliveryType === 'DELIVERY' && input.deliveryAddress) {
+        const { city, state } = input.deliveryAddress;
+        if (!validateDeliveryArea(city, state)) {
+          throwDeliveryAreaError();
+        }
+      }
       
       let discount = input.discount || 0;
       if (input.couponCode) {

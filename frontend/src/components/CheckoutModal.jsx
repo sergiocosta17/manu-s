@@ -1,6 +1,36 @@
+// components/CheckoutModal.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useCart } from '../contexts/CartContext';
 import PaymentModal from './PaymentModal';
+
+// Configuração da área de entrega
+const DELIVERY_CONFIG = {
+  allowedCity: 'Campina Grande',
+  allowedState: 'PB',
+  allowedCityNormalized: 'CAMPINA GRANDE',
+  allowedStateNormalized: 'PB'
+};
+
+// Função para normalizar strings (remover acentos e uppercase)
+const normalizeString = (str) => {
+  if (!str) return '';
+  return str
+    .toUpperCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+};
+
+// Função para validar se está na área de entrega
+const isValidDeliveryArea = (city, state) => {
+  const normalizedCity = normalizeString(city);
+  const normalizedState = normalizeString(state);
+  
+  const validCities = ['CAMPINA GRANDE'];
+  const validStates = ['PB', 'PARAIBA'];
+  
+  return validCities.includes(normalizedCity) && validStates.includes(normalizedState);
+};
 
 // ÍCONES SVG
 const Icons = {
@@ -28,6 +58,13 @@ const Icons = {
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  ),
+  LocationOff: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3l18 18" />
     </svg>
   ),
   Plus: ({ className = "w-5 h-5" }) => (
@@ -66,6 +103,12 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
     </svg>
   ),
+  MapPin: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  ),
 };
 
 export default function CheckoutModal({ isOpen, onClose }) {
@@ -87,6 +130,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
   });
   const [loadingCep, setLoadingCep] = useState(false);
   const [cepError, setCepError] = useState('');
+  const [deliveryAreaError, setDeliveryAreaError] = useState(false); // NOVO: erro de área
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [deliveryType, setDeliveryType] = useState('DELIVERY');
   const [storeAddress, setStoreAddress] = useState(null);
@@ -249,6 +293,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
 
     setLoadingCep(true);
     setCepError('');
+    setDeliveryAreaError(false);
 
     try {
       const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
@@ -257,6 +302,21 @@ export default function CheckoutModal({ isOpen, onClose }) {
       if (data.erro) {
         setCepError('CEP não encontrado');
         showToast('CEP não encontrado', 'error');
+        return;
+      }
+
+      // VALIDAÇÃO DE ÁREA DE ENTREGA
+      if (!isValidDeliveryArea(data.localidade, data.uf)) {
+        setDeliveryAreaError(true);
+        setNewAddress(prev => ({
+          ...prev,
+          street: data.logradouro || '',
+          neighborhood: data.bairro || '',
+          city: data.localidade || '',
+          state: data.uf || '',
+          complement: data.complemento || prev.complement,
+        }));
+        showToast('Este endereço está fora da nossa área de entrega', 'error');
         return;
       }
 
@@ -270,6 +330,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
       }));
 
       setCepError('');
+      setDeliveryAreaError(false);
       showToast('Endereço encontrado!', 'success');
     } catch (error) {
       console.error('Erro ao buscar CEP:', error);
@@ -289,6 +350,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
     
     setNewAddress({ ...newAddress, zipCode: value });
     setCepError('');
+    setDeliveryAreaError(false);
 
     const cleanCep = value.replace(/\D/g, '');
     if (cleanCep.length === 8) {
@@ -296,11 +358,57 @@ export default function CheckoutModal({ isOpen, onClose }) {
     }
   };
 
+  // Handler para mudança de cidade (validação em tempo real)
+  const handleCityChange = (e) => {
+    const city = e.target.value;
+    setNewAddress(prev => ({ ...prev, city }));
+    
+    // Valida área se já tiver estado preenchido
+    if (newAddress.state) {
+      setDeliveryAreaError(!isValidDeliveryArea(city, newAddress.state));
+    }
+  };
+
+  // Handler para mudança de estado (validação em tempo real)
+  const handleStateChange = (e) => {
+    const state = e.target.value.toUpperCase();
+    setNewAddress(prev => ({ ...prev, state }));
+    
+    // Valida área se já tiver cidade preenchida
+    if (newAddress.city) {
+      setDeliveryAreaError(!isValidDeliveryArea(newAddress.city, state));
+    }
+  };
+
+  // Verifica se pode continuar para pagamento
+  const canContinueToPayment = () => {
+    if (deliveryType === 'PICKUP') return true;
+    
+    if (showNewAddress) {
+      // Novo endereço: verificar se está completo e na área válida
+      return newAddress.street && 
+             newAddress.number && 
+             newAddress.city && 
+             newAddress.state && 
+             !deliveryAreaError;
+    }
+    
+    // Endereço salvo selecionado
+    return !!selectedAddressId;
+  };
+
   // Avança para a etapa de pagamento
   const handleContinueToPayment = () => {
-    if (deliveryType === 'DELIVERY' && !selectedAddressId && !newAddress.street) {
-      showToast('Selecione ou adicione um endereço de entrega', 'error');
-      return;
+    if (deliveryType === 'DELIVERY') {
+      if (showNewAddress && deliveryAreaError) {
+        showToast('O endereço informado está fora da nossa área de entrega', 'error');
+        return;
+      }
+      
+      if (!selectedAddressId && !newAddress.street) {
+        showToast('Selecione ou adicione um endereço de entrega', 'error');
+        return;
+      }
     }
     setShowPaymentModal(true);
   };
@@ -325,6 +433,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
       state: '',
     });
     setCepError('');
+    setDeliveryAreaError(false);
   };
 
   if (!isOpen) return null;
@@ -391,6 +500,19 @@ export default function CheckoutModal({ isOpen, onClose }) {
 
         {/* Conteúdo rolável */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#faf8f5]">
+          
+          {/* Info da área de entrega */}
+          <div className="bg-[#1e3a5f]/5 rounded-2xl p-4 flex items-center gap-3 border border-[#1e3a5f]/10">
+            <div className="w-10 h-10 bg-[#1e3a5f] rounded-xl flex items-center justify-center flex-shrink-0">
+              <Icons.MapPin className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-[#1e3a5f]">Área de Entrega</p>
+              <p className="text-xs text-[#1e3a5f]/60">
+                Atendemos apenas em <strong>Campina Grande - PB</strong>
+              </p>
+            </div>
+          </div>
           
           {/* Seletor de tipo de entrega */}
           <div>
@@ -545,6 +667,22 @@ export default function CheckoutModal({ isOpen, onClose }) {
                     </button>
                   </div>
 
+                  {/* AVISO DE ÁREA DE ENTREGA */}
+                  {deliveryAreaError && (
+                    <div className="bg-[#1e3a5f]/10 border-2 border-[#1e3a5f]/30 rounded-2xl p-4 flex items-start gap-3">
+                      <div className="w-10 h-10 bg-[#1e3a5f] rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Icons.LocationOff className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-[#1e3a5f] text-sm">Fora da área de entrega</p>
+                        <p className="text-xs text-[#1e3a5f]/70 mt-1">
+                          Desculpe, nosso delivery atende apenas a cidade de <strong>Campina Grande - PB</strong>. 
+                          Por favor, insira um endereço dentro dessa região.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Campos do endereço */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -557,8 +695,8 @@ export default function CheckoutModal({ isOpen, onClose }) {
                           placeholder="00000-000"
                           maxLength={9}
                           className={`w-full bg-[#faf8f5] border rounded-xl px-3 py-2.5 text-[#1e3a5f] text-sm placeholder:text-[#1e3a5f]/30 focus:outline-none transition-colors ${
-                            cepError 
-                              ? 'border-[#1e3a5f]/50 focus:border-[#1e3a5f]' 
+                            cepError || deliveryAreaError
+                              ? 'border-[#1e3a5f]/50 focus:border-[#1e3a5f] bg-[#1e3a5f]/5' 
                               : loadingCep 
                                 ? 'border-[#1e3a5f]/30' 
                                 : 'border-[#1e3a5f]/10 focus:border-[#1e3a5f]'
@@ -569,7 +707,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
                             <Icons.Spinner className="w-4 h-4 text-[#1e3a5f]" />
                           </div>
                         )}
-                        {!loadingCep && newAddress.street && newAddress.zipCode.length === 9 && (
+                        {!loadingCep && newAddress.street && newAddress.zipCode.length === 9 && !deliveryAreaError && (
                           <div className="absolute right-3 top-1/2 -translate-y-1/2">
                             <Icons.Check className="w-4 h-4 text-[#1e3a5f]" />
                           </div>
@@ -643,10 +781,14 @@ export default function CheckoutModal({ isOpen, onClose }) {
                       <input
                         type="text"
                         value={newAddress.city}
-                        onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
-                        placeholder="Cidade"
+                        onChange={handleCityChange}
+                        placeholder="Campina Grande"
                         disabled={loadingCep}
-                        className="w-full bg-[#faf8f5] border border-[#1e3a5f]/10 rounded-xl px-3 py-2.5 text-[#1e3a5f] text-sm placeholder:text-[#1e3a5f]/30 focus:outline-none focus:border-[#1e3a5f] disabled:opacity-50"
+                        className={`w-full bg-[#faf8f5] border rounded-xl px-3 py-2.5 text-[#1e3a5f] text-sm placeholder:text-[#1e3a5f]/30 focus:outline-none disabled:opacity-50 ${
+                          deliveryAreaError 
+                            ? 'border-[#1e3a5f]/50 bg-[#1e3a5f]/5' 
+                            : 'border-[#1e3a5f]/10 focus:border-[#1e3a5f]'
+                        }`}
                       />
                     </div>
                     <div>
@@ -654,11 +796,15 @@ export default function CheckoutModal({ isOpen, onClose }) {
                       <input
                         type="text"
                         value={newAddress.state}
-                        onChange={(e) => setNewAddress({ ...newAddress, state: e.target.value.toUpperCase() })}
-                        placeholder="PE"
+                        onChange={handleStateChange}
+                        placeholder="PB"
                         maxLength={2}
                         disabled={loadingCep}
-                        className="w-full bg-[#faf8f5] border border-[#1e3a5f]/10 rounded-xl px-3 py-2.5 text-[#1e3a5f] text-sm placeholder:text-[#1e3a5f]/30 focus:outline-none focus:border-[#1e3a5f] disabled:opacity-50"
+                        className={`w-full bg-[#faf8f5] border rounded-xl px-3 py-2.5 text-[#1e3a5f] text-sm placeholder:text-[#1e3a5f]/30 focus:outline-none disabled:opacity-50 uppercase ${
+                          deliveryAreaError 
+                            ? 'border-[#1e3a5f]/50 bg-[#1e3a5f]/5' 
+                            : 'border-[#1e3a5f]/10 focus:border-[#1e3a5f]'
+                        }`}
                       />
                     </div>
                   </div>
@@ -702,7 +848,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
             </button>
             <button
               onClick={handleContinueToPayment}
-              disabled={deliveryType === 'DELIVERY' && !selectedAddressId && !newAddress.street}
+              disabled={!canContinueToPayment()}
               className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] hover:from-[#162d4a] hover:to-[#1e3a5f] text-white font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-[#1e3a5f]/20"
             >
               Continuar

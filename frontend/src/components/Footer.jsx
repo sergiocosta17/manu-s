@@ -188,7 +188,7 @@ export default function Footer() {
             <ul className="space-y-4">
               <li>
                 <a
-                  href="https://maps.google.com/?q=R.+Humberto+Batista+Lima,+122+-+Catolé,+Campina+Grande+-+PB"
+                  href="https://maps.app.goo.gl/gyrGBL4qNVYE5ewW7"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-start gap-3 text-white/60 hover:text-white transition-colors group"
