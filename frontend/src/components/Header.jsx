@@ -11,9 +11,10 @@ export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  const userRole = localStorage.getItem('userRole');
+  // Estados de autenticação - reativo a mudanças
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));
+  const [userRole, setUserRole] = useState(localStorage.getItem('userRole'));
   const isAdmin = userRole === 'ADMIN';
-  const isLoggedIn = !!localStorage.getItem('token');
 
   // Extrai funções e dados do contexto do carrinho
   const { 
@@ -21,8 +22,18 @@ export default function Header() {
     cartTotalValue = 0,
     setIsCartOpen, 
     activeTrackingOrders, 
-    setIsTrackingOpen 
+    setIsTrackingOpen,
+    handleLogout: clearCartOnLogout,
+    currentUserId
   } = useCart?.() || {};
+
+  // Atualiza estado de login quando currentUserId muda
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('userRole');
+    setIsLoggedIn(!!token);
+    setUserRole(role);
+  }, [currentUserId, location.pathname]);
 
   // Estados para feedback visual (toast e confirm modal)
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -73,7 +84,20 @@ export default function Header() {
       'Sair da conta',
       'Tem certeza que deseja sair da sua conta?',
       () => {
-        localStorage.clear();
+        // Limpa o carrinho e fecha modais do contexto
+        clearCartOnLogout?.();
+        
+        // Limpa dados de autenticação do localStorage
+        localStorage.removeItem('token');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('userEmail');
+        
+        // Atualiza estados locais
+        setIsLoggedIn(false);
+        setUserRole(null);
+        
         closeConfirm();
         showToast('Você saiu da sua conta', 'info');
         setTimeout(() => navigate('/menu'), 500);

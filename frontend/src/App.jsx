@@ -1,6 +1,6 @@
 import React from 'react';
 import { Routes, Route, Outlet, Navigate } from 'react-router-dom';
-import { CartProvider } from './contexts/CartContext';
+import { CartProvider, useCart } from './contexts/CartContext';
 import Login from './pages/Login';
 import Menu from './pages/Menu';
 import Profile from './pages/Profile';
@@ -12,6 +12,7 @@ import MobileFooter from './components/MobileFooter';
 import Footer from './components/Footer';
 import GlobalModals from './components/GlobalModals';
 import ProductPage from './pages/ProductPage';
+import ConfirmModal from './components/ConfirmModal';
 
 // Componente para proteger rotas que exigem autenticação (qualquer usuário logado)
 function PrivateRoute({ children }) {
@@ -40,6 +41,24 @@ function AdminRoute({ children }) {
   return children;
 }
 
+// Modal de confirmação para remoção de itens do carrinho
+function CartConfirmModal() {
+  const { confirmModal, closeConfirmModal, confirmRemoval } = useCart();
+  
+  return (
+    <ConfirmModal
+      isOpen={confirmModal.isOpen}
+      onClose={closeConfirmModal}
+      onConfirm={confirmRemoval}
+      title="Remover item?"
+      message="Tem certeza que deseja remover este item do carrinho?"
+      product={confirmModal.product}
+      confirmText="Remover"
+      cancelText="Manter"
+    />
+  );
+}
+
 // Layout principal que envolve as rotas com Header, Footer e Modais globais
 function AppLayout() {
   return (
@@ -51,6 +70,7 @@ function AppLayout() {
       <Footer />
       <MobileFooter />
       <GlobalModals />
+      <CartConfirmModal />
     </div>
   );
 }

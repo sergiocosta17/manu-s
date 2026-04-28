@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useCart } from '../contexts/CartContext';
 
 import bgImage from '../assets/manus-chuva-de-hamburger.png';
 import bgImage2 from '../assets/logo-manus-sem-personagem.png';
@@ -17,6 +18,9 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Importa a função handleLogin do contexto do carrinho
+  const { handleLogin: loadUserCart } = useCart();
 
   useEffect(() => {
     const mode = searchParams.get('mode');
@@ -68,8 +72,15 @@ export default function Login() {
       if (result.errors) throw new Error(result.errors[0].message);
 
       const data = isLogin ? result.data.login : result.data.signup;
+      
+      // Salva dados no localStorage
       localStorage.setItem('token', data.token);
+      localStorage.setItem('userId', data.user.id);
+      localStorage.setItem('userName', data.user.name);
       localStorage.setItem('userRole', data.user.role);
+      
+      // Carrega o carrinho do usuário
+      loadUserCart(data.user.id);
       
       const pendingProduct = sessionStorage.getItem('pendingProduct');
       if (pendingProduct) {
