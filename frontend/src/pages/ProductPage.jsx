@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
+import ConfirmModal from '../components/ConfirmModal';
 import backgroundImage from '../assets/hamburgueres-de-fundo-16x9.png';
 
 // ÍCONES SVG
@@ -43,6 +44,16 @@ const Icons = {
   Clock: ({ className = "w-5 h-5" }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  Trash: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
+  ),
+  ShoppingBag: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
     </svg>
   ),
 };
@@ -102,7 +113,7 @@ const DAY_LABELS_PT = {
 export default function ProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addToCart } = useCart();
+  const { cart, addToCart, updateQuantity, removeFromCartDirect, setIsCartOpen } = useCart();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -115,9 +126,23 @@ export default function ProductPage() {
   const [storeHoursMessage, setStoreHoursMessage] = useState('');
   const [todayHours, setTodayHours] = useState(null);
   const [isClosingSoon, setIsClosingSoon] = useState(false);
+
+  const [removeModal, setRemoveModal] = useState({
+    isOpen: false,
+    product: null
+  });
   
   const isAddingRef = useRef(false);
   const isAdmin = localStorage.getItem('userRole') === 'ADMIN';
+
+  const getCartItem = () => {
+    if (!product) return null;
+    return cart.find(item => item.id === product.id);
+  };
+
+  const cartItem = getCartItem();
+  const isInCart = !!cartItem;
+  const quantityInCart = cartItem?.quantity || 0;
 
   const checkStoreOpen = (businessHours) => {
     if (!businessHours) {
@@ -309,6 +334,10 @@ export default function ProductPage() {
     return getCurrentPrice() * quantity;
   };
 
+  const getCartTotal = () => {
+    return getCurrentPrice() * quantityInCart;
+  };
+
   const getDiscountPercent = () => {
     if (!hasValidPromoPrice(product)) return 0;
     const original = Number(product.price);
@@ -337,6 +366,45 @@ export default function ProductPage() {
       setAddedToCart(false);
       isAddingRef.current = false;
     }, 2000);
+  };
+
+  const handleIncrementInCart = () => {
+    if (!product || !isStoreOpen) return;
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    
+    if (isInCart) {
+      updateQuantity(product.id, quantityInCart + 1, cartItem?.observation || '');
+    } else {
+      addToCart(product, 1, '');
+    }
+  };
+
+  const handleDecrementInCart = () => {
+    if (!product || !isStoreOpen || !isInCart) return;
+    
+    if (quantityInCart <= 1) {
+      setRemoveModal({
+        isOpen: true,
+        product: {
+          ...product,
+          quantity: quantityInCart
+        }
+      });
+    } else {
+      updateQuantity(product.id, quantityInCart - 1, cartItem?.observation || '');
+    }
+  };
+
+  const handleConfirmRemove = () => {
+    if (removeModal.product) {
+      removeFromCartDirect(removeModal.product.id, cartItem?.observation || '');
+    }
+    setRemoveModal({ isOpen: false, product: null });
   };
 
   const incrementQuantity = () => {
@@ -421,10 +489,19 @@ export default function ProductPage() {
     >
       <div className="fixed inset-0 bg-[#faf8f5]/85 pointer-events-none z-0"></div>
 
-      {/* Espaçador para navbar fixa */}
+      <ConfirmModal
+        isOpen={removeModal.isOpen}
+        onClose={() => setRemoveModal({ isOpen: false, product: null })}
+        onConfirm={handleConfirmRemove}
+        title="Remover item?"
+        message="Tem certeza que deseja remover este item do carrinho?"
+        product={removeModal.product}
+        confirmText="Remover"
+        cancelText="Manter"
+      />
+
       <div className="h-20"></div>
 
-      {/* Aviso de Loja Fechada */}
       {!isStoreOpen && (
         <div className="relative z-20 max-w-5xl mx-auto px-4 pt-4 pb-2">
           <div className="bg-[#1e3a5f]/10 border border-[#1e3a5f]/20 rounded-xl px-4 py-3 flex items-center gap-3">
@@ -437,7 +514,6 @@ export default function ProductPage() {
         </div>
       )}
 
-      {/* Aviso de Fechando em Breve */}
       {isStoreOpen && isClosingSoon && (
         <div className="relative z-20 max-w-5xl mx-auto px-4 pt-4 pb-2">
           <div className="bg-[#1e3a5f]/10 border border-[#1e3a5f]/20 rounded-xl px-4 py-3 flex items-center gap-3">
@@ -453,13 +529,10 @@ export default function ProductPage() {
         </div>
       )}
 
-      {/* Conteúdo principal */}
       <main className="relative z-10 max-w-5xl mx-auto px-4 py-6 md:py-10">
         <div className="grid md:grid-cols-2 gap-8 md:gap-12">
           
-          {/* Coluna da imagem com botão voltar ao lado */}
           <div className="flex gap-4">
-            {/* Botão Voltar - Lateral */}
             <button
               onClick={() => navigate(-1)}
               className="hidden md:flex w-12 h-12 bg-white rounded-xl items-center justify-center shadow-md hover:shadow-lg transition-all border border-[#1e3a5f]/10 flex-shrink-0 self-start"
@@ -467,9 +540,7 @@ export default function ProductPage() {
               <Icons.ArrowLeft className="w-5 h-5 text-[#1e3a5f]" />
             </button>
 
-            {/* Container da imagem */}
             <div className="flex-grow">
-              {/* Botão Voltar Mobile - acima da imagem */}
               <button
                 onClick={() => navigate(-1)}
                 className="md:hidden w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-md hover:shadow-lg transition-all border border-[#1e3a5f]/10 mb-4"
@@ -490,18 +561,22 @@ export default function ProductPage() {
                   </div>
                 )}
 
-                {/* Badge de desconto */}
                 {showPromoPrice && (
                   <div className="absolute top-4 left-4 bg-[#1e3a5f] text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
                     <Icons.Fire className="w-4 h-4" />
                     <span>-{getDiscountPercent()}% OFF</span>
                   </div>
                 )}
+
+                {isInCart && (
+                  <div className="absolute top-4 right-4 bg-[#1e3a5f] text-white text-sm font-bold w-10 h-10 rounded-full shadow-lg flex items-center justify-center">
+                    {quantityInCart}
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Coluna de informações e ações */}
           <div className="flex flex-col">
             {product.category && (
               <span className="inline-block self-start px-3 py-1 bg-white/80 text-[#1e3a5f]/60 text-xs font-medium rounded-full mb-3 backdrop-blur-sm">
@@ -517,7 +592,6 @@ export default function ProductPage() {
               {product.description || 'Delicioso smash burger artesanal, preparado com ingredientes selecionados e muito carinho.'}
             </p>
 
-            {/* Bloco de preço */}
             <div className="bg-white rounded-2xl p-5 border border-[#1e3a5f]/5 mb-6 shadow-sm">
               <div className="flex items-end gap-3">
                 {showPromoPrice ? (
@@ -542,88 +616,147 @@ export default function ProductPage() {
               )}
             </div>
 
-            {/* Área de ações - Apenas para clientes */}
             {!isAdmin && (
               <>
-                {/* Seletor de quantidade */}
-                <div className={`bg-white rounded-2xl p-5 border border-[#1e3a5f]/5 mb-6 shadow-sm ${!isStoreOpen ? 'opacity-50 pointer-events-none' : ''}`}>
-                  <p className="text-sm text-[#1e3a5f]/50 mb-3">Quantidade</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <button
-                        onClick={decrementQuantity}
-                        disabled={quantity <= 1 || !isStoreOpen}
-                        className="w-12 h-12 bg-[#faf8f5] rounded-xl flex items-center justify-center border border-[#1e3a5f]/10 hover:bg-[#1e3a5f]/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                      >
-                        <Icons.Minus className="w-5 h-5 text-[#1e3a5f]" />
-                      </button>
-                      <span className="text-2xl font-bold text-[#1e3a5f] w-8 text-center">
-                        {quantity}
-                      </span>
-                      <button
-                        onClick={incrementQuantity}
-                        disabled={quantity >= 999 || !isStoreOpen}
-                        className="w-12 h-12 bg-[#faf8f5] rounded-xl flex items-center justify-center border border-[#1e3a5f]/10 hover:bg-[#1e3a5f]/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                      >
-                        <Icons.Plus className="w-5 h-5 text-[#1e3a5f]" />
-                      </button>
+                {isInCart ? (
+                  <>
+                    <div className="bg-[#1e3a5f]/5 border-2 border-[#1e3a5f]/20 rounded-2xl p-5 mb-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 bg-[#1e3a5f] rounded-full flex items-center justify-center">
+                          <Icons.Check className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#1e3a5f]">Item no carrinho</p>
+                          <p className="text-sm text-[#1e3a5f]/60">Ajuste a quantidade abaixo</p>
+                        </div>
+                      </div>
+
+                      <div className={`flex items-center justify-between ${!isStoreOpen ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={handleDecrementInCart}
+                            disabled={!isStoreOpen}
+                            className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-[#1e3a5f]/10 hover:bg-[#1e3a5f]/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-sm"
+                          >
+                            <Icons.Minus className="w-5 h-5 text-[#1e3a5f]" />
+                          </button>
+                          <span className="text-2xl font-bold text-[#1e3a5f] w-10 text-center">
+                            {quantityInCart}
+                          </span>
+                          <button
+                            onClick={handleIncrementInCart}
+                            disabled={!isStoreOpen}
+                            className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-[#1e3a5f]/10 hover:bg-[#1e3a5f]/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-sm"
+                          >
+                            <Icons.Plus className="w-5 h-5 text-[#1e3a5f]" />
+                          </button>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-[#1e3a5f]/40">Total no carrinho</p>
+                          <p className="text-xl font-bold text-[#1e3a5f]">
+                            R$ {getCartTotal().toFixed(2).replace('.', ',')}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm text-[#1e3a5f]/40">Total</p>
-                      <p className="text-xl font-bold text-[#1e3a5f]">
-                        R$ {getTotal().toFixed(2).replace('.', ',')}
+
+                    <button
+                      onClick={() => setIsCartOpen(true)}
+                      className="w-full py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-3 bg-[#1e3a5f] text-white hover:bg-[#162d4a] shadow-lg shadow-[#1e3a5f]/20 mb-3"
+                    >
+                      <Icons.ShoppingBag className="w-5 h-5" />
+                      <span>Ver Carrinho</span>
+                    </button>
+
+                    <button
+                      onClick={() => setRemoveModal({ isOpen: true, product: { ...product, quantity: quantityInCart } })}
+                      disabled={!isStoreOpen}
+                      className="w-full py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 text-[#1e3a5f]/60 hover:text-[#1e3a5f] hover:bg-[#1e3a5f]/5 disabled:opacity-30"
+                    >
+                      <Icons.Trash className="w-4 h-4" />
+                      <span>Remover do Carrinho</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className={`bg-white rounded-2xl p-5 border border-[#1e3a5f]/5 mb-6 shadow-sm ${!isStoreOpen ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <p className="text-sm text-[#1e3a5f]/50 mb-3">Quantidade</p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <button
+                            onClick={decrementQuantity}
+                            disabled={quantity <= 1 || !isStoreOpen}
+                            className="w-12 h-12 bg-[#faf8f5] rounded-xl flex items-center justify-center border border-[#1e3a5f]/10 hover:bg-[#1e3a5f]/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <Icons.Minus className="w-5 h-5 text-[#1e3a5f]" />
+                          </button>
+                          <span className="text-2xl font-bold text-[#1e3a5f] w-8 text-center">
+                            {quantity}
+                          </span>
+                          <button
+                            onClick={incrementQuantity}
+                            disabled={quantity >= 999 || !isStoreOpen}
+                            className="w-12 h-12 bg-[#faf8f5] rounded-xl flex items-center justify-center border border-[#1e3a5f]/10 hover:bg-[#1e3a5f]/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <Icons.Plus className="w-5 h-5 text-[#1e3a5f]" />
+                          </button>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-[#1e3a5f]/40">Total</p>
+                          <p className="text-xl font-bold text-[#1e3a5f]">
+                            R$ {getTotal().toFixed(2).replace('.', ',')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={`bg-white rounded-2xl p-5 border border-[#1e3a5f]/5 mb-6 shadow-sm ${!isStoreOpen ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <p className="text-sm text-[#1e3a5f]/50 mb-3">
+                        Observações para o pedido (opcional)
                       </p>
+                      <textarea
+                        value={observations}
+                        onChange={(e) => setObservations(e.target.value)}
+                        placeholder="Ex: sem cebola, molho separado..."
+                        maxLength={200}
+                        disabled={!isStoreOpen}
+                        className="w-full h-24 resize-none rounded-xl border border-[#1e3a5f]/10 p-3 text-sm outline-none focus:border-[#1e3a5f] bg-[#faf8f5] disabled:cursor-not-allowed"
+                      />
+                      <div className="text-right text-xs text-[#1e3a5f]/30 mt-1">
+                        {observations.length}/200
+                      </div>
                     </div>
-                  </div>
-                </div>
 
-                {/* Campo de observações */}
-                <div className={`bg-white rounded-2xl p-5 border border-[#1e3a5f]/5 mb-6 shadow-sm ${!isStoreOpen ? 'opacity-50 pointer-events-none' : ''}`}>
-                  <p className="text-sm text-[#1e3a5f]/50 mb-3">
-                    Observações para o pedido (opcional)
-                  </p>
-                  <textarea
-                    value={observations}
-                    onChange={(e) => setObservations(e.target.value)}
-                    placeholder="Ex: sem cebola, molho separado..."
-                    maxLength={200}
-                    disabled={!isStoreOpen}
-                    className="w-full h-24 resize-none rounded-xl border border-[#1e3a5f]/10 p-3 text-sm outline-none focus:border-[#1e3a5f] bg-[#faf8f5] disabled:cursor-not-allowed"
-                  />
-                  <div className="text-right text-xs text-[#1e3a5f]/30 mt-1">
-                    {observations.length}/200
-                  </div>
-                </div>
-
-                {/* Botão de adicionar ao carrinho */}
-                <button
-                  onClick={handleAddToCart}
-                  disabled={addedToCart || !isStoreOpen}
-                  className={`w-full py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-3 ${
-                    !isStoreOpen
-                      ? 'bg-[#1e3a5f]/30 text-white/50 cursor-not-allowed'
-                      : addedToCart
-                        ? 'bg-[#1e3a5f] text-white cursor-not-allowed'
-                        : 'bg-[#1e3a5f] text-white hover:bg-[#162d4a] shadow-lg shadow-[#1e3a5f]/20'
-                  }`}
-                >
-                  {!isStoreOpen ? (
-                    <>
-                      <Icons.Clock className="w-5 h-5" />
-                      <span>Loja Fechada</span>
-                    </>
-                  ) : addedToCart ? (
-                    <>
-                      <Icons.Check className="w-5 h-5" />
-                      <span>Adicionado ao Carrinho!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Icons.Cart className="w-5 h-5" />
-                      <span>Adicionar ao Carrinho</span>
-                    </>
-                  )}
-                </button>
+                    <button
+                      onClick={handleAddToCart}
+                      disabled={addedToCart || !isStoreOpen}
+                      className={`w-full py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-3 ${
+                        !isStoreOpen
+                          ? 'bg-[#1e3a5f]/30 text-white/50 cursor-not-allowed'
+                          : addedToCart
+                            ? 'bg-[#1e3a5f] text-white cursor-not-allowed'
+                            : 'bg-[#1e3a5f] text-white hover:bg-[#162d4a] shadow-lg shadow-[#1e3a5f]/20'
+                      }`}
+                    >
+                      {!isStoreOpen ? (
+                        <>
+                          <Icons.Clock className="w-5 h-5" />
+                          <span>Loja Fechada</span>
+                        </>
+                      ) : addedToCart ? (
+                        <>
+                          <Icons.Check className="w-5 h-5" />
+                          <span>Adicionado ao Carrinho!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Icons.Cart className="w-5 h-5" />
+                          <span>Adicionar ao Carrinho</span>
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
               </>
             )}
           </div>

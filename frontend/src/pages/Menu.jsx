@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
+import ConfirmModal from '../components/ConfirmModal';
 import backgroundImage from '../assets/hamburgueres-de-fundo-16x9.png';
 
 // ÍCONES SVG
@@ -13,6 +14,11 @@ const Icons = {
   Plus: ({ className = "w-5 h-5" }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+    </svg>
+  ),
+  Minus: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20 12H4" />
     </svg>
   ),
   Cart: ({ className = "w-5 h-5" }) => (
@@ -193,6 +199,12 @@ export default function Menu() {
   const [businessHours, setBusinessHours] = useState(null);
   const [storeStatus, setStoreStatus] = useState({ isOpen: true, message: '', closingSoon: false, opensAt: '', closesAt: '' });
 
+  // Estado para modal de confirmação de remoção
+  const [removeModal, setRemoveModal] = useState({
+    isOpen: false,
+    product: null
+  });
+
   const navigate = useNavigate();
   const userRole = localStorage.getItem('userRole');
   const isAdmin = userRole === 'ADMIN';
@@ -203,6 +215,8 @@ export default function Menu() {
     setIsCartOpen,
     addToCart,
     removeFromCart,
+    removeFromCartDirect,
+    updateQuantity,
     clearCart,
     cartItemsCount,
     cartTotalValue,
@@ -223,6 +237,17 @@ export default function Menu() {
     { id: 'DRINK', label: 'Bebidas' },
     { id: 'DESSERT', label: 'Doces' },
   ];
+
+  // Função para obter quantidade do produto no carrinho
+  const getProductQuantityInCart = (productId) => {
+    const cartItem = cart.find(item => item.id === productId);
+    return cartItem ? cartItem.quantity : 0;
+  };
+
+  // Função para obter item do carrinho
+  const getCartItem = (productId) => {
+    return cart.find(item => item.id === productId);
+  };
 
   useEffect(() => {
     const fetchBusinessHours = async () => {
@@ -390,6 +415,56 @@ export default function Menu() {
     addToCart(product);
   };
 
+  // Função para incrementar quantidade
+  const handleIncrement = (e, product) => {
+    e.stopPropagation();
+    
+    if (!storeStatus.isOpen) {
+      alert('A loja está fechada no momento.');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
+    addToCart(product);
+  };
+
+  // Função para decrementar quantidade
+  const handleDecrement = (e, product) => {
+    e.stopPropagation();
+    
+    const currentQty = getProductQuantityInCart(product.id);
+    const cartItem = getCartItem(product.id);
+    
+    if (currentQty <= 1) {
+      // Abre modal de confirmação
+      setRemoveModal({
+        isOpen: true,
+        product: {
+          ...product,
+          imageUrl: product.imageUrl,
+          quantity: currentQty
+        }
+      });
+    } else {
+      // Apenas decrementa
+      updateQuantity(product.id, currentQty - 1, cartItem?.observation || '');
+    }
+  };
+
+  // Função para confirmar remoção
+  const handleConfirmRemove = () => {
+    if (removeModal.product) {
+      const cartItem = getCartItem(removeModal.product.id);
+      removeFromCartDirect(removeModal.product.id, cartItem?.observation || '');
+    }
+    setRemoveModal({ isOpen: false, product: null });
+  };
+
   const safeProducts = Array.isArray(products) ? products : [];
 
   const filteredProducts = activeCategory === 'FEATURED'
@@ -429,6 +504,18 @@ export default function Menu() {
       <div className="absolute inset-0 bg-[#faf8f5]/85 pointer-events-none"></div>
 
       <div className="relative z-10 h-20"></div>
+
+      {/* Modal de confirmação de remoção */}
+      <ConfirmModal
+        isOpen={removeModal.isOpen}
+        onClose={() => setRemoveModal({ isOpen: false, product: null })}
+        onConfirm={handleConfirmRemove}
+        title="Remover item?"
+        message="Tem certeza que deseja remover este item do carrinho?"
+        product={removeModal.product}
+        confirmText="Remover"
+        cancelText="Manter"
+      />
 
       <main className="relative z-10 flex-grow w-full max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
 
@@ -630,85 +717,141 @@ export default function Menu() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-              {filteredProducts.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => handleProductClick(p.id)}
-                  className="bg-white rounded-2xl md:rounded-3xl shadow-sm hover:shadow-xl hover:shadow-[#1e3a5f]/8 border border-[#1e3a5f]/5 flex flex-col overflow-hidden transition-all duration-500 group hover:-translate-y-1 relative cursor-pointer"
-                >
-                  {/* Badges - TEMA AZUL MARINHO */}
-                  <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
-                    {hasValidPromoPrice(p) && (
-                      <div className="bg-[#1e3a5f] text-white text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-lg">
-                        Oferta
-                      </div>
-                    )}
-                    {p.isFeatured && activeCategory !== 'FEATURED' && (
-                      <div className="bg-[#1e3a5f]/80 text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-md">
-                        <Icons.Star className="w-3 h-3" />
-                        Destaque
-                      </div>
-                    )}
-                  </div>
+              {filteredProducts.map((p) => {
+                const quantityInCart = getProductQuantityInCart(p.id);
+                const isInCart = quantityInCart > 0;
 
-                  <div className="h-44 md:h-52 bg-gradient-to-br from-[#f5f3f0] to-[#ebe8e4] relative overflow-hidden">
-                    {p.imageUrl ? (
-                      <img
-                        src={p.imageUrl}
-                        alt={p.name}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Icons.Burger className="w-16 h-16 text-[#1e3a5f]/20 group-hover:scale-125 transition-transform duration-500" />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-5 md:p-6 flex-grow flex flex-col">
-                    <h3 className="text-base md:text-lg font-bold text-[#1e3a5f] leading-tight mb-2 line-clamp-2 group-hover:text-[#1e3a5f] transition-colors">
-                      {p.name}
-                    </h3>
-                    <p className="text-[#1e3a5f]/40 text-xs md:text-sm mb-5 line-clamp-2 leading-relaxed">
-                      {p.description || 'Delicioso smash burger artesanal.'}
-                    </p>
-
-                    <div className="mt-auto flex items-end justify-between">
-                      <div className="flex flex-col">
-                        {hasValidPromoPrice(p) ? (
-                          <>
-                            <span className="text-[#1e3a5f]/30 line-through text-xs font-medium">
-                              R$ {Number(p.price || 0).toFixed(2).replace('.', ',')}
-                            </span>
-                            <span className="text-2xl font-bold text-[#1e3a5f]">
-                              R$ {Number(p.promotionalPrice).toFixed(2).replace('.', ',')}
-                            </span>
-                          </>
-                        ) : (
-                          <span className="text-2xl font-bold text-[#1e3a5f]">
-                            R$ {Number(p.price || 0).toFixed(2).replace('.', ',')}
-                          </span>
-                        )}
-                      </div>
-
-                      {!isAdmin && (
-                        <button
-                          onClick={(e) => handleAddToCart(e, p)}
-                          disabled={!storeStatus.isOpen}
-                          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 shadow-lg active:scale-95 group/btn ${
-                            storeStatus.isOpen
-                              ? 'bg-[#1e3a5f] hover:bg-[#162d4a] text-white shadow-[#1e3a5f]/20 hover:shadow-xl hover:shadow-[#1e3a5f]/30'
-                              : 'bg-[#1e3a5f]/30 text-white/50 cursor-not-allowed shadow-[#1e3a5f]/10'
-                          }`}
-                          title={storeStatus.isOpen ? 'Adicionar ao carrinho' : 'Loja fechada'}
-                        >
-                          <Icons.Plus className={`w-5 h-5 ${storeStatus.isOpen ? 'group-hover/btn:scale-110' : ''} transition-transform`} />
-                        </button>
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => handleProductClick(p.id)}
+                    className="bg-white rounded-2xl md:rounded-3xl shadow-sm hover:shadow-xl hover:shadow-[#1e3a5f]/8 border border-[#1e3a5f]/5 flex flex-col overflow-hidden transition-all duration-500 group hover:-translate-y-1 relative cursor-pointer"
+                  >
+                    {/* Badges */}
+                    <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
+                      {hasValidPromoPrice(p) && (
+                        <div className="bg-[#1e3a5f] text-white text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider shadow-lg">
+                          Oferta
+                        </div>
+                      )}
+                      {p.isFeatured && activeCategory !== 'FEATURED' && (
+                        <div className="bg-[#1e3a5f]/80 text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-md">
+                          <Icons.Star className="w-3 h-3" />
+                          Destaque
+                        </div>
                       )}
                     </div>
+
+                    {/* Badge de quantidade no carrinho */}
+                    {isInCart && (
+                      <div className="absolute top-3 right-3 z-10">
+                        <div className="bg-[#1e3a5f] text-white text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center shadow-lg">
+                          {quantityInCart}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="h-44 md:h-52 bg-gradient-to-br from-[#f5f3f0] to-[#ebe8e4] relative overflow-hidden">
+                      {p.imageUrl ? (
+                        <img
+                          src={p.imageUrl}
+                          alt={p.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Icons.Burger className="w-16 h-16 text-[#1e3a5f]/20 group-hover:scale-125 transition-transform duration-500" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-5 md:p-6 flex-grow flex flex-col">
+                      <h3 className="text-base md:text-lg font-bold text-[#1e3a5f] leading-tight mb-2 line-clamp-2 group-hover:text-[#1e3a5f] transition-colors">
+                        {p.name}
+                      </h3>
+                      <p className="text-[#1e3a5f]/40 text-xs md:text-sm mb-5 line-clamp-2 leading-relaxed">
+                        {p.description || 'Delicioso smash burger artesanal.'}
+                      </p>
+
+                      <div className="mt-auto flex items-end justify-between">
+                        <div className="flex flex-col">
+                          {hasValidPromoPrice(p) ? (
+                            <>
+                              <span className="text-[#1e3a5f]/30 line-through text-xs font-medium">
+                                R$ {Number(p.price || 0).toFixed(2).replace('.', ',')}
+                              </span>
+                              <span className="text-2xl font-bold text-[#1e3a5f]">
+                                R$ {Number(p.promotionalPrice).toFixed(2).replace('.', ',')}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-2xl font-bold text-[#1e3a5f]">
+                              R$ {Number(p.price || 0).toFixed(2).replace('.', ',')}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Botão de adicionar ou contador de quantidade */}
+                        {!isAdmin && (
+                          <>
+                            {isInCart ? (
+                              // Contador de quantidade
+                              <div 
+                                className="flex items-center gap-1 bg-[#1e3a5f] rounded-xl overflow-hidden shadow-lg shadow-[#1e3a5f]/20"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  onClick={(e) => handleDecrement(e, p)}
+                                  disabled={!storeStatus.isOpen}
+                                  className={`w-10 h-10 flex items-center justify-center transition-all ${
+                                    storeStatus.isOpen
+                                      ? 'text-white hover:bg-white/10 active:scale-95'
+                                      : 'text-white/30 cursor-not-allowed'
+                                  }`}
+                                  title="Diminuir quantidade"
+                                >
+                                  <Icons.Minus className="w-4 h-4" />
+                                </button>
+                                
+                                <span className="w-8 text-center text-white font-bold text-sm">
+                                  {quantityInCart}
+                                </span>
+                                
+                                <button
+                                  onClick={(e) => handleIncrement(e, p)}
+                                  disabled={!storeStatus.isOpen}
+                                  className={`w-10 h-10 flex items-center justify-center transition-all ${
+                                    storeStatus.isOpen
+                                      ? 'text-white hover:bg-white/10 active:scale-95'
+                                      : 'text-white/30 cursor-not-allowed'
+                                  }`}
+                                  title="Aumentar quantidade"
+                                >
+                                  <Icons.Plus className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              // Botão de adicionar
+                              <button
+                                onClick={(e) => handleAddToCart(e, p)}
+                                disabled={!storeStatus.isOpen}
+                                className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 shadow-lg active:scale-95 group/btn ${
+                                  storeStatus.isOpen
+                                    ? 'bg-[#1e3a5f] hover:bg-[#162d4a] text-white shadow-[#1e3a5f]/20 hover:shadow-xl hover:shadow-[#1e3a5f]/30'
+                                    : 'bg-[#1e3a5f]/30 text-white/50 cursor-not-allowed shadow-[#1e3a5f]/10'
+                                }`}
+                                title={storeStatus.isOpen ? 'Adicionar ao carrinho' : 'Loja fechada'}
+                              >
+                                <Icons.Plus className={`w-5 h-5 ${storeStatus.isOpen ? 'group-hover/btn:scale-110' : ''} transition-transform`} />
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {filteredProducts.length === 0 && (
@@ -878,7 +1021,7 @@ export default function Menu() {
               ) : (
                 cart.map((item) => (
                   <div
-                    key={item.id}
+                    key={`${item.id}-${item.observation || ''}`}
                     className="bg-white p-4 rounded-2xl border border-[#1e3a5f]/5 flex items-center gap-4 group hover:shadow-lg hover:shadow-[#1e3a5f]/5 transition-all"
                   >
                     <div className="w-16 h-16 bg-gradient-to-br from-[#f5f3f0] to-[#ebe8e4] rounded-xl overflow-hidden flex-shrink-0">
@@ -894,16 +1037,43 @@ export default function Menu() {
                     <div className="flex-grow min-w-0">
                       <h4 className="font-semibold text-[#1e3a5f] truncate">{item.name}</h4>
                       <p className="text-[#1e3a5f] font-bold mt-1">
-                        R$ {((hasValidPromoPrice(item) ? Number(item.promotionalPrice) : Number(item.price)) * item.quantity).toFixed(2).replace('.', ',')}
+                        R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <span className="bg-[#faf8f5] text-[#1e3a5f] px-3 py-1.5 rounded-lg text-sm font-bold border border-[#1e3a5f]/10">
-                        x{item.quantity}
-                      </span>
+                    <div className="flex items-center gap-2">
+                      {/* Contador no carrinho sidebar */}
+                      <div className="flex items-center gap-1 bg-[#faf8f5] rounded-lg border border-[#1e3a5f]/10">
+                        <button
+                          onClick={() => {
+                            if (item.quantity <= 1) {
+                              setRemoveModal({
+                                isOpen: true,
+                                product: item
+                              });
+                            } else {
+                              updateQuantity(item.id, item.quantity - 1, item.observation || '');
+                            }
+                          }}
+                          disabled={!storeStatus.isOpen}
+                          className="w-8 h-8 flex items-center justify-center text-[#1e3a5f] hover:bg-[#1e3a5f]/5 rounded-l-lg transition-all disabled:opacity-30"
+                        >
+                          <Icons.Minus className="w-3 h-3" />
+                        </button>
+                        <span className="w-6 text-center text-[#1e3a5f] font-bold text-sm">
+                          {item.quantity}
+                        </span>
+                        <button
+                          onClick={() => updateQuantity(item.id, item.quantity + 1, item.observation || '')}
+                          disabled={!storeStatus.isOpen}
+                          className="w-8 h-8 flex items-center justify-center text-[#1e3a5f] hover:bg-[#1e3a5f]/5 rounded-r-lg transition-all disabled:opacity-30"
+                        >
+                          <Icons.Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                      
                       <button
-                        onClick={() => removeFromCart(item.id)}
+                        onClick={() => setRemoveModal({ isOpen: true, product: item })}
                         className="text-[#1e3a5f]/40 hover:text-[#1e3a5f] hover:bg-[#1e3a5f]/5 w-8 h-8 rounded-lg flex items-center justify-center transition-all"
                       >
                         <Icons.Trash className="w-4 h-4" />
