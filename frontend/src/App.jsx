@@ -14,6 +14,14 @@ import GlobalModals from './components/GlobalModals';
 import ProductPage from './pages/ProductPage';
 import ConfirmModal from './components/ConfirmModal';
 
+// Páginas institucionais
+import AboutPage from './pages/AboutPage';
+import CareersPage from './pages/CareersPage';
+import FAQPage from './pages/FAQPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import CookiePolicyPage from './pages/CookiePolicyPage';
+import TermsOfUsePage from './pages/TermsOfUsePage';
+
 // Componente para proteger rotas que exigem autenticação (qualquer usuário logado)
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token');
@@ -83,15 +91,23 @@ function App() {
         {/* Redireciona a raiz para o cardápio */}
         <Route path="/" element={<Navigate to="/menu" replace />} />
         
-        {/* Login como rota separada*/}
+        {/* Login como rota separada */}
         <Route path="/login" element={<Login />} />
         
-        {/* Rotas que utilizam o layout padrão*/}
+        {/* Rotas que utilizam o layout padrão */}
         <Route element={<AppLayout />}>
           {/* Rotas públicas - acessíveis sem autenticação */}
           <Route path="/menu" element={<Menu />} />
           <Route path="/product/:id" element={<ProductPage />} />
           <Route path="/promotions" element={<Promotions />} />
+          
+          {/* Páginas institucionais - públicas */}
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/careers" element={<CareersPage />} />
+          <Route path="/faq" element={<FAQPage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/cookies" element={<CookiePolicyPage />} />
+          <Route path="/terms" element={<TermsOfUsePage />} />
           
           {/* Rota protegida - exige login */}
           <Route path="/profile" element={
