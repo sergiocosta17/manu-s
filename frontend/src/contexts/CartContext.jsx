@@ -1,9 +1,8 @@
+// contexts/CartContext.jsx
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 
-// Criação do contexto do carrinho
 const CartContext = createContext();
 
-// Hook personalizado para acessar o contexto do carrinho
 export function useCart() {
   const context = useContext(CartContext);
   if (!context) {
@@ -12,31 +11,33 @@ export function useCart() {
   return context;
 }
 
-// Provider que encapsula toda a lógica do carrinho e pedidos
 export function CartProvider({ children }) {
-  // Estados do carrinho e UI
   const [cart, setCart] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
   const [myOrders, setMyOrders] = useState([]);
   
-  // Ref para evitar chamadas duplicadas causadas pelo StrictMode do React
+  // Estados para cupom e cashback
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponFreeShipping, setCouponFreeShipping] = useState(false);
+  const [cashbackToUse, setCashbackToUse] = useState(0);
+  const [userCashbackBalance, setUserCashbackBalance] = useState(0);
+  const [cashbackSettings, setCashbackSettings] = useState(null);
+  
   const addingRef = useRef(false);
+  const confirmingRef = useRef(false);
 
-  // Adiciona um produto ao carrinho (com quantidade e observação opcional)
   const addToCart = useCallback((product, quantity = 1, observation = '') => {
-    // Previne chamada dupla do StrictMode
     if (addingRef.current) return;
     addingRef.current = true;
     
     setCart((prevCart) => {
-      // Verifica se o item já existe (mesmo id e mesma observação)
       const existingIndex = prevCart.findIndex(
         (item) => item.id === product.id && item.observation === observation
       );
       
       if (existingIndex > -1) {
-        // Se existe, apenas incrementa a quantidade
         const updated = prevCart.map((item, index) => 
           index === existingIndex 
             ? { ...item, quantity: item.quantity + quantity }
@@ -45,30 +46,27 @@ export function CartProvider({ children }) {
         return updated;
       }
       
-      // Se não existe, adiciona novo item ao carrinho
       return [
         ...prevCart,
         {
           id: product.id,
           name: product.name,
-          // Usa preço promocional se disponível, senão o preço normal
           price: Number(product.promotionalPrice) > 0 
             ? Number(product.promotionalPrice) 
             : Number(product.price),
           imageUrl: product.imageUrl,
           quantity,
           observation,
+          category: product.category,
         },
       ];
     });
     
-    // Libera o bloqueio após um pequeno delay
     setTimeout(() => {
       addingRef.current = false;
     }, 100);
   }, []);
 
-  // Remove um item do carrinho (baseado em id e observação)
   const removeFromCart = useCallback((productId, observation = '') => {
     setCart((prevCart) => 
       prevCart.filter(
@@ -77,7 +75,6 @@ export function CartProvider({ children }) {
     );
   }, []);
 
-  // Atualiza a quantidade de um item no carrinho
   const updateQuantity = useCallback((productId, quantity, observation = '') => {
     if (quantity <= 0) {
       removeFromCart(productId, observation);
@@ -92,32 +89,153 @@ export function CartProvider({ children }) {
     );
   }, [removeFromCart]);
 
-  // Limpa completamente o carrinho
   const clearCart = useCallback(() => {
     setCart([]);
+    setAppliedCoupon(null);
+    setCouponDiscount(0);
+    setCouponFreeShipping(false);
+    setCashbackToUse(0);
   }, []);
 
-  // Calcula o número total de itens no carrinho
+  const clearCoupon = useCallback(() => {
+    setAppliedCoupon(null);
+    setCouponDiscount(0);
+    setCouponFreeShipping(false);
+  }, []);
+
+  const clearCashbackToUse = useCallback(() => {
+    setCashbackToUse(0);
+  }, []);
+
+  const fetchCashbackBalance = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const response = await fetch('http://localhost:4000/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          query: `query {
+            myCashbackSummary {
+              balance
+              pendingExpiration
+              nextExpirationDate
+              totalEarned
+              isEnabled
+              currentCampaign {
+                id
+                name
+                description
+                multiplier
+                fixedPercentage
+                endDate
+              }
+            }
+            cashbackSettings {
+              isEnabled
+              defaultPercentage
+              minRedeemValue
+              maxRedeemPercentage
+              maxRedeemValue
+              displayMessage
+            }
+          }`,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.data?.myCashbackSummary) {
+        setUserCashbackBalance(result.data.myCashbackSummary.balance || 0);
+      }
+      if (result.data?.cashbackSettings) {
+        setCashbackSettings(result.data.cashbackSettings);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar cashback:', err);
+    }
+  }, []);
+
+  const validateCoupon = useCallback(async (code, orderTotal) => {
+    const token = localStorage.getItem('token');
+    
+    try {
+      const response = await fetch('http://localhost:4000/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: JSON.stringify({
+          query: `query ValidateCoupon($code: String!, $orderTotal: Float!) {
+            validateCoupon(code: $code, orderTotal: $orderTotal) {
+              valid
+              message
+              discount
+              freeShipping
+              coupon {
+                id
+                code
+                name
+                discountType
+                discountValue
+                allowWithCashback
+              }
+            }
+          }`,
+          variables: { code, orderTotal },
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.errors) {
+        return { valid: false, message: result.errors[0].message };
+      }
+
+      return result.data.validateCoupon;
+    } catch (err) {
+      console.error('Erro ao validar cupom:', err);
+      return { valid: false, message: 'Erro ao validar cupom' };
+    }
+  }, []);
+
+  const applyCoupon = useCallback(async (code) => {
+    const subtotal = cart.reduce((total, item) => total + item.price * item.quantity, 0);
+    const validation = await validateCoupon(code, subtotal);
+
+    if (validation.valid) {
+      setAppliedCoupon(validation.coupon);
+      setCouponDiscount(validation.discount || 0);
+      setCouponFreeShipping(validation.freeShipping || false);
+      
+      if (validation.coupon && !validation.coupon.allowWithCashback) {
+        setCashbackToUse(0);
+      }
+    }
+
+    return validation;
+  }, [cart, validateCoupon]);
+
   const cartItemsCount = cart.reduce((total, item) => total + item.quantity, 0);
 
-  // Calcula o valor total do carrinho (soma dos preços * quantidades)
   const cartTotalValue = cart.reduce(
     (total, item) => total + item.price * item.quantity,
     0
   );
 
-  // Função para obter o total do carrinho (usada em componentes)
   const getCartTotal = useCallback(() => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
   }, [cart]);
 
-  // Busca os pedidos do usuário autenticado via GraphQL
   const fetchMyOrders = useCallback(async () => {
     const token = localStorage.getItem('token');
     
-    if (!token) {
-      return;
-    }
+    if (!token) return;
 
     try {
       const response = await fetch('http://localhost:4000/graphql', {
@@ -136,9 +254,12 @@ export function CartProvider({ children }) {
               subtotal
               shippingFee
               discount
+              cashbackUsed
+              cashbackEarned
               deliveryType
               paymentMethod
               paymentStatus
+              couponCode
               deliveryAddress {
                 street
                 number
@@ -171,30 +292,66 @@ export function CartProvider({ children }) {
     }
   }, []);
 
-  // Filtra pedidos ativos (não finalizados nem cancelados) para rastreamento
   const activeTrackingOrders = myOrders.filter((order) => {
     const finishedStatuses = ['COMPLETED', 'CANCELLED'];
     return !finishedStatuses.includes(order.status);
   });
 
-  // Confirma a entrega ou retirada de um pedido pelo cliente
+  // ============================================
+  // CORRIGIDO: Usar confirmOrderReceived em vez de confirmDelivery
+  // ============================================
   const handleConfirmDelivery = useCallback(async (orderId) => {
+    // Evita múltiplas chamadas simultâneas
+    if (confirmingRef.current) {
+      console.log('Confirmação já em andamento, ignorando...');
+      return { success: false, message: 'Confirmação já em andamento' };
+    }
+    
+    confirmingRef.current = true;
+    
     try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      console.log('📦 Cliente confirmando recebimento do pedido:', orderId);
+
+      // CORRIGIDO: Usar confirmOrderReceived (mutation para CLIENTE)
+      // Em vez de confirmDelivery (mutation para ADMIN)
       const response = await fetch('http://localhost:4000/graphql', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          query: `mutation { confirmDelivery(id: "${orderId}") { id status } }`,
+          query: `
+            mutation ConfirmOrderReceived($id: ID!) {
+              confirmOrderReceived(id: $id) {
+                id
+                status
+                cashbackEarned
+                customerConfirmedAt
+              }
+            }
+          `,
+          variables: { id: orderId },
         }),
       });
       
       const result = await response.json();
       
-      if (result.data?.confirmDelivery) {
-        // Atualiza o estado local imediatamente
+      if (result.errors) {
+        console.error('❌ Erro ao confirmar entrega:', result.errors);
+        throw new Error(result.errors[0].message);
+      }
+      
+      if (result.data?.confirmOrderReceived) {
+        console.log('✅ Pedido confirmado pelo cliente:', result.data.confirmOrderReceived);
+        
+        // Atualiza o pedido localmente
         setMyOrders((prevOrders) =>
           prevOrders.map((order) =>
             order.id === orderId
@@ -203,20 +360,27 @@ export function CartProvider({ children }) {
           )
         );
         
-        // Recarrega os pedidos para garantir consistência
-        await fetchMyOrders();
-      } else if (result.errors) {
-        console.error('Erro ao confirmar:', result.errors);
+        // Atualiza cashback após confirmar
+        await fetchCashbackBalance();
+        
+        return { success: true, data: result.data.confirmOrderReceived };
       }
+      
+      return { success: false, message: 'Erro desconhecido' };
     } catch (err) {
-      console.error('Erro ao confirmar entrega:', err);
+      console.error('❌ Erro ao confirmar entrega:', err);
+      return { success: false, message: err.message };
+    } finally {
+      // Libera após delay para evitar cliques duplos
+      setTimeout(() => {
+        confirmingRef.current = false;
+      }, 1000);
     }
-  }, [fetchMyOrders]);
+  }, [fetchCashbackBalance]);
 
   const cartItems = cart;
   const setActiveTrackingOrders = setMyOrders;
 
-  // Objeto de valor exposto pelo contexto
   const value = {
     cart,
     cartItems,
@@ -238,6 +402,25 @@ export function CartProvider({ children }) {
     getCartTotal,
     fetchMyOrders,
     handleConfirmDelivery,
+    // Cupom
+    appliedCoupon,
+    setAppliedCoupon,
+    couponDiscount,
+    setCouponDiscount,
+    couponFreeShipping,
+    setCouponFreeShipping,
+    validateCoupon,
+    applyCoupon,
+    clearCoupon,
+    // Cashback
+    cashbackToUse,
+    setCashbackToUse,
+    userCashbackBalance,
+    setUserCashbackBalance,
+    cashbackSettings,
+    setCashbackSettings,
+    fetchCashbackBalance,
+    clearCashbackToUse,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

@@ -1,58 +1,55 @@
 const mongoose = require('mongoose');
 
-// Schema do modelo Coupon para cupons de desconto
-const couponSchema = new mongoose.Schema({
-  // Código do cupom (obrigatório, único e sempre em maiúsculas)
-  code: { 
+const timeScheduleSchema = new mongoose.Schema({
+  startTime: { type: String, required: true },
+  endTime: { type: String, required: true },
+  daysOfWeek: [{ 
     type: String, 
-    required: true, 
-    unique: true,
-    uppercase: true 
-  },
-  // Tipo de desconto: percentual ou valor fixo
-  discountType: {
-    type: String,
-    enum: ['PERCENTAGE', 'FIXED'],
-    required: true
-  },
-  // Valor do desconto
-  discountValue: {
-    type: Number,
-    required: true
-  },
-  // Valor mínimo do pedido para que o cupom seja aplicável
-  minOrderValue: {
-    type: Number,
-    default: 0
-  },
-  // Número máximo de utilizações
-  maxUses: {
-    type: Number,
-    default: null
-  },
-  // Quantidade de vezes que o cupom já foi utilizado
-  usedCount: {
-    type: Number,
-    default: 0
-  },
-  // Data de início da validade do cupom
-  startDate: {
-    type: Date,
-    required: true
-  },
-  // Data de término da validade do cupom
-  endDate: {
-    type: Date,
-    required: true
-  },
-  // Define se o cupom está ativo
-  isActive: {
-    type: Boolean,
-    default: true
-  }
-}, { timestamps: true }); // Adiciona createdAt e updatedAt automaticamente
+    enum: ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'] 
+  }]
+}, { _id: false });
 
-// Índice composto para otimizar consultas por código e status ativo
-couponSchema.index({ code: 1, isActive: 1 });
+const userUseSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  count: { type: Number, default: 0 },
+  lastUsedAt: { type: Date }
+}, { _id: false });
 
-module.exports = mongoose.model('Coupon', couponSchema);
+const couponSchema = new mongoose.Schema({
+  code: { type: String, required: true, unique: true, uppercase: true },
+  name: { type: String, required: true },
+  description: { type: String },
+  discountType: { 
+    type: String, 
+    enum: ['PERCENTAGE', 'FIXED', 'FREE_SHIPPING'], 
+    required: true 
+  },
+  discountValue: { type: Number, required: true },
+  maxDiscountValue: { type: Number },
+  minOrderValue: { type: Number, default: 0 },
+  applicableCategories: [{ 
+    type: String, 
+    enum: ['BURGER', 'CHICKEN', 'COMBO', 'SIDE', 'DRINK', 'DESSERT'] 
+  }],
+  applicableProducts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
+  customerType: { 
+    type: String, 
+    enum: ['ALL', 'NEW', 'EXISTING', 'SPECIFIC'], 
+    default: 'ALL' 
+  },
+  specificCustomers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  maxTotalUses: { type: Number },
+  maxUsesPerUser: { type: Number, default: 1 },
+  totalUsedCount: { type: Number, default: 0 },
+  userUses: [userUseSchema],
+  allowWithCashback: { type: Boolean, default: true },
+  allowStacking: { type: Boolean, default: false },
+  startDate: { type: Date, required: true },
+  endDate: { type: Date },
+  hasNoEndDate: { type: Boolean, default: false },
+  schedule: timeScheduleSchema,
+  isActive: { type: Boolean, default: true }
+}, { timestamps: true });
+
+// Verifica se o modelo já existe antes de compilar
+module.exports = mongoose.models.Coupon || mongoose.model('Coupon', couponSchema);

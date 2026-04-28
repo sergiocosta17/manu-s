@@ -1,15 +1,20 @@
 const { gql } = require('apollo-server-express');
 
 const typeDefs = gql`
+  # ============================================
   # ENUMS
+  # ============================================
   enum Role { USER ADMIN }
   
   enum OrderStatus { 
     PLACED 
     CONFIRMED 
     PREPARING 
+    READY
+    READY_FOR_PICKUP
     OUT_FOR_DELIVERY 
     DELIVERED 
+    PICKED_UP
     COMPLETED 
     CANCELLED 
   }
@@ -32,9 +37,19 @@ const typeDefs = gql`
   
   enum BannerLocation { HOME OFFERS }
   
-  enum DiscountType { PERCENTAGE FIXED }
+  enum DiscountType { PERCENTAGE FIXED FREE_SHIPPING }
 
+  enum CouponCustomerType { ALL NEW EXISTING SPECIFIC }
+
+  enum CashbackRuleType { GLOBAL CATEGORY PRODUCT FIRST_ORDER MIN_VALUE }
+
+  enum CashbackTransactionType { CREDIT DEBIT EXPIRED ADJUSTMENT }
+
+  enum DayOfWeek { SUNDAY MONDAY TUESDAY WEDNESDAY THURSDAY FRIDAY SATURDAY }
+
+  # ============================================
   # TYPES
+  # ============================================
 
   # Resultado da validação de endereço de entrega
   type DeliveryValidationResult {
@@ -176,6 +191,8 @@ const typeDefs = gql`
     subtotal: Float!
     shippingFee: Float!
     discount: Float!
+    cashbackUsed: Float
+    cashbackEarned: Float
     total: Float!
     couponCode: String
     deliveryType: DeliveryType!
@@ -202,26 +219,187 @@ const typeDefs = gql`
     isActive: Boolean!
   }
 
-  # Cupom de desconto
-  type Coupon {
-    id: ID!
-    code: String!
-    discountType: DiscountType!
-    discountValue: Float!
-    minOrderValue: Float!
-    maxUses: Int
-    usedCount: Int!
-    startDate: String!
-    endDate: String!
-    isActive: Boolean!
+  # ============================================
+  # HORÁRIO DE FUNCIONAMENTO (para cupons e campanhas)
+  # ============================================
+  type TimeSchedule {
+    startTime: String!
+    endTime: String!
+    daysOfWeek: [DayOfWeek!]!
   }
+
+  # ============================================
+  # CUPOM (Completo)
+  # ============================================
+  
+type CouponUserUse {
+  user: ID!
+  count: Int!
+  lastUsedAt: String
+}
+
+type Coupon {
+  id: ID!
+  code: String!
+  name: String!
+  description: String
+  discountType: DiscountType!
+  discountValue: Float!
+  maxDiscountValue: Float
+  minOrderValue: Float!
+  applicableCategories: [Category!]
+  applicableProducts: [Product!]
+  customerType: CouponCustomerType!
+  specificCustomers: [User!]
+  maxTotalUses: Int
+  maxUsesPerUser: Int!
+  totalUsedCount: Int!
+  userUses: [CouponUserUse!]
+  allowWithCashback: Boolean!
+  allowStacking: Boolean!
+  startDate: String!
+  endDate: String
+  hasNoEndDate: Boolean!
+  schedule: TimeSchedule
+  isActive: Boolean!
+  createdAt: String!
+  updatedAt: String!
+}
 
   # Resultado da validação de cupom
   type CouponValidation {
     valid: Boolean!
     message: String
     discount: Float
+    freeShipping: Boolean
+    coupon: Coupon
   }
+
+  # ============================================
+  # CASHBACK
+  # ============================================
+  
+  # Transação de cashback
+  type CashbackTransaction {
+    id: ID!
+    type: CashbackTransactionType!
+    amount: Float!
+    description: String!
+    orderId: ID
+    expiresAt: String
+    createdAt: String!
+  }
+
+  # Carteira de cashback do usuário
+  type CashbackWallet {
+    id: ID!
+    user: User!
+    balance: Float!
+    totalEarned: Float!
+    totalUsed: Float!
+    totalExpired: Float!
+    transactions: [CashbackTransaction!]!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  # Regra de cashback
+  type CashbackRule {
+    id: ID!
+    name: String!
+    description: String
+    type: CashbackRuleType!
+    percentage: Float!
+    categories: [Category!]
+    products: [Product!]
+    minOrderValue: Float
+    maxCashbackValue: Float
+    expirationDays: Int!
+    allowEarnOnCashbackPayment: Boolean!
+    allowEarnWithCoupon: Boolean!
+    priority: Int!
+    isActive: Boolean!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  # Campanha de cashback
+  type CashbackCampaign {
+    id: ID!
+    name: String!
+    description: String
+    multiplier: Float
+    fixedPercentage: Float
+    categories: [Category!]
+    products: [Product!]
+    maxCashbackValue: Float
+    maxUsesPerUser: Int
+    startDate: String!
+    endDate: String
+    hasNoEndDate: Boolean!
+    schedule: TimeSchedule
+    imageUrl: String
+    isActive: Boolean!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  # Configurações gerais de cashback
+  type CashbackSettings {
+    id: ID!
+    isEnabled: Boolean!
+    defaultPercentage: Float!
+    minRedeemValue: Float!
+    maxRedeemPercentage: Float!
+    maxRedeemValue: Float
+    defaultExpirationDays: Int!
+    displayMessage: String
+    updatedAt: String!
+  }
+
+  # Resumo de cashback para o cliente
+  type CashbackSummary {
+    balance: Float!
+    pendingExpiration: Float!
+    nextExpirationDate: String
+    totalEarned: Float!
+    isEnabled: Boolean!
+    currentCampaign: CashbackCampaign
+  }
+
+  # Preview do pedido com descontos
+  type OrderDiscountPreview {
+    subtotal: Float!
+    couponDiscount: Float!
+    couponCode: String
+    freeShipping: Boolean!
+    cashbackUsed: Float!
+    shippingFee: Float!
+    total: Float!
+    cashbackToEarn: Float!
+    cashbackToEarnExpiration: String
+    errors: [String!]
+  }
+
+  # Relatório de Cashback
+  type CashbackReport {
+    totalCredited: Float!
+    totalDebited: Float!
+    totalExpired: Float!
+    activeWallets: Int!
+    totalBalance: Float!
+    transactionCount: Int!
+  }
+
+  # Resultado da expiração de cashback
+  type ExpireCashbackResult {
+    success: Boolean!
+    message: String!
+  }
+
+  # ============================================
+  # FIM CASHBACK
+  # ============================================
 
   # Payload de autenticação
   type AuthPayload {
@@ -248,7 +426,7 @@ const typeDefs = gql`
     estimatedDays: Int!
   }
 
-  # Configurações da loja (inclui horários de funcionamento)
+  # Configurações da loja
   type StoreSettings {
     id: ID!
     storeName: String
@@ -259,8 +437,10 @@ const typeDefs = gql`
     updatedAt: String
   }
 
+  # ============================================
   # INPUTS
-  # Input para criação/atualização de endereço
+  # ============================================
+
   input AddressInput {
     label: String
     zipCode: String!
@@ -273,7 +453,6 @@ const typeDefs = gql`
     isDefault: Boolean
   }
 
-  # Input para adicionar método de pagamento
   input PaymentMethodInput {
     type: PaymentMethod!
     label: String
@@ -282,7 +461,6 @@ const typeDefs = gql`
     isDefault: Boolean
   }
 
-  # Input para criação/atualização de produto
   input ProductInput {
     name: String!
     price: Float!
@@ -294,7 +472,6 @@ const typeDefs = gql`
     isAvailable: Boolean
   }
 
-  # Input para criação/atualização de banner
   input BannerInput {
     title: String
     subtitle: String
@@ -304,7 +481,6 @@ const typeDefs = gql`
     isActive: Boolean
   }
 
-  # Input para informações do veículo
   input VehicleInput {
     brand: String!
     model: String!
@@ -313,7 +489,6 @@ const typeDefs = gql`
     color: String!
   }
 
-  # Input para criação de entregador
   input CourierInput {
     firstName: String!
     lastName: String!
@@ -324,7 +499,6 @@ const typeDefs = gql`
     isActive: Boolean
   }
 
-  # Input para atualização de entregador
   input UpdateCourierInput {
     firstName: String
     lastName: String
@@ -335,20 +509,20 @@ const typeDefs = gql`
     isActive: Boolean
   }
 
-  # Input para item de pedido
   input OrderItemInput {
     product: ID!
     name: String!
     price: Float!
     quantity: Int!
+    category: Category
   }
 
-  # Input para criação de pedido
   input OrderInput {
     items: [OrderItemInput!]!
     subtotal: Float!
     shippingFee: Float!
     discount: Float
+    cashbackToUse: Float
     total: Float!
     couponCode: String
     deliveryType: DeliveryType!
@@ -356,7 +530,6 @@ const typeDefs = gql`
     paymentMethod: PaymentMethod!
   }
 
-  # Input para criação/atualização de promoção
   input PromotionInput {
     name: String!
     products: [ID!]!
@@ -367,19 +540,93 @@ const typeDefs = gql`
     isActive: Boolean
   }
 
-  # Input para criação/atualização de cupom
+  # Input para horário de funcionamento
+  input TimeScheduleInput {
+    startTime: String!
+    endTime: String!
+    daysOfWeek: [DayOfWeek!]!
+  }
+
+  # Input para cupom (completo)
   input CouponInput {
     code: String!
+    name: String!
+    description: String
     discountType: DiscountType!
     discountValue: Float!
+    maxDiscountValue: Float
     minOrderValue: Float
-    maxUses: Int
+    applicableCategories: [Category!]
+    applicableProducts: [ID!]
+    customerType: CouponCustomerType
+    specificCustomers: [ID!]
+    maxTotalUses: Int
+    maxUsesPerUser: Int
+    allowWithCashback: Boolean
+    allowStacking: Boolean
     startDate: String!
-    endDate: String!
+    endDate: String
+    hasNoEndDate: Boolean
+    schedule: TimeScheduleInput
     isActive: Boolean
   }
 
-  # Input para atualização de perfil do cliente
+  # Input para regra de cashback
+  input CashbackRuleInput {
+    name: String!
+    description: String
+    type: CashbackRuleType!
+    percentage: Float!
+    categories: [Category!]
+    products: [ID!]
+    minOrderValue: Float
+    maxCashbackValue: Float
+    expirationDays: Int
+    allowEarnOnCashbackPayment: Boolean
+    allowEarnWithCoupon: Boolean
+    priority: Int
+    isActive: Boolean
+  }
+
+  # Input para campanha de cashback
+  input CashbackCampaignInput {
+    name: String!
+    description: String
+    multiplier: Float
+    fixedPercentage: Float
+    categories: [Category!]
+    products: [ID!]
+    maxCashbackValue: Float
+    maxUsesPerUser: Int
+    startDate: String!
+    endDate: String
+    hasNoEndDate: Boolean
+    schedule: TimeScheduleInput
+    imageUrl: String
+    isActive: Boolean
+  }
+
+  # Input para configurações de cashback
+  input CashbackSettingsInput {
+    isEnabled: Boolean
+    defaultPercentage: Float
+    minRedeemValue: Float
+    maxRedeemPercentage: Float
+    maxRedeemValue: Float
+    defaultExpirationDays: Int
+    displayMessage: String
+  }
+
+  # Input para preview do pedido
+  input OrderPreviewInput {
+    items: [OrderItemInput!]!
+    subtotal: Float!
+    shippingFee: Float!
+    couponCode: String
+    cashbackToUse: Float
+    deliveryType: DeliveryType!
+  }
+
   input UpdateProfileInput {
     name: String
     phone: String
@@ -387,7 +634,6 @@ const typeDefs = gql`
     avatarUrl: String
   }
 
-  # Input para atualização de perfil da loja (admin)
   input UpdateStoreInput {
     storeName: String
     storeAddress: AddressInput
@@ -396,13 +642,11 @@ const typeDefs = gql`
     avatarUrl: String
   }
 
-  # Input para alteração de senha
   input ChangePasswordInput {
     currentPassword: String!
     newPassword: String!
   }
 
-  # Input para configurações da loja (horários de funcionamento)
   input StoreSettingsInput {
     storeName: String
     storeAddress: String
@@ -410,10 +654,11 @@ const typeDefs = gql`
     businessHours: String
   }
 
+  # ============================================
   # QUERIES
+  # ============================================
   type Query {
-
-    # Validação de endereço de entrega (área permitida)
+    # Validação de endereço
     validateDeliveryAddress(city: String!, state: String!): DeliveryValidationResult!
 
     # Auth
@@ -428,7 +673,7 @@ const typeDefs = gql`
     # Banners
     banners(location: BannerLocation): [Banner!]!
     
-    # Couriers (Entregadores)
+    # Couriers
     couriers(onlyActive: Boolean): [Courier!]!
     courier(id: ID!): Courier
     couriersMetrics(period: String!): CouriersOverviewMetrics!
@@ -447,65 +692,79 @@ const typeDefs = gql`
     activePromotions: [Promotion!]!
     
     # Coupons (Admin)
-    coupons: [Coupon!]!
+    coupons(onlyActive: Boolean): [Coupon!]!
     coupon(id: ID!): Coupon
     
     # Validate coupon (Client)
-    validateCoupon(code: String!, orderTotal: Float!): CouponValidation!
+    validateCoupon(code: String!, orderTotal: Float!, userId: ID): CouponValidation!
     
-    # Dashboard (Admin)
+    # Cashback - Cliente
+    myCashbackWallet: CashbackWallet
+    myCashbackSummary: CashbackSummary!
+    
+    # Cashback - Admin
+    cashbackRules(onlyActive: Boolean): [CashbackRule!]!
+    cashbackRule(id: ID!): CashbackRule
+    cashbackCampaigns(onlyActive: Boolean): [CashbackCampaign!]!
+    cashbackCampaign(id: ID!): CashbackCampaign
+    cashbackSettings: CashbackSettings!
+    cashbackReport(startDate: String!, endDate: String!): CashbackReport!
+    
+    # Campanhas ativas (para cliente)
+    activeCashbackCampaigns: [CashbackCampaign!]!
+    
+    # Preview do pedido
+    previewOrderDiscounts(input: OrderPreviewInput!): OrderDiscountPreview!
+    
+    # Dashboard
     dashboardMetrics: DashboardMetrics!
     
     # Shipping
     calculateShipping(zipCode: String!): ShippingQuote!
     
-    # Store info (para pickup - retorna usuário admin)
+    # Store
     storeInfo: User
-    
-    # Store settings (para checkout e horários de funcionamento)
     storeSettings: StoreSettings
   }
 
+  # ============================================
   # MUTATIONS
+  # ============================================
   type Mutation {
     # Auth
     signup(name: String!, email: String!, password: String!, role: Role, adminKey: String): AuthPayload!
     login(email: String!, password: String!): AuthPayload!
     changePassword(input: ChangePasswordInput!): Boolean!
     
-    # Profile (Client)
+    # Profile
     updateProfile(input: UpdateProfileInput!): User!
-    
-    # Store Profile (Admin)
     updateStore(input: UpdateStoreInput!): User!
-    
-    # Store Settings - Horários de Funcionamento (Admin)
     updateStoreSettings(input: StoreSettingsInput!): StoreSettings!
     
-    # Addresses (Client)
+    # Addresses
     addAddress(input: AddressInput!): User!
     updateAddress(addressId: ID!, input: AddressInput!): User!
     deleteAddress(addressId: ID!): User!
     setDefaultAddress(addressId: ID!): User!
     
-    # Payment Methods (Client)
+    # Payment Methods
     addPaymentMethod(input: PaymentMethodInput!): User!
     deletePaymentMethod(paymentMethodId: ID!): User!
     setDefaultPaymentMethod(paymentMethodId: ID!): User!
     
-    # Products (Admin)
+    # Products
     createProduct(input: ProductInput!): Product!
     updateProduct(id: ID!, input: ProductInput!): Product!
     deleteProduct(id: ID!): Boolean!
     toggleProductAvailability(id: ID!): Product!
     toggleProductFeatured(id: ID!): Product!
     
-    # Banners (Admin)
+    # Banners
     createBanner(input: BannerInput!): Banner!
     updateBanner(id: ID!, input: BannerInput!): Banner!
     deleteBanner(id: ID!): Boolean!
     
-    # Couriers (Admin)
+    # Couriers
     createCourier(input: CourierInput!): Courier!
     updateCourier(id: ID!, input: UpdateCourierInput!): Courier!
     deleteCourier(id: ID!): Boolean!
@@ -513,17 +772,12 @@ const typeDefs = gql`
     
     # Orders
     createOrder(input: OrderInput!): Order!
-    
-    # Order Status (Admin)
     updateOrderStatus(id: ID!, status: OrderStatus!): Order!
-    
-    # Assign Courier to Order (Admin)
     assignCourier(orderId: ID!, courierId: ID!): Order!
-    
-    # Order Confirmation (Client)
     confirmOrderReceived(id: ID!): Order!
+    confirmDelivery(id: ID!): Order!
     
-    # Promotions (Admin)
+    # Promotions
     createPromotion(input: PromotionInput!): Promotion!
     updatePromotion(id: ID!, input: PromotionInput!): Promotion!
     deletePromotion(id: ID!): Boolean!
@@ -532,12 +786,26 @@ const typeDefs = gql`
     createCoupon(input: CouponInput!): Coupon!
     updateCoupon(id: ID!, input: CouponInput!): Coupon!
     deleteCoupon(id: ID!): Boolean!
+    toggleCouponActive(id: ID!): Coupon!
     
-    # Apply coupon (usado internamente no createOrder)
-    applyCoupon(code: String!): Coupon!
-
-    # Confirm delivery (mantido por compatibilidade)
-    confirmDelivery(id: ID!): Order!
+    # Cashback Rules (Admin)
+    createCashbackRule(input: CashbackRuleInput!): CashbackRule!
+    updateCashbackRule(id: ID!, input: CashbackRuleInput!): CashbackRule!
+    deleteCashbackRule(id: ID!): Boolean!
+    toggleCashbackRuleActive(id: ID!): CashbackRule!
+    
+    # Cashback Campaigns (Admin)
+    createCashbackCampaign(input: CashbackCampaignInput!): CashbackCampaign!
+    updateCashbackCampaign(id: ID!, input: CashbackCampaignInput!): CashbackCampaign!
+    deleteCashbackCampaign(id: ID!): Boolean!
+    toggleCashbackCampaignActive(id: ID!): CashbackCampaign!
+    
+    # Cashback Settings (Admin)
+    updateCashbackSettings(input: CashbackSettingsInput!): CashbackSettings!
+    
+    # Cashback Wallet - Admin
+    adjustCashbackBalance(userId: ID!, amount: Float!, description: String!): CashbackWallet!
+    expireCashback: ExpireCashbackResult!
   }
 `;
 

@@ -5,7 +5,11 @@ const orderItemSchema = new mongoose.Schema({
   product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
   name: { type: String, required: true },
   price: { type: Number, required: true },
-  quantity: { type: Number, required: true }
+  quantity: { type: Number, required: true },
+  category: { 
+    type: String, 
+    enum: ['BURGER', 'CHICKEN', 'COMBO', 'SIDE', 'DRINK', 'DESSERT']
+  }
 });
 
 // Sub-schema para endereço de entrega
@@ -34,6 +38,21 @@ const orderSchema = new mongoose.Schema({
   subtotal: { type: Number, required: true },
   shippingFee: { type: Number, default: 0 },
   discount: { type: Number, default: 0 },
+  
+  // ============================================
+  // CAMPOS DE CASHBACK
+  // ============================================
+  cashbackUsed: { 
+    type: Number, 
+    default: 0,
+    min: 0
+  },
+  cashbackEarned: { 
+    type: Number, 
+    default: 0,
+    min: 0
+  },
+  
   total: { type: Number, required: true },
   couponCode: { type: String },
   deliveryType: { 
@@ -68,7 +87,7 @@ const orderSchema = new mongoose.Schema({
     default: 'PLACED' 
   },
   statusHistory: [statusHistorySchema],
-  courier: { type: mongoose.Schema.Types.ObjectId, ref: 'Courier' }, // Referência ao entregador
+  courier: { type: mongoose.Schema.Types.ObjectId, ref: 'Courier' },
   customerConfirmedAt: { type: Date }
 }, { timestamps: true });
 

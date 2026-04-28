@@ -11,7 +11,7 @@ const DELIVERY_CONFIG = {
   allowedStateNormalized: 'PB'
 };
 
-// Função para normalizar strings (remover acentos e uppercase)
+// Função para normalizar strings
 const normalizeString = (str) => {
   if (!str) return '';
   return str
@@ -21,14 +21,12 @@ const normalizeString = (str) => {
     .replace(/[\u0300-\u036f]/g, '');
 };
 
-// Função para validar se está na área de entrega
+// Função para validar área de entrega
 const isValidDeliveryArea = (city, state) => {
   const normalizedCity = normalizeString(city);
   const normalizedState = normalizeString(state);
-  
   const validCities = ['CAMPINA GRANDE'];
   const validStates = ['PB', 'PARAIBA'];
-  
   return validCities.includes(normalizedCity) && validStates.includes(normalizedState);
 };
 
@@ -109,10 +107,51 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   ),
+  Ticket: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+    </svg>
+  ),
+  Wallet: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+    </svg>
+  ),
+  Sparkles: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+    </svg>
+  ),
+  XCircle: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  AlertTriangle: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+    </svg>
+  ),
 };
 
 export default function CheckoutModal({ isOpen, onClose }) {
-  const { cart, getCartTotal, clearCart } = useCart();
+  const { 
+    cart, 
+    getCartTotal, 
+    clearCart,
+    // Cupom
+    appliedCoupon,
+    couponDiscount,
+    couponFreeShipping,
+    applyCoupon,
+    clearCoupon,
+    // Cashback
+    cashbackToUse,
+    setCashbackToUse,
+    userCashbackBalance,
+    cashbackSettings,
+    fetchCashbackBalance,
+  } = useCart();
   
   // Estados locais
   const [savedAddresses, setSavedAddresses] = useState([]);
@@ -130,27 +169,38 @@ export default function CheckoutModal({ isOpen, onClose }) {
   });
   const [loadingCep, setLoadingCep] = useState(false);
   const [cepError, setCepError] = useState('');
-  const [deliveryAreaError, setDeliveryAreaError] = useState(false); // NOVO: erro de área
+  const [deliveryAreaError, setDeliveryAreaError] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [deliveryType, setDeliveryType] = useState('DELIVERY');
   const [storeAddress, setStoreAddress] = useState(null);
   const [loadingStore, setLoadingStore] = useState(false);
 
-  // Estados para feedback visual (toast)
+  // Estados para cupom (no checkout)
+  const [couponCode, setCouponCode] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
+  const [couponSuccess, setCouponSuccess] = useState('');
+
+  // Estados para cashback
+  const [cashbackInputValue, setCashbackInputValue] = useState('');
+  const [cashbackError, setCashbackError] = useState('');
+  const [cashbackToEarn, setCashbackToEarn] = useState(0);
+
+  // Estados para feedback visual
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
-  // Função para mostrar toast
   const showToast = useCallback((message, type = 'success') => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3500);
   }, []);
 
   // Cálculo de valores
-  const shippingFee = deliveryType === 'DELIVERY' ? 5.0 : 0;
+  const baseShippingFee = 5.0;
   const subtotal = getCartTotal();
-  const total = subtotal + shippingFee;
+  const shippingFee = deliveryType === 'DELIVERY' ? (couponFreeShipping ? 0 : baseShippingFee) : 0;
+  const total = Math.max(0, subtotal - couponDiscount - cashbackToUse + shippingFee);
 
-  // Bloqueia scroll do body quando modal está aberto
+  // Bloqueia scroll
   useEffect(() => {
     if (isOpen || showPaymentModal) {
       document.body.style.overflow = 'hidden';
@@ -162,15 +212,73 @@ export default function CheckoutModal({ isOpen, onClose }) {
     };
   }, [isOpen, showPaymentModal]);
 
-  // Efeito executado quando o modal é aberto
+  // Carrega dados quando modal abre
   useEffect(() => {
     if (isOpen) {
       fetchUserAddresses();
       fetchStoreAddress();
+      fetchCashbackBalance();
+      fetchCashbackPreview();
     }
   }, [isOpen]);
 
-  // Busca os endereços do usuário autenticado via GraphQL
+  // Atualiza preview de cashback quando valores mudam
+  useEffect(() => {
+    if (isOpen) {
+      fetchCashbackPreview();
+    }
+  }, [subtotal, couponDiscount, cashbackToUse, appliedCoupon]);
+
+  // Busca preview do cashback a ganhar
+  const fetchCashbackPreview = async () => {
+    const token = localStorage.getItem('token');
+    if (!token || cart.length === 0) return;
+
+    try {
+      const items = cart.map(item => ({
+        product: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        category: item.category || 'BURGER'
+      }));
+
+      const response = await fetch('http://localhost:4000/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          query: `query PreviewOrderDiscounts($input: OrderPreviewInput!) {
+            previewOrderDiscounts(input: $input) {
+              cashbackToEarn
+              cashbackToEarnExpiration
+            }
+          }`,
+          variables: {
+            input: {
+              items,
+              subtotal,
+              shippingFee: deliveryType === 'DELIVERY' ? baseShippingFee : 0,
+              couponCode: appliedCoupon?.code || null,
+              cashbackToUse: cashbackToUse || 0,
+              deliveryType
+            }
+          }
+        }),
+      });
+
+      const result = await response.json();
+      if (result.data?.previewOrderDiscounts) {
+        setCashbackToEarn(result.data.previewOrderDiscounts.cashbackToEarn || 0);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar preview de cashback:', err);
+    }
+  };
+
+  // Busca endereços do usuário
   const fetchUserAddresses = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -217,7 +325,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
     }
   };
 
-  // Busca informações da loja (endereço do admin) via GraphQL
+  // Busca endereço da loja
   const fetchStoreAddress = async () => {
     setLoadingStore(true);
     try {
@@ -249,17 +357,12 @@ export default function CheckoutModal({ isOpen, onClose }) {
         const info = result.data.storeInfo;
         const addr = info.storeAddress;
         
-        // Monta o endereço formatado
         let formattedAddress = null;
         if (addr && addr.street) {
           formattedAddress = `${addr.street}, ${addr.number || 'S/N'}`;
-          if (addr.complement) {
-            formattedAddress += ` - ${addr.complement}`;
-          }
+          if (addr.complement) formattedAddress += ` - ${addr.complement}`;
           formattedAddress += ` - ${addr.neighborhood || ''}, ${addr.city || ''}/${addr.state || ''}`;
-          if (addr.zipCode) {
-            formattedAddress += ` - CEP: ${addr.zipCode}`;
-          }
+          if (addr.zipCode) formattedAddress += ` - CEP: ${addr.zipCode}`;
         }
         
         setStoreAddress({
@@ -286,7 +389,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
     }
   };
 
-  // Consulta API ViaCEP para preencher automaticamente o endereço
+  // Consulta CEP
   const fetchAddressByCep = async (cep) => {
     const cleanCep = cep.replace(/\D/g, '');
     if (cleanCep.length !== 8) return;
@@ -305,7 +408,6 @@ export default function CheckoutModal({ isOpen, onClose }) {
         return;
       }
 
-      // VALIDAÇÃO DE ÁREA DE ENTREGA
       if (!isValidDeliveryArea(data.localidade, data.uf)) {
         setDeliveryAreaError(true);
         setNewAddress(prev => ({
@@ -341,7 +443,6 @@ export default function CheckoutModal({ isOpen, onClose }) {
     }
   };
 
-  // Handler para campo CEP com máscara e disparo da consulta
   const handleCepChange = (e) => {
     let value = e.target.value.replace(/\D/g, '');
     if (value.length > 5) {
@@ -358,34 +459,143 @@ export default function CheckoutModal({ isOpen, onClose }) {
     }
   };
 
-  // Handler para mudança de cidade (validação em tempo real)
   const handleCityChange = (e) => {
     const city = e.target.value;
     setNewAddress(prev => ({ ...prev, city }));
-    
-    // Valida área se já tiver estado preenchido
     if (newAddress.state) {
       setDeliveryAreaError(!isValidDeliveryArea(city, newAddress.state));
     }
   };
 
-  // Handler para mudança de estado (validação em tempo real)
   const handleStateChange = (e) => {
     const state = e.target.value.toUpperCase();
     setNewAddress(prev => ({ ...prev, state }));
-    
-    // Valida área se já tiver cidade preenchida
     if (newAddress.city) {
       setDeliveryAreaError(!isValidDeliveryArea(newAddress.city, state));
     }
   };
 
-  // Verifica se pode continuar para pagamento
+  // Handler para aplicar cupom
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError('Digite um código de cupom');
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponError('');
+    setCouponSuccess('');
+
+    try {
+      const result = await applyCoupon(couponCode.trim());
+      
+      if (result.valid) {
+        setCouponSuccess(result.message || 'Cupom aplicado com sucesso!');
+        setCouponCode('');
+        
+        // Se cupom não permite cashback, limpa
+        if (result.coupon && !result.coupon.allowWithCashback && cashbackToUse > 0) {
+          setCashbackToUse(0);
+          setCashbackInputValue('');
+          showToast('Este cupom não pode ser usado com cashback', 'info');
+        }
+      } else {
+        setCouponError(result.message || 'Cupom inválido');
+      }
+    } catch (err) {
+      setCouponError('Erro ao aplicar cupom');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    clearCoupon();
+    setCouponCode('');
+    setCouponSuccess('');
+    setCouponError('');
+  };
+
+  // Handler para aplicar cashback
+  const handleApplyCashback = () => {
+    setCashbackError('');
+    
+    const value = parseFloat(cashbackInputValue.replace(',', '.')) || 0;
+    
+    if (value <= 0) {
+      setCashbackError('Digite um valor válido');
+      return;
+    }
+
+    if (!cashbackSettings?.isEnabled) {
+      setCashbackError('Cashback está desabilitado no momento');
+      return;
+    }
+
+    if (value < cashbackSettings.minRedeemValue) {
+      setCashbackError(`Valor mínimo: R$ ${cashbackSettings.minRedeemValue.toFixed(2).replace('.', ',')}`);
+      return;
+    }
+
+    if (value > userCashbackBalance) {
+      setCashbackError('Saldo insuficiente');
+      return;
+    }
+
+    // Verifica se cupom permite cashback
+    if (appliedCoupon && !appliedCoupon.allowWithCashback) {
+      setCashbackError('Este cupom não permite uso de cashback');
+      return;
+    }
+
+    // Calcula máximo permitido
+    const afterCoupon = subtotal - couponDiscount;
+    const maxByPercentage = (afterCoupon * cashbackSettings.maxRedeemPercentage) / 100;
+    const maxAllowed = cashbackSettings.maxRedeemValue 
+      ? Math.min(maxByPercentage, cashbackSettings.maxRedeemValue, userCashbackBalance)
+      : Math.min(maxByPercentage, userCashbackBalance);
+
+    if (value > maxAllowed) {
+      setCashbackError(`Máximo permitido: R$ ${maxAllowed.toFixed(2).replace('.', ',')}`);
+      return;
+    }
+
+    setCashbackToUse(value);
+    showToast(`R$ ${value.toFixed(2).replace('.', ',')} de cashback aplicado!`, 'success');
+  };
+
+  const handleRemoveCashback = () => {
+    setCashbackToUse(0);
+    setCashbackInputValue('');
+    setCashbackError('');
+  };
+
+  // Aplica valor máximo de cashback
+  const handleApplyMaxCashback = () => {
+    if (!cashbackSettings?.isEnabled || userCashbackBalance <= 0) return;
+
+    const afterCoupon = subtotal - couponDiscount;
+    const maxByPercentage = (afterCoupon * cashbackSettings.maxRedeemPercentage) / 100;
+    const maxAllowed = cashbackSettings.maxRedeemValue 
+      ? Math.min(maxByPercentage, cashbackSettings.maxRedeemValue, userCashbackBalance)
+      : Math.min(maxByPercentage, userCashbackBalance);
+
+    const finalMax = Math.max(0, Math.min(maxAllowed, afterCoupon));
+    
+    if (finalMax >= cashbackSettings.minRedeemValue) {
+      setCashbackInputValue(finalMax.toFixed(2).replace('.', ','));
+      setCashbackToUse(finalMax);
+      setCashbackError('');
+      showToast(`R$ ${finalMax.toFixed(2).replace('.', ',')} de cashback aplicado!`, 'success');
+    } else {
+      setCashbackError(`Valor mínimo: R$ ${cashbackSettings.minRedeemValue.toFixed(2).replace('.', ',')}`);
+    }
+  };
+
   const canContinueToPayment = () => {
     if (deliveryType === 'PICKUP') return true;
     
     if (showNewAddress) {
-      // Novo endereço: verificar se está completo e na área válida
       return newAddress.street && 
              newAddress.number && 
              newAddress.city && 
@@ -393,11 +603,9 @@ export default function CheckoutModal({ isOpen, onClose }) {
              !deliveryAreaError;
     }
     
-    // Endereço salvo selecionado
     return !!selectedAddressId;
   };
 
-  // Avança para a etapa de pagamento
   const handleContinueToPayment = () => {
     if (deliveryType === 'DELIVERY') {
       if (showNewAddress && deliveryAreaError) {
@@ -413,14 +621,12 @@ export default function CheckoutModal({ isOpen, onClose }) {
     setShowPaymentModal(true);
   };
 
-  // Obtém o objeto de endereço atualmente selecionado/preenchido
   const getSelectedAddress = () => {
     if (deliveryType === 'PICKUP') return null;
     if (showNewAddress) return newAddress;
     return savedAddresses.find(a => a.id === selectedAddressId);
   };
 
-  // Limpa o formulário de novo endereço
   const resetNewAddressForm = () => {
     setNewAddress({
       label: '',
@@ -438,31 +644,42 @@ export default function CheckoutModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  // Se estiver na etapa de pagamento, renderiza PaymentModal
-  if (showPaymentModal) {
-    return (
-      <PaymentModal
-        isOpen={showPaymentModal}
-        onClose={() => {
-          setShowPaymentModal(false);
-          onClose();
-        }}
-        onBack={() => setShowPaymentModal(false)}
-        address={getSelectedAddress()}
-        isNewAddress={showNewAddress && deliveryType === 'DELIVERY'}
-        deliveryType={deliveryType}
-        cart={cart}
-        subtotal={subtotal}
-        shippingFee={shippingFee}
-        total={total}
-        onSuccess={() => {
-          setShowPaymentModal(false);
-          onClose();
-          clearCart();
-        }}
-      />
-    );
-  }
+if (showPaymentModal) {
+  return (
+    <PaymentModal
+      isOpen={showPaymentModal}
+      onClose={() => {
+        setShowPaymentModal(false);
+        onClose();
+      }}
+      onBack={() => setShowPaymentModal(false)}
+      address={getSelectedAddress()}
+      isNewAddress={showNewAddress && deliveryType === 'DELIVERY'}
+      deliveryType={deliveryType}
+      cart={cart}
+      subtotal={subtotal}
+      shippingFee={shippingFee}
+      total={total}
+      // ADICIONE ESTAS PROPS:
+      couponCode={appliedCoupon?.code || null}
+      couponDiscount={couponDiscount}
+      couponFreeShipping={couponFreeShipping}
+      cashbackToUse={cashbackToUse}
+      cashbackToEarn={cashbackToEarn}
+      onSuccess={() => {
+        setShowPaymentModal(false);
+        onClose();
+        clearCart();
+      }}
+    />
+  );
+}
+
+
+  // Verifica se pode usar cashback
+  const canUseCashback = cashbackSettings?.isEnabled && 
+                         userCashbackBalance >= (cashbackSettings?.minRedeemValue || 0) &&
+                         (!appliedCoupon || appliedCoupon.allowWithCashback);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-hidden">
@@ -476,12 +693,12 @@ export default function CheckoutModal({ isOpen, onClose }) {
 
       <div className="relative bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-scale-in">
         
-        {/* Header com título e progresso */}
+        {/* Header */}
         <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] p-6 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-white">Finalizar Pedido</h2>
-              <p className="text-white/60 text-sm mt-1">Etapa 1 de 2 • Entrega</p>
+              <p className="text-white/60 text-sm mt-1">Etapa 1 de 2 - Entrega e Descontos</p>
             </div>
             <button
               onClick={onClose}
@@ -491,7 +708,6 @@ export default function CheckoutModal({ isOpen, onClose }) {
             </button>
           </div>
 
-          {/* Barra de progresso */}
           <div className="flex gap-2 mt-4">
             <div className="flex-1 h-1.5 bg-white rounded-full" />
             <div className="flex-1 h-1.5 bg-white/20 rounded-full" />
@@ -514,7 +730,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
             </div>
           </div>
           
-          {/* Seletor de tipo de entrega */}
+          {/* Tipo de entrega */}
           <div>
             <label className="block text-[#1e3a5f] font-bold mb-3">Como deseja receber?</label>
             <div className="grid grid-cols-2 gap-3">
@@ -532,7 +748,9 @@ export default function CheckoutModal({ isOpen, onClose }) {
                   <Icons.Motorcycle className="w-6 h-6" />
                 </div>
                 <p className="text-[#1e3a5f] font-bold text-sm">Delivery</p>
-                <p className="text-[#1e3a5f]/50 text-xs">R$ 5,00</p>
+                <p className={`text-xs ${couponFreeShipping ? 'text-green-600 font-medium' : 'text-[#1e3a5f]/50'}`}>
+                  {couponFreeShipping ? 'Grátis!' : 'R$ 5,00'}
+                </p>
               </button>
               <button
                 onClick={() => setDeliveryType('PICKUP')}
@@ -553,7 +771,7 @@ export default function CheckoutModal({ isOpen, onClose }) {
             </div>
           </div>
 
-          {/* Informações da loja para retirada */}
+          {/* Local de retirada */}
           {deliveryType === 'PICKUP' && (
             <div className="bg-white rounded-2xl p-5 border border-[#1e3a5f]/10 shadow-sm">
               <div className="flex items-start gap-4">
@@ -589,12 +807,11 @@ export default function CheckoutModal({ isOpen, onClose }) {
             </div>
           )}
 
-          {/* Seleção/criação de endereço (apenas para DELIVERY) */}
+          {/* Endereço de entrega */}
           {deliveryType === 'DELIVERY' && (
             <div>
               <label className="block text-[#1e3a5f] font-bold mb-3">Endereço de Entrega</label>
 
-              {/* Lista de endereços salvos */}
               {savedAddresses.length > 0 && !showNewAddress && (
                 <div className="space-y-3 mb-4">
                   {savedAddresses.map((addr) => (
@@ -638,7 +855,6 @@ export default function CheckoutModal({ isOpen, onClose }) {
                 </div>
               )}
 
-              {/* Botão para adicionar novo endereço */}
               {!showNewAddress ? (
                 <button
                   onClick={() => setShowNewAddress(true)}
@@ -652,7 +868,6 @@ export default function CheckoutModal({ isOpen, onClose }) {
                   </div>
                 </button>
               ) : (
-                /* Formulário para novo endereço */
                 <div className="space-y-4 p-4 bg-white rounded-2xl border border-[#1e3a5f]/10">
                   <div className="flex items-center justify-between">
                     <span className="text-[#1e3a5f] font-bold">Novo Endereço</span>
@@ -667,7 +882,6 @@ export default function CheckoutModal({ isOpen, onClose }) {
                     </button>
                   </div>
 
-                  {/* AVISO DE ÁREA DE ENTREGA */}
                   {deliveryAreaError && (
                     <div className="bg-[#1e3a5f]/10 border-2 border-[#1e3a5f]/30 rounded-2xl p-4 flex items-start gap-3">
                       <div className="w-10 h-10 bg-[#1e3a5f] rounded-xl flex items-center justify-center flex-shrink-0">
@@ -676,14 +890,12 @@ export default function CheckoutModal({ isOpen, onClose }) {
                       <div>
                         <p className="font-bold text-[#1e3a5f] text-sm">Fora da área de entrega</p>
                         <p className="text-xs text-[#1e3a5f]/70 mt-1">
-                          Desculpe, nosso delivery atende apenas a cidade de <strong>Campina Grande - PB</strong>. 
-                          Por favor, insira um endereço dentro dessa região.
+                          Desculpe, nosso delivery atende apenas a cidade de <strong>Campina Grande - PB</strong>.
                         </p>
                       </div>
                     </div>
                   )}
 
-                  {/* Campos do endereço */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[#1e3a5f]/70 text-xs mb-1 font-medium">CEP *</label>
@@ -813,6 +1025,189 @@ export default function CheckoutModal({ isOpen, onClose }) {
             </div>
           )}
 
+          {/* SEÇÃO DE CUPOM */}
+          <div className="bg-white rounded-2xl p-4 border border-[#1e3a5f]/10">
+            <div className="flex items-center gap-2 mb-3">
+              <Icons.Ticket className="w-5 h-5 text-[#1e3a5f]" />
+              <span className="font-bold text-[#1e3a5f] text-sm">Cupom de Desconto</span>
+            </div>
+
+            {appliedCoupon ? (
+              <div className="bg-[#1e3a5f]/5 rounded-xl p-3 border border-[#1e3a5f]/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-[#1e3a5f] rounded-lg flex items-center justify-center">
+                      <Icons.CheckCircle className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-[#1e3a5f] text-sm">{appliedCoupon.code}</p>
+                      <p className="text-[#1e3a5f]/60 text-xs">{appliedCoupon.name}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleRemoveCoupon}
+                    className="text-[#1e3a5f]/60 hover:text-[#1e3a5f] p-1 hover:bg-[#1e3a5f]/10 rounded-lg transition-colors"
+                  >
+                    <Icons.Close className="w-4 h-4" />
+                  </button>
+                </div>
+                {couponDiscount > 0 && (
+                  <p className="text-[#1e3a5f] font-bold text-sm mt-2">
+                    -R$ {couponDiscount.toFixed(2).replace('.', ',')}
+                  </p>
+                )}
+                {couponFreeShipping && (
+                  <div className="flex items-center gap-1 text-[#1e3a5f] font-medium text-xs mt-1">
+                    <Icons.Motorcycle className="w-3 h-3" />
+                    <span>Frete grátis aplicado!</span>
+                  </div>
+                )}
+                {!appliedCoupon.allowWithCashback && (
+                  <div className="flex items-center gap-1 text-[#1e3a5f]/70 font-medium text-xs mt-1">
+                    <Icons.AlertTriangle className="w-3 h-3" />
+                    <span>Este cupom não permite uso de cashback</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={couponCode}
+                    onChange={(e) => {
+                      setCouponCode(e.target.value.toUpperCase());
+                      setCouponError('');
+                    }}
+                    placeholder="Digite o código"
+                    className="flex-1 bg-[#faf8f5] border border-[#1e3a5f]/10 rounded-xl px-3 py-2.5 text-[#1e3a5f] text-sm placeholder:text-[#1e3a5f]/30 focus:outline-none focus:border-[#1e3a5f]/30 uppercase"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') handleApplyCoupon();
+                    }}
+                  />
+                  <button
+                    onClick={handleApplyCoupon}
+                    disabled={couponLoading || !couponCode.trim()}
+                    className="bg-[#1e3a5f] hover:bg-[#162d4a] disabled:bg-[#1e3a5f]/30 text-white font-medium px-4 py-2.5 rounded-xl transition-all text-sm flex items-center gap-2"
+                  >
+                    {couponLoading ? <Icons.Spinner className="w-4 h-4" /> : 'Aplicar'}
+                  </button>
+                </div>
+                {couponError && (
+                  <p className="text-red-500 text-xs flex items-center gap-1">
+                    <Icons.XCircle className="w-3 h-3" />
+                    {couponError}
+                  </p>
+                )}
+                {couponSuccess && (
+                  <p className="text-[#1e3a5f] text-xs flex items-center gap-1">
+                    <Icons.CheckCircle className="w-3 h-3" />
+                    {couponSuccess}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* SEÇÃO DE CASHBACK */}
+          {cashbackSettings?.isEnabled && (
+            <div className="bg-white rounded-2xl p-4 border border-[#1e3a5f]/10">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Icons.Wallet className="w-5 h-5 text-[#1e3a5f]" />
+                  <span className="font-bold text-[#1e3a5f] text-sm">Usar Cashback</span>
+                </div>
+                <div className="flex items-center gap-1 bg-[#1e3a5f]/5 px-2 py-1 rounded-lg">
+                  <Icons.Sparkles className="w-3 h-3 text-[#1e3a5f]" />
+                  <span className="text-xs font-bold text-[#1e3a5f]">
+                    R$ {userCashbackBalance.toFixed(2).replace('.', ',')}
+                  </span>
+                </div>
+              </div>
+
+              {cashbackToUse > 0 ? (
+                <div className="bg-[#1e3a5f]/5 rounded-xl p-3 border border-[#1e3a5f]/20">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-[#1e3a5f] rounded-lg flex items-center justify-center">
+                        <Icons.Wallet className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-[#1e3a5f] text-sm">Cashback aplicado</p>
+                        <p className="text-[#1e3a5f] font-bold">
+                          -R$ {cashbackToUse.toFixed(2).replace('.', ',')}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleRemoveCashback}
+                      className="text-[#1e3a5f]/60 hover:text-[#1e3a5f] p-1 hover:bg-[#1e3a5f]/10 rounded-lg transition-colors"
+                    >
+                      <Icons.Close className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : canUseCashback ? (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#1e3a5f]/50 text-sm">R$</span>
+                      <input
+                        type="text"
+                        value={cashbackInputValue}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^\d,]/g, '');
+                          setCashbackInputValue(val);
+                          setCashbackError('');
+                        }}
+                        placeholder="0,00"
+                        className="w-full bg-[#faf8f5] border border-[#1e3a5f]/10 rounded-xl pl-9 pr-3 py-2.5 text-[#1e3a5f] text-sm placeholder:text-[#1e3a5f]/30 focus:outline-none focus:border-[#1e3a5f]/30"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') handleApplyCashback();
+                        }}
+                      />
+                    </div>
+                    <button
+                      onClick={handleApplyMaxCashback}
+                      className="bg-[#1e3a5f]/10 hover:bg-[#1e3a5f]/20 text-[#1e3a5f] font-medium px-3 py-2.5 rounded-xl transition-all text-xs"
+                    >
+                      Máx
+                    </button>
+                    <button
+                      onClick={handleApplyCashback}
+                      disabled={!cashbackInputValue}
+                      className="bg-[#1e3a5f] hover:bg-[#162d4a] disabled:bg-[#1e3a5f]/30 text-white font-medium px-4 py-2.5 rounded-xl transition-all text-sm"
+                    >
+                      Usar
+                    </button>
+                  </div>
+                  <p className="text-[#1e3a5f]/50 text-xs">
+                    Mínimo: R$ {cashbackSettings.minRedeemValue.toFixed(2).replace('.', ',')} | 
+                    Máx: {cashbackSettings.maxRedeemPercentage}% do pedido
+                  </p>
+                  {cashbackError && (
+                    <p className="text-red-500 text-xs flex items-center gap-1">
+                      <Icons.XCircle className="w-3 h-3" />
+                      {cashbackError}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="text-[#1e3a5f]/50 text-sm text-center py-2">
+                  {!cashbackSettings?.isEnabled ? (
+                    'Cashback está desabilitado no momento'
+                  ) : userCashbackBalance < (cashbackSettings?.minRedeemValue || 0) ? (
+                    `Saldo mínimo para resgate: R$ ${(cashbackSettings?.minRedeemValue || 0).toFixed(2).replace('.', ',')}`
+                  ) : appliedCoupon && !appliedCoupon.allowWithCashback ? (
+                    'O cupom aplicado não permite uso de cashback'
+                  ) : (
+                    'Você não possui cashback disponível'
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Resumo do pedido */}
           <div className="bg-white rounded-2xl p-4 border border-[#1e3a5f]/10">
             <h3 className="text-[#1e3a5f] font-bold mb-3">Resumo</h3>
@@ -821,23 +1216,67 @@ export default function CheckoutModal({ isOpen, onClose }) {
                 <span>Subtotal ({cart.length} {cart.length === 1 ? 'item' : 'itens'})</span>
                 <span>R$ {subtotal.toFixed(2).replace('.', ',')}</span>
               </div>
+              
+              {couponDiscount > 0 && (
+                <div className="flex justify-between text-[#1e3a5f]">
+                  <span className="flex items-center gap-1">
+                    <Icons.Ticket className="w-3 h-3" />
+                    Cupom ({appliedCoupon?.code})
+                  </span>
+                  <span>-R$ {couponDiscount.toFixed(2).replace('.', ',')}</span>
+                </div>
+              )}
+              
+              {cashbackToUse > 0 && (
+                <div className="flex justify-between text-[#1e3a5f]">
+                  <span className="flex items-center gap-1">
+                    <Icons.Wallet className="w-3 h-3" />
+                    Cashback
+                  </span>
+                  <span>-R$ {cashbackToUse.toFixed(2).replace('.', ',')}</span>
+                </div>
+              )}
+              
               <div className="flex justify-between text-[#1e3a5f]/60">
                 <span>Entrega</span>
-                <span className={shippingFee === 0 ? 'text-[#1e3a5f] font-medium' : ''}>
-                  {shippingFee > 0 ? `R$ ${shippingFee.toFixed(2).replace('.', ',')}` : 'Grátis'}
+                <span className={couponFreeShipping && deliveryType === 'DELIVERY' ? 'line-through text-[#1e3a5f]/30' : ''}>
+                  {deliveryType === 'PICKUP' ? 'Grátis' : `R$ ${baseShippingFee.toFixed(2).replace('.', ',')}`}
                 </span>
               </div>
+              
+              {couponFreeShipping && deliveryType === 'DELIVERY' && (
+                <div className="flex justify-between text-[#1e3a5f]">
+                  <span className="flex items-center gap-1">
+                    <Icons.Motorcycle className="w-3 h-3" />
+                    Frete grátis
+                  </span>
+                  <span>-R$ {baseShippingFee.toFixed(2).replace('.', ',')}</span>
+                </div>
+              )}
+              
               <div className="border-t border-[#1e3a5f]/10 pt-3 mt-2">
                 <div className="flex justify-between items-center">
                   <span className="text-[#1e3a5f] font-bold">Total</span>
-                  <span className="text-[#1e3a5f] font-black text-xl">R$ {total.toFixed(2).replace('.', ',')}</span>
+                  <span className="text-[#1e3a5f] font-black text-xl">
+                    R$ {total.toFixed(2).replace('.', ',')}
+                  </span>
                 </div>
               </div>
+
+              {/* Preview de cashback a ganhar */}
+              {cashbackToEarn > 0 && (
+                <div className="flex items-center justify-center gap-2 pt-2 text-[#1e3a5f]">
+                  <Icons.Sparkles className="w-4 h-4" />
+                  <span className="text-sm font-medium">
+                    Você vai ganhar R$ {cashbackToEarn.toFixed(2).replace('.', ',')} de cashback!
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Footer com ações de navegação */}
+        {/* Footer */}
         <div className="p-6 bg-white border-t border-[#1e3a5f]/10 flex-shrink-0">
           <div className="flex gap-3">
             <button
@@ -878,13 +1317,13 @@ export default function CheckoutModal({ isOpen, onClose }) {
   );
 }
 
-// Toast Notification Component
+// Toast Component
 const Toast = ({ toast, onClose }) => {
   if (!toast.show) return null;
 
   const typeStyles = {
     success: 'bg-[#1e3a5f] text-white',
-    error: 'bg-[#1e3a5f]/90 text-white border-2 border-white/20',
+    error: 'bg-[#1e3a5f]/90 text-white border border-white/20',
     info: 'bg-[#1e3a5f]/80 text-white'
   };
 

@@ -91,9 +91,24 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
     </svg>
   ),
+  Ticket: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+    </svg>
+  ),
+  Spinner: ({ className = "w-5 h-5" }) => (
+    <svg className={`${className} animate-spin`} fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+  ),
+  Error: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
 };
 
-// Componente que gerencia os modais globais: Carrinho e Acompanhamento de Pedidos
 export default function GlobalModals() {
   const {
     isCartOpen,
@@ -107,24 +122,87 @@ export default function GlobalModals() {
     activeTrackingOrders,
     fetchMyOrders,
     handleConfirmDelivery,
+    // Cupom
+    appliedCoupon,
+    couponDiscount,
+    couponFreeShipping,
+    applyCoupon,
+    clearCoupon,
   } = useCart();
 
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false); 
-  const [confirmingOrderId, setConfirmingOrderId] = useState(null); 
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [confirmingOrderId, setConfirmingOrderId] = useState(null);
+  const [confirmError, setConfirmError] = useState(null);
+  
+  // Estados para cupom no carrinho
+  const [couponCode, setCouponCode] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
+  const [couponSuccess, setCouponSuccess] = useState('');
 
   useEffect(() => {
     if (!isTrackingOpen) return;
-    fetchMyOrders(); 
+    fetchMyOrders();
     const interval = setInterval(fetchMyOrders, 5000);
     return () => clearInterval(interval);
   }, [isTrackingOpen, fetchMyOrders]);
 
-  // Retorna informações visuais para cada status do pedido
-  // Agora considera o tipo de entrega (DELIVERY ou PICKUP)
+  // Limpa mensagens de cupom quando carrinho fecha
+  useEffect(() => {
+    if (!isCartOpen) {
+      setCouponError('');
+      setCouponSuccess('');
+      if (!appliedCoupon) {
+        setCouponCode('');
+      }
+    }
+  }, [isCartOpen, appliedCoupon]);
+
+  // Limpa erro de confirmação quando modal fecha
+  useEffect(() => {
+    if (!isTrackingOpen) {
+      setConfirmError(null);
+    }
+  }, [isTrackingOpen]);
+
+  // Handler para aplicar cupom
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError('Digite um código de cupom');
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponError('');
+    setCouponSuccess('');
+
+    try {
+      const result = await applyCoupon(couponCode.trim());
+      
+      if (result.valid) {
+        setCouponSuccess(result.message || 'Cupom aplicado com sucesso!');
+        setCouponCode('');
+      } else {
+        setCouponError(result.message || 'Cupom inválido');
+      }
+    } catch (err) {
+      setCouponError('Erro ao aplicar cupom');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  // Handler para remover cupom
+  const handleRemoveCoupon = () => {
+    clearCoupon();
+    setCouponCode('');
+    setCouponSuccess('');
+    setCouponError('');
+  };
+
   const getStatusInfo = (status, deliveryType = 'DELIVERY') => {
     const isPickup = deliveryType === 'PICKUP';
 
-    // Status base (comum para delivery e pickup)
     const baseStatusMap = {
       PLACED: {
         label: 'Pedido Recebido',
@@ -182,7 +260,6 @@ export default function GlobalModals() {
       },
     };
 
-    // Status específicos para PICKUP (Retirada)
     const pickupStatusMap = {
       ...baseStatusMap,
       READY: {
@@ -232,7 +309,6 @@ export default function GlobalModals() {
       },
     };
 
-    // Status específicos para DELIVERY (Entrega)
     const deliveryStatusMap = {
       ...baseStatusMap,
       READY: {
@@ -264,9 +340,7 @@ export default function GlobalModals() {
       },
     };
 
-    // Seleciona o mapa de status correto baseado no tipo de entrega
     const statusMap = isPickup ? pickupStatusMap : deliveryStatusMap;
-
     return statusMap[status] || baseStatusMap.PENDING;
   };
 
@@ -300,14 +374,32 @@ export default function GlobalModals() {
   };
 
   const onConfirmDelivery = async (orderId) => {
+    if (confirmingOrderId) return; // Evita cliques duplos
+    
     setConfirmingOrderId(orderId);
-    await handleConfirmDelivery(orderId);
-    setConfirmingOrderId(null);
+    setConfirmError(null);
+    
+    try {
+      const result = await handleConfirmDelivery(orderId);
+      
+      if (result && !result.success) {
+        setConfirmError(result.message || 'Erro ao confirmar');
+      } else {
+        // Sucesso - atualiza a lista
+        await fetchMyOrders();
+      }
+    } catch (err) {
+      console.error('Erro ao confirmar:', err);
+      setConfirmError('Erro ao confirmar. Tente novamente.');
+    } finally {
+      setConfirmingOrderId(null);
+    }
   };
 
   const deliveryFee = 5.0;
   const cartTotal = getCartTotal();
-  const orderTotal = cartTotal + deliveryFee;
+  const finalShippingFee = couponFreeShipping ? 0 : deliveryFee;
+  const orderTotal = cartTotal - couponDiscount + finalShippingFee;
 
   return (
     <>
@@ -378,13 +470,12 @@ export default function GlobalModals() {
                           </p>
                           
                           <div className="flex items-center justify-between mt-3">
-                            {/* Controles de quantidade */}
                             <div className="flex items-center gap-2 bg-[#faf8f5] rounded-xl p-1">
                               <button
                                 onClick={() => updateQuantity(item.id, item.quantity - 1, item.observation)}
                                 className="w-8 h-8 rounded-lg bg-white border border-[#1e3a5f]/10 text-[#1e3a5f] font-bold hover:bg-[#1e3a5f] hover:text-white transition-colors flex items-center justify-center"
                               >
-                                −
+                                -
                               </button>
                               <span className="text-[#1e3a5f] font-bold w-8 text-center">{item.quantity}</span>
                               <button
@@ -394,7 +485,6 @@ export default function GlobalModals() {
                                 +
                               </button>
                             </div>
-                            {/* Botão remover item */}
                             <button
                               onClick={() => removeFromCart(item.id, item.observation)}
                               className="p-2 text-[#1e3a5f]/40 hover:text-[#1e3a5f] hover:bg-[#1e3a5f]/5 rounded-lg transition-colors"
@@ -406,6 +496,90 @@ export default function GlobalModals() {
                       </div>
                     </div>
                   ))}
+
+                  {/* SEÇÃO DE CUPOM NO CARRINHO */}
+                  <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#1e3a5f]/5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Icons.Ticket className="w-5 h-5 text-[#1e3a5f]" />
+                      <span className="font-bold text-[#1e3a5f] text-sm">Cupom de Desconto</span>
+                    </div>
+
+                    {appliedCoupon ? (
+                      // Cupom aplicado
+                      <div className="bg-[#1e3a5f]/5 rounded-xl p-3 border border-[#1e3a5f]/10">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-[#1e3a5f] rounded-lg flex items-center justify-center">
+                              <Icons.CheckCircle className="w-4 h-4 text-white" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-[#1e3a5f] text-sm">{appliedCoupon.code}</p>
+                              <p className="text-[#1e3a5f]/50 text-xs">{appliedCoupon.name}</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={handleRemoveCoupon}
+                            className="text-[#1e3a5f]/40 hover:text-[#1e3a5f] p-1 hover:bg-[#1e3a5f]/10 rounded-lg transition-colors"
+                          >
+                            <Icons.Close className="w-4 h-4" />
+                          </button>
+                        </div>
+                        {couponDiscount > 0 && (
+                          <p className="text-[#1e3a5f] font-bold text-sm mt-2">
+                            -R$ {couponDiscount.toFixed(2).replace('.', ',')}
+                          </p>
+                        )}
+                        {couponFreeShipping && (
+                          <div className="flex items-center gap-1 text-[#1e3a5f] font-medium text-xs mt-1">
+                            <Icons.Motorcycle className="w-3 h-3" />
+                            <span>Frete grátis aplicado!</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      // Input para adicionar cupom
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={couponCode}
+                            onChange={(e) => {
+                              setCouponCode(e.target.value.toUpperCase());
+                              setCouponError('');
+                            }}
+                            placeholder="Digite o código"
+                            className="flex-1 bg-[#faf8f5] border border-[#1e3a5f]/10 rounded-xl px-3 py-2.5 text-[#1e3a5f] text-sm placeholder:text-[#1e3a5f]/30 focus:outline-none focus:border-[#1e3a5f]/30 uppercase"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') handleApplyCoupon();
+                            }}
+                          />
+                          <button
+                            onClick={handleApplyCoupon}
+                            disabled={couponLoading || !couponCode.trim()}
+                            className="bg-[#1e3a5f] hover:bg-[#162d4a] disabled:bg-[#1e3a5f]/30 text-white font-medium px-4 py-2.5 rounded-xl transition-all text-sm flex items-center gap-2"
+                          >
+                            {couponLoading ? (
+                              <Icons.Spinner className="w-4 h-4" />
+                            ) : (
+                              'Aplicar'
+                            )}
+                          </button>
+                        </div>
+                        {couponError && (
+                          <p className="text-red-500 text-xs flex items-center gap-1">
+                            <Icons.XCircle className="w-3 h-3" />
+                            {couponError}
+                          </p>
+                        )}
+                        {couponSuccess && (
+                          <p className="text-[#1e3a5f] text-xs flex items-center gap-1">
+                            <Icons.CheckCircle className="w-3 h-3" />
+                            {couponSuccess}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -418,10 +592,34 @@ export default function GlobalModals() {
                     <span>Subtotal</span>
                     <span>R$ {cartTotal.toFixed(2).replace('.', ',')}</span>
                   </div>
+                  
+                  {couponDiscount > 0 && (
+                    <div className="flex justify-between text-[#1e3a5f] text-sm">
+                      <span className="flex items-center gap-1">
+                        <Icons.Ticket className="w-3 h-3" />
+                        Desconto do cupom
+                      </span>
+                      <span>-R$ {couponDiscount.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                  )}
+                  
                   <div className="flex justify-between text-[#1e3a5f]/60 text-sm">
                     <span>Taxa de entrega</span>
-                    <span>R$ {deliveryFee.toFixed(2).replace('.', ',')}</span>
+                    <span className={couponFreeShipping ? 'line-through text-[#1e3a5f]/30' : ''}>
+                      R$ {deliveryFee.toFixed(2).replace('.', ',')}
+                    </span>
                   </div>
+                  
+                  {couponFreeShipping && (
+                    <div className="flex justify-between text-[#1e3a5f] text-sm">
+                      <span className="flex items-center gap-1">
+                        <Icons.Motorcycle className="w-3 h-3" />
+                        Frete grátis
+                      </span>
+                      <span>-R$ {deliveryFee.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                  )}
+                  
                   <div className="border-t border-[#1e3a5f]/10 pt-3 flex justify-between items-center">
                     <span className="text-[#1e3a5f] font-bold">Total</span>
                     <span className="text-[#1e3a5f] font-black text-2xl">
@@ -479,6 +677,20 @@ export default function GlobalModals() {
                 </button>
               </div>
             </div>
+
+            {/* Erro global */}
+            {confirmError && (
+              <div className="mx-4 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-red-600 text-sm">
+                <Icons.Error className="w-4 h-4 flex-shrink-0" />
+                <span>{confirmError}</span>
+                <button 
+                  onClick={() => setConfirmError(null)}
+                  className="ml-auto p-1 hover:bg-red-100 rounded"
+                >
+                  <Icons.Close className="w-3 h-3" />
+                </button>
+              </div>
+            )}
 
             {/* Lista de pedidos ativos */}
             <div className="flex-1 overflow-y-auto p-3 sm:p-4 bg-[#faf8f5]">
@@ -541,7 +753,7 @@ export default function GlobalModals() {
                           </div>
                         </div>
 
-                        {/* Timeline de progresso (exceto cancelados) */}
+                        {/* Timeline de progresso */}
                         {!isCancelled && (
                           <div className="px-3 sm:px-4 py-2 sm:py-3 bg-[#faf8f5]">
                             <div className="flex gap-1 mb-1.5 sm:mb-2">
@@ -572,7 +784,7 @@ export default function GlobalModals() {
                           </div>
                         )}
 
-                        {/* Endereço de entrega (apenas para delivery) */}
+                        {/* Endereço de entrega */}
                         {!isPickup && order.deliveryAddress && (
                           <div className="px-3 sm:px-4 py-2 sm:py-3 bg-[#1e3a5f]/5 border-t border-[#1e3a5f]/10">
                             <p className="text-[10px] sm:text-xs font-bold text-[#1e3a5f] mb-0.5 sm:mb-1 flex items-center gap-1">
@@ -615,6 +827,17 @@ export default function GlobalModals() {
                               </div>
                             ))}
                           </div>
+                          
+                          {/* Mostrar cashback ganho se houver */}
+                          {order.cashbackEarned > 0 && order.status !== 'CANCELLED' && (
+                            <div className="flex items-center gap-2 py-2 px-3 bg-[#1e3a5f]/5 rounded-lg mb-2">
+                              <Icons.Sparkles className="w-4 h-4 text-[#1e3a5f]" />
+                              <span className="text-xs text-[#1e3a5f] font-medium">
+                                +R$ {order.cashbackEarned.toFixed(2).replace('.', ',')} de cashback
+                              </span>
+                            </div>
+                          )}
+                          
                           <div className="border-t border-[#1e3a5f]/10 pt-2 sm:pt-3 flex justify-between">
                             <span className="font-bold text-[#1e3a5f] text-sm">Total</span>
                             <span className="font-black text-[#1e3a5f] text-base sm:text-lg">
@@ -623,7 +846,7 @@ export default function GlobalModals() {
                           </div>
                         </div>
 
-                        {/* Botão de confirmação (quando entregue/retirado) */}
+                        {/* Botão de confirmação */}
                         {showConfirmation && (
                           <div className="p-3 sm:p-4 bg-[#1e3a5f]/10 border-t border-[#1e3a5f]/20">
                             <div className="text-center mb-2 sm:mb-3">
@@ -644,10 +867,7 @@ export default function GlobalModals() {
                             >
                               {isConfirming ? (
                                 <>
-                                  <svg className="animate-spin w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                  </svg>
+                                  <Icons.Spinner className="w-4 h-4 sm:w-5 sm:h-5" />
                                   Confirmando...
                                 </>
                               ) : (

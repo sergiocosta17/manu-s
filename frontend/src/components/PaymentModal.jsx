@@ -1,8 +1,8 @@
+// components/PaymentModal.jsx
 import React, { useState, useCallback, useEffect } from 'react';
 import { useCart } from '../contexts/CartContext';
 
 // ÍCONES SVG
-// Componentes funcionais para ícones usados no modal de pagamento
 const Icons = {
   Close: ({ className = "w-5 h-5" }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -86,6 +86,21 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
     </svg>
   ),
+  Ticket: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+    </svg>
+  ),
+  Wallet: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+    </svg>
+  ),
+  Sparkles: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+    </svg>
+  ),
 };
 
 // Modal de pagamento (etapa final do checkout)
@@ -100,6 +115,12 @@ export default function PaymentModal({
   subtotal, 
   shippingFee, 
   total,
+  // NOVAS PROPS PARA DESCONTOS
+  couponCode = null,
+  couponDiscount = 0,
+  couponFreeShipping = false,
+  cashbackToUse = 0,
+  cashbackToEarn = 0,
   onSuccess 
 }) {
   const { fetchMyOrders } = useCart();
@@ -157,6 +178,10 @@ export default function PaymentModal({
     },
   ];
 
+  // Calcula o total de descontos
+  const totalDiscounts = couponDiscount + cashbackToUse;
+  const hasDiscounts = totalDiscounts > 0 || couponFreeShipping;
+
   // Submete o pedido para a API GraphQL
   const handleSubmitOrder = async () => {
     if (!paymentMethod) {
@@ -175,6 +200,7 @@ export default function PaymentModal({
         name: item.name,
         price: item.promotionalPrice || item.price,
         quantity: item.quantity,
+        category: item.category || 'BURGER'
       }));
 
       // Prepara endereço de entrega se for delivery
@@ -197,13 +223,16 @@ export default function PaymentModal({
         items: itemsInput,
         subtotal: subtotal,
         shippingFee: shippingFee,
-        discount: 0,
+        discount: couponDiscount,
+        cashbackToUse: cashbackToUse,
         total: total,
-        couponCode: null,
+        couponCode: couponCode,
         deliveryType: deliveryType,
         deliveryAddress: deliveryAddressInput,
         paymentMethod: paymentMethod,
       };
+
+      console.log('📦 Enviando pedido:', orderInput);
 
       // Chamada GraphQL para criar pedido
       const response = await fetch('http://localhost:4000/graphql', {
@@ -219,6 +248,10 @@ export default function PaymentModal({
                 id
                 status
                 total
+                discount
+                cashbackUsed
+                cashbackEarned
+                couponCode
                 createdAt
               }
             }
@@ -234,9 +267,10 @@ export default function PaymentModal({
       }
 
       if (result.data?.createOrder) {
+        console.log('✅ Pedido criado:', result.data.createOrder);
         await fetchMyOrders();
         
-        // Mostra tela de confirmação em vez de fechar o modal
+        // Mostra tela de confirmação
         setOrderConfirmation({
           show: true,
           orderId: result.data.createOrder.id,
@@ -248,7 +282,11 @@ export default function PaymentModal({
             address,
             subtotal,
             shippingFee,
-            total
+            total,
+            couponCode,
+            couponDiscount,
+            cashbackUsed: cashbackToUse,
+            cashbackEarned: result.data.createOrder.cashbackEarned || cashbackToEarn
           }
         });
       }
@@ -288,13 +326,11 @@ export default function PaymentModal({
 
         <div className="relative bg-white rounded-3xl w-full max-w-md max-h-[85vh] overflow-hidden flex flex-col shadow-2xl animate-scale-in">
           
-          {/* Header de sucesso - compacto */}
+          {/* Header de sucesso */}
           <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] px-6 py-5 text-center relative overflow-hidden flex-shrink-0">
-            {/* Efeitos decorativos */}
             <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
             <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/5 rounded-full blur-xl"></div>
             
-            {/* Ícone de sucesso animado */}
             <div className="relative z-10 flex items-center justify-center gap-4">
               <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-lg animate-bounce-once flex-shrink-0">
                 <Icons.Check className="w-7 h-7 text-[#1e3a5f]" />
@@ -306,7 +342,7 @@ export default function PaymentModal({
             </div>
           </div>
 
-          {/* Conteúdo da confirmação - scrollável */}
+          {/* Conteúdo da confirmação */}
           <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-[#faf8f5]">
             
             {/* Número do pedido */}
@@ -342,6 +378,23 @@ export default function PaymentModal({
                 </div>
               </div>
             </div>
+
+            {/* Cashback ganho (se houver) */}
+            {orderConfirmation.orderData?.cashbackEarned > 0 && (
+              <div className="bg-gradient-to-r from-[#1e3a5f]/10 to-[#2d4a6f]/10 rounded-xl p-3 border border-[#1e3a5f]/20">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-[#1e3a5f] flex items-center justify-center flex-shrink-0">
+                    <Icons.Sparkles className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[#1e3a5f]/60 text-[10px] font-medium">Cashback para próxima compra</p>
+                    <p className="text-[#1e3a5f] font-bold text-lg">
+                      +R$ {orderConfirmation.orderData.cashbackEarned.toFixed(2).replace('.', ',')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Detalhes da entrega/retirada */}
             <div className="bg-white rounded-xl p-3 border border-[#1e3a5f]/10">
@@ -394,9 +447,31 @@ export default function PaymentModal({
                   <span>Subtotal</span>
                   <span>R$ {orderConfirmation.orderData?.subtotal?.toFixed(2).replace('.', ',')}</span>
                 </div>
+                
+                {/* Descontos na confirmação */}
+                {orderConfirmation.orderData?.couponDiscount > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span className="flex items-center gap-1">
+                      <Icons.Ticket className="w-3 h-3" />
+                      Cupom ({orderConfirmation.orderData?.couponCode})
+                    </span>
+                    <span>-R$ {orderConfirmation.orderData.couponDiscount.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                )}
+                
+                {orderConfirmation.orderData?.cashbackUsed > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span className="flex items-center gap-1">
+                      <Icons.Wallet className="w-3 h-3" />
+                      Cashback usado
+                    </span>
+                    <span>-R$ {orderConfirmation.orderData.cashbackUsed.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                )}
+                
                 <div className="flex justify-between text-[#1e3a5f]/60">
                   <span>Entrega</span>
-                  <span className={orderConfirmation.orderData?.shippingFee === 0 ? 'text-[#1e3a5f] font-medium' : ''}>
+                  <span className={orderConfirmation.orderData?.shippingFee === 0 ? 'text-green-600 font-medium' : ''}>
                     {orderConfirmation.orderData?.shippingFee > 0 
                       ? `R$ ${orderConfirmation.orderData.shippingFee.toFixed(2).replace('.', ',')}` 
                       : 'Grátis'
@@ -452,7 +527,7 @@ export default function PaymentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-hidden">
-      {/* Overlay escurecido - não clicável na confirmação */}
+      {/* Overlay escurecido */}
       <div 
         className="absolute inset-0 bg-[#1e3a5f]/70 backdrop-blur-md"
         onClick={onClose}
@@ -478,7 +553,7 @@ export default function PaymentModal({
             </button>
           </div>
 
-          {/* Barra de progresso - ambas etapas preenchidas na etapa 2 */}
+          {/* Barra de progresso */}
           <div className="flex gap-2 mt-4">
             <div className="flex-1 h-1.5 bg-white rounded-full" />
             <div className="flex-1 h-1.5 bg-white rounded-full" />
@@ -561,6 +636,7 @@ export default function PaymentModal({
           <div className="bg-white rounded-2xl p-4 border border-[#1e3a5f]/10">
             <h3 className="text-[#1e3a5f] font-bold mb-3">Resumo do Pedido</h3>
             
+            {/* Lista de itens */}
             <div className="space-y-2 mb-4 max-h-32 overflow-y-auto">
               {cart.map((item, index) => (
                 <div key={index} className="flex justify-between text-sm">
@@ -572,21 +648,61 @@ export default function PaymentModal({
               ))}
             </div>
 
+            {/* Valores e descontos */}
             <div className="border-t border-[#1e3a5f]/10 pt-3 space-y-2">
               <div className="flex justify-between text-sm text-[#1e3a5f]/60">
                 <span>Subtotal</span>
                 <span>R$ {subtotal.toFixed(2).replace('.', ',')}</span>
               </div>
+              
+              {/* Desconto do cupom */}
+              {couponDiscount > 0 && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span className="flex items-center gap-1.5">
+                    <Icons.Ticket className="w-4 h-4" />
+                    Cupom {couponCode && <span className="font-medium">({couponCode})</span>}
+                  </span>
+                  <span className="font-medium">-R$ {couponDiscount.toFixed(2).replace('.', ',')}</span>
+                </div>
+              )}
+              
+              {/* Cashback usado */}
+              {cashbackToUse > 0 && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span className="flex items-center gap-1.5">
+                    <Icons.Wallet className="w-4 h-4" />
+                    Cashback
+                  </span>
+                  <span className="font-medium">-R$ {cashbackToUse.toFixed(2).replace('.', ',')}</span>
+                </div>
+              )}
+              
+              {/* Entrega */}
               <div className="flex justify-between text-sm text-[#1e3a5f]/60">
                 <span>Entrega</span>
-                <span className={shippingFee === 0 ? 'text-[#1e3a5f] font-medium' : ''}>
+                <span className={shippingFee === 0 ? 'text-green-600 font-medium' : ''}>
                   {shippingFee > 0 ? `R$ ${shippingFee.toFixed(2).replace('.', ',')}` : 'Grátis'}
                 </span>
               </div>
+              
+              {/* Total */}
               <div className="flex justify-between items-center pt-2 border-t border-[#1e3a5f]/10">
                 <span className="text-[#1e3a5f] font-bold">Total</span>
                 <span className="text-[#1e3a5f] font-black text-2xl">R$ {total.toFixed(2).replace('.', ',')}</span>
               </div>
+              
+              {/* Cashback a ganhar */}
+              {cashbackToEarn > 0 && (
+                <div className="flex justify-between items-center pt-2 bg-[#1e3a5f]/5 -mx-4 px-4 py-2 rounded-lg mt-2">
+                  <span className="text-[#1e3a5f]/70 text-sm flex items-center gap-1.5">
+                    <Icons.Sparkles className="w-4 h-4 text-[#1e3a5f]" />
+                    Cashback a receber
+                  </span>
+                  <span className="text-[#1e3a5f] font-bold text-sm">
+                    +R$ {cashbackToEarn.toFixed(2).replace('.', ',')}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
