@@ -1,5 +1,51 @@
 const mongoose = require('mongoose');
 
+// Schema para opcionais individuais
+const AddonSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true
+  },
+  price: {
+    type: Number,
+    default: 0
+  },
+  isAvailable: {
+    type: Boolean,
+    default: true
+  }
+}, { _id: true });
+
+// Schema para grupo de opcionais
+const AddonGroupSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true
+  },
+  description: {
+    type: String,
+    default: ''
+  },
+  selectionType: {
+    type: String,
+    enum: ['SINGLE', 'MULTIPLE'],
+    default: 'MULTIPLE'
+  },
+  minSelection: {
+    type: Number,
+    default: 0
+  },
+  maxSelection: {
+    type: Number,
+    default: 10
+  },
+  isRequired: {
+    type: Boolean,
+    default: false
+  },
+  addons: [AddonSchema]
+}, { _id: true });
+
 // Schema do modelo Product para produtos do cardápio
 const productSchema = new mongoose.Schema({
   // Nome do produto
@@ -40,13 +86,13 @@ const productSchema = new mongoose.Schema({
   isAvailable: {
     type: Boolean,
     default: true
-  }
-}, { timestamps: true }); // Adiciona createdAt e updatedAt automaticamente
+  },
+  // Grupos de opcionais/adicionais
+  addonGroups: [AddonGroupSchema]
+}, { timestamps: true });
 
-// Índice para otimizar consultas por categoria e disponibilidade
+// Índices para otimizar consultas
 productSchema.index({ category: 1, isAvailable: 1 });
-
-// Índice para otimizar consultas de produtos em destaque disponíveis
 productSchema.index({ isFeatured: 1, isAvailable: 1 });
 
 module.exports = mongoose.model('Product', productSchema);

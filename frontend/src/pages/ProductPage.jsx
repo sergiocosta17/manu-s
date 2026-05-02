@@ -46,14 +46,14 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
-  Trash: ({ className = "w-5 h-5" }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-    </svg>
-  ),
   ShoppingBag: ({ className = "w-5 h-5" }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+    </svg>
+  ),
+  Alert: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
     </svg>
   ),
 };
@@ -68,6 +68,21 @@ const GET_PRODUCT = `
       promotionalPrice
       imageUrl
       category
+      addonGroups {
+        id
+        name
+        description
+        selectionType
+        minSelection
+        maxSelection
+        isRequired
+        addons {
+          id
+          name
+          price
+          isAvailable
+        }
+      }
     }
   }
 `;
@@ -113,7 +128,7 @@ const DAY_LABELS_PT = {
 export default function ProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { cart, addToCart, updateQuantity, removeFromCartDirect, setIsCartOpen } = useCart();
+  const { cart, addToCart, setIsCartOpen } = useCart();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -122,27 +137,27 @@ export default function ProductPage() {
   const [addedToCart, setAddedToCart] = useState(false);
   const [observations, setObservations] = useState('');
   
+  // Estado para opcionais selecionados
+  const [selectedAddons, setSelectedAddons] = useState({});
+  const [addonValidationErrors, setAddonValidationErrors] = useState({});
+  
   const [isStoreOpen, setIsStoreOpen] = useState(true);
   const [storeHoursMessage, setStoreHoursMessage] = useState('');
   const [todayHours, setTodayHours] = useState(null);
   const [isClosingSoon, setIsClosingSoon] = useState(false);
-
-  const [removeModal, setRemoveModal] = useState({
-    isOpen: false,
-    product: null
-  });
   
   const isAddingRef = useRef(false);
   const isAdmin = localStorage.getItem('userRole') === 'ADMIN';
 
-  const getCartItem = () => {
-    if (!product) return null;
-    return cart.find(item => item.id === product.id);
+  // Calcular quantidade total deste produto no carrinho (todos os itens com mesmo id)
+  const getTotalQuantityInCart = () => {
+    if (!product) return 0;
+    return cart
+      .filter(item => item.id === product.id)
+      .reduce((sum, item) => sum + item.quantity, 0);
   };
 
-  const cartItem = getCartItem();
-  const isInCart = !!cartItem;
-  const quantityInCart = cartItem?.quantity || 0;
+  const totalInCart = getTotalQuantityInCart();
 
   const checkStoreOpen = (businessHours) => {
     if (!businessHours) {
@@ -283,6 +298,13 @@ export default function ProductPage() {
         }
 
         setProduct(productResult.data.product);
+        
+        // Inicializar seleções de opcionais
+        const initialSelections = {};
+        productResult.data.product.addonGroups?.forEach(group => {
+          initialSelections[group.id] = [];
+        });
+        setSelectedAddons(initialSelections);
 
         if (settingsResult.data?.storeSettings?.businessHours) {
           const storeStatus = checkStoreOpen(settingsResult.data.storeSettings.businessHours);
@@ -317,6 +339,119 @@ export default function ProductPage() {
     return () => clearInterval(interval);
   }, [todayHours]);
 
+  // ============================================
+  // FUNÇÕES PARA GERENCIAR OPCIONAIS
+  // ============================================
+
+  const handleAddonSelect = (groupId, addon, group) => {
+    setSelectedAddons(prev => {
+      const currentSelections = prev[groupId] || [];
+      
+      if (group.selectionType === 'SINGLE') {
+        // Se já está selecionado, desseleciona (se não for obrigatório ou min > 0)
+        if (currentSelections.some(a => a.id === addon.id)) {
+          if (group.isRequired || group.minSelection > 0) {
+            return prev; // Não pode desselecionar
+          }
+          return { ...prev, [groupId]: [] };
+        }
+        // Seleciona o novo
+        return { ...prev, [groupId]: [addon] };
+      } else {
+        // Múltipla seleção
+        const isSelected = currentSelections.some(a => a.id === addon.id);
+        
+        if (isSelected) {
+          // Remove
+          return { 
+            ...prev, 
+            [groupId]: currentSelections.filter(a => a.id !== addon.id) 
+          };
+        } else {
+          // Adiciona (verificando máximo)
+          if (currentSelections.length >= group.maxSelection) {
+            return prev; // Atingiu o máximo
+          }
+          return { 
+            ...prev, 
+            [groupId]: [...currentSelections, addon] 
+          };
+        }
+      }
+    });
+    
+    // Limpar erro de validação ao selecionar
+    setAddonValidationErrors(prev => ({ ...prev, [groupId]: null }));
+  };
+
+  const isAddonSelected = (groupId, addonId) => {
+    return (selectedAddons[groupId] || []).some(a => a.id === addonId);
+  };
+
+  const getGroupSelectionCount = (groupId) => {
+    return (selectedAddons[groupId] || []).length;
+  };
+
+  const calculateAddonsTotal = () => {
+    let total = 0;
+    Object.values(selectedAddons).forEach(addons => {
+      addons.forEach(addon => {
+        total += Number(addon.price) || 0;
+      });
+    });
+    return total;
+  };
+
+  const validateAddons = () => {
+    const errors = {};
+    let isValid = true;
+
+    product?.addonGroups?.forEach(group => {
+      const selectionCount = getGroupSelectionCount(group.id);
+      
+      if (group.isRequired && selectionCount === 0) {
+        errors[group.id] = `Selecione pelo menos ${group.minSelection || 1} opção`;
+        isValid = false;
+      } else if (selectionCount < group.minSelection) {
+        errors[group.id] = `Selecione pelo menos ${group.minSelection} ${group.minSelection === 1 ? 'opção' : 'opções'}`;
+        isValid = false;
+      }
+    });
+
+    setAddonValidationErrors(errors);
+    return isValid;
+  };
+
+  const getSelectedAddonsForCart = () => {
+    const result = [];
+    Object.entries(selectedAddons).forEach(([groupId, addons]) => {
+      addons.forEach(addon => {
+        result.push({
+          addonId: addon.id,
+          name: addon.name,
+          price: Number(addon.price) || 0,
+          quantity: 1
+        });
+      });
+    });
+    return result;
+  };
+
+  const resetSelections = () => {
+    // Resetar quantidade
+    setQuantity(1);
+    // Resetar observações
+    setObservations('');
+    // Resetar opcionais
+    const initialSelections = {};
+    product?.addonGroups?.forEach(group => {
+      initialSelections[group.id] = [];
+    });
+    setSelectedAddons(initialSelections);
+    // Limpar erros
+    setAddonValidationErrors({});
+  };
+
   const hasValidPromoPrice = (p) => {
     if (!p || p.promotionalPrice === null || p.promotionalPrice === undefined) return false;
     const promo = Number(p.promotionalPrice);
@@ -331,11 +466,9 @@ export default function ProductPage() {
   };
 
   const getTotal = () => {
-    return getCurrentPrice() * quantity;
-  };
-
-  const getCartTotal = () => {
-    return getCurrentPrice() * quantityInCart;
+    const basePrice = getCurrentPrice();
+    const addonsTotal = calculateAddonsTotal();
+    return (basePrice + addonsTotal) * quantity;
   };
 
   const getDiscountPercent = () => {
@@ -357,54 +490,27 @@ export default function ProductPage() {
     if (!isStoreOpen) {
       return;
     }
+
+    // Validar opcionais
+    if (!validateAddons()) {
+      return;
+    }
     
     isAddingRef.current = true;
-    addToCart(product, quantity, observations);
+    
+    const selectedAddonsList = getSelectedAddonsForCart();
+    const addonsTotal = calculateAddonsTotal();
+    
+    // Adicionar ao carrinho com opcionais
+    addToCart(product, quantity, observations, selectedAddonsList, addonsTotal);
     setAddedToCart(true);
 
     setTimeout(() => {
       setAddedToCart(false);
       isAddingRef.current = false;
+      // Resetar seleções após adicionar ao carrinho
+      resetSelections();
     }, 2000);
-  };
-
-  const handleIncrementInCart = () => {
-    if (!product || !isStoreOpen) return;
-    
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-    
-    if (isInCart) {
-      updateQuantity(product.id, quantityInCart + 1, cartItem?.observation || '');
-    } else {
-      addToCart(product, 1, '');
-    }
-  };
-
-  const handleDecrementInCart = () => {
-    if (!product || !isStoreOpen || !isInCart) return;
-    
-    if (quantityInCart <= 1) {
-      setRemoveModal({
-        isOpen: true,
-        product: {
-          ...product,
-          quantity: quantityInCart
-        }
-      });
-    } else {
-      updateQuantity(product.id, quantityInCart - 1, cartItem?.observation || '');
-    }
-  };
-
-  const handleConfirmRemove = () => {
-    if (removeModal.product) {
-      removeFromCartDirect(removeModal.product.id, cartItem?.observation || '');
-    }
-    setRemoveModal({ isOpen: false, product: null });
   };
 
   const incrementQuantity = () => {
@@ -475,6 +581,8 @@ export default function ProductPage() {
   const savings = showPromoPrice 
     ? (Number(product.price) - Number(product.promotionalPrice)).toFixed(2).replace('.', ',')
     : null;
+  const addonsTotal = calculateAddonsTotal();
+  const hasAddons = product.addonGroups && product.addonGroups.length > 0;
 
   return (
     <div 
@@ -488,17 +596,6 @@ export default function ProductPage() {
       }}
     >
       <div className="fixed inset-0 bg-[#faf8f5]/85 pointer-events-none z-0"></div>
-
-      <ConfirmModal
-        isOpen={removeModal.isOpen}
-        onClose={() => setRemoveModal({ isOpen: false, product: null })}
-        onConfirm={handleConfirmRemove}
-        title="Remover item?"
-        message="Tem certeza que deseja remover este item do carrinho?"
-        product={removeModal.product}
-        confirmText="Remover"
-        cancelText="Manter"
-      />
 
       <div className="h-20"></div>
 
@@ -568,9 +665,10 @@ export default function ProductPage() {
                   </div>
                 )}
 
-                {isInCart && (
+                {/* Badge mostrando quantidade total no carrinho */}
+                {totalInCart > 0 && (
                   <div className="absolute top-4 right-4 bg-[#1e3a5f] text-white text-sm font-bold w-10 h-10 rounded-full shadow-lg flex items-center justify-center">
-                    {quantityInCart}
+                    {totalInCart}
                   </div>
                 )}
               </div>
@@ -616,147 +714,231 @@ export default function ProductPage() {
               )}
             </div>
 
-            {!isAdmin && (
-              <>
-                {isInCart ? (
-                  <>
-                    <div className="bg-[#1e3a5f]/5 border-2 border-[#1e3a5f]/20 rounded-2xl p-5 mb-6">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 bg-[#1e3a5f] rounded-full flex items-center justify-center">
-                          <Icons.Check className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-[#1e3a5f]">Item no carrinho</p>
-                          <p className="text-sm text-[#1e3a5f]/60">Ajuste a quantidade abaixo</p>
-                        </div>
-                      </div>
+            {/* Indicador de itens no carrinho */}
+            {totalInCart > 0 && (
+              <div className="bg-[#1e3a5f]/5 border border-[#1e3a5f]/10 rounded-xl px-4 py-3 mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Icons.ShoppingBag className="w-5 h-5 text-[#1e3a5f]/60" />
+                  <span className="text-sm text-[#1e3a5f]">
+                    <span className="font-semibold">{totalInCart}</span> {totalInCart === 1 ? 'unidade' : 'unidades'} no carrinho
+                  </span>
+                </div>
+                <button
+                  onClick={() => setIsCartOpen(true)}
+                  className="text-sm font-medium text-[#1e3a5f] hover:underline"
+                >
+                  Ver carrinho
+                </button>
+              </div>
+            )}
 
-                      <div className={`flex items-center justify-between ${!isStoreOpen ? 'opacity-50 pointer-events-none' : ''}`}>
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={handleDecrementInCart}
-                            disabled={!isStoreOpen}
-                            className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-[#1e3a5f]/10 hover:bg-[#1e3a5f]/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-sm"
-                          >
-                            <Icons.Minus className="w-5 h-5 text-[#1e3a5f]" />
-                          </button>
-                          <span className="text-2xl font-bold text-[#1e3a5f] w-10 text-center">
-                            {quantityInCart}
-                          </span>
-                          <button
-                            onClick={handleIncrementInCart}
-                            disabled={!isStoreOpen}
-                            className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-[#1e3a5f]/10 hover:bg-[#1e3a5f]/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-sm"
-                          >
-                            <Icons.Plus className="w-5 h-5 text-[#1e3a5f]" />
-                          </button>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-[#1e3a5f]/40">Total no carrinho</p>
-                          <p className="text-xl font-bold text-[#1e3a5f]">
-                            R$ {getCartTotal().toFixed(2).replace('.', ',')}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+            {/* ============================================ */}
+            {/* SEÇÃO DE OPCIONAIS */}
+            {/* ============================================ */}
+            {!isAdmin && hasAddons && (
+              <div className={`space-y-4 mb-6 ${!isStoreOpen ? 'opacity-50 pointer-events-none' : ''}`}>
+                {product.addonGroups.map((group) => {
+                  const selectionCount = getGroupSelectionCount(group.id);
+                  const hasError = addonValidationErrors[group.id];
+                  const availableAddons = group.addons.filter(a => a.isAvailable !== false);
+                  
+                  if (availableAddons.length === 0) return null;
 
-                    <button
-                      onClick={() => setIsCartOpen(true)}
-                      className="w-full py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-3 bg-[#1e3a5f] text-white hover:bg-[#162d4a] shadow-lg shadow-[#1e3a5f]/20 mb-3"
-                    >
-                      <Icons.ShoppingBag className="w-5 h-5" />
-                      <span>Ver Carrinho</span>
-                    </button>
-
-                    <button
-                      onClick={() => setRemoveModal({ isOpen: true, product: { ...product, quantity: quantityInCart } })}
-                      disabled={!isStoreOpen}
-                      className="w-full py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 text-[#1e3a5f]/60 hover:text-[#1e3a5f] hover:bg-[#1e3a5f]/5 disabled:opacity-30"
-                    >
-                      <Icons.Trash className="w-4 h-4" />
-                      <span>Remover do Carrinho</span>
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className={`bg-white rounded-2xl p-5 border border-[#1e3a5f]/5 mb-6 shadow-sm ${!isStoreOpen ? 'opacity-50 pointer-events-none' : ''}`}>
-                      <p className="text-sm text-[#1e3a5f]/50 mb-3">Quantidade</p>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <button
-                            onClick={decrementQuantity}
-                            disabled={quantity <= 1 || !isStoreOpen}
-                            className="w-12 h-12 bg-[#faf8f5] rounded-xl flex items-center justify-center border border-[#1e3a5f]/10 hover:bg-[#1e3a5f]/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <Icons.Minus className="w-5 h-5 text-[#1e3a5f]" />
-                          </button>
-                          <span className="text-2xl font-bold text-[#1e3a5f] w-8 text-center">
-                            {quantity}
-                          </span>
-                          <button
-                            onClick={incrementQuantity}
-                            disabled={quantity >= 999 || !isStoreOpen}
-                            className="w-12 h-12 bg-[#faf8f5] rounded-xl flex items-center justify-center border border-[#1e3a5f]/10 hover:bg-[#1e3a5f]/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <Icons.Plus className="w-5 h-5 text-[#1e3a5f]" />
-                          </button>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-[#1e3a5f]/40">Total</p>
-                          <p className="text-xl font-bold text-[#1e3a5f]">
-                            R$ {getTotal().toFixed(2).replace('.', ',')}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className={`bg-white rounded-2xl p-5 border border-[#1e3a5f]/5 mb-6 shadow-sm ${!isStoreOpen ? 'opacity-50 pointer-events-none' : ''}`}>
-                      <p className="text-sm text-[#1e3a5f]/50 mb-3">
-                        Observações para o pedido (opcional)
-                      </p>
-                      <textarea
-                        value={observations}
-                        onChange={(e) => setObservations(e.target.value)}
-                        placeholder="Ex: sem cebola, molho separado..."
-                        maxLength={200}
-                        disabled={!isStoreOpen}
-                        className="w-full h-24 resize-none rounded-xl border border-[#1e3a5f]/10 p-3 text-sm outline-none focus:border-[#1e3a5f] bg-[#faf8f5] disabled:cursor-not-allowed"
-                      />
-                      <div className="text-right text-xs text-[#1e3a5f]/30 mt-1">
-                        {observations.length}/200
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={handleAddToCart}
-                      disabled={addedToCart || !isStoreOpen}
-                      className={`w-full py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-3 ${
-                        !isStoreOpen
-                          ? 'bg-[#1e3a5f]/30 text-white/50 cursor-not-allowed'
-                          : addedToCart
-                            ? 'bg-[#1e3a5f] text-white cursor-not-allowed'
-                            : 'bg-[#1e3a5f] text-white hover:bg-[#162d4a] shadow-lg shadow-[#1e3a5f]/20'
+                  return (
+                    <div 
+                      key={group.id} 
+                      className={`bg-white rounded-2xl border overflow-hidden shadow-sm transition-all ${
+                        hasError 
+                          ? 'border-red-300 bg-red-50/30' 
+                          : 'border-[#1e3a5f]/5'
                       }`}
                     >
-                      {!isStoreOpen ? (
-                        <>
-                          <Icons.Clock className="w-5 h-5" />
-                          <span>Loja Fechada</span>
-                        </>
-                      ) : addedToCart ? (
-                        <>
-                          <Icons.Check className="w-5 h-5" />
-                          <span>Adicionado ao Carrinho!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Icons.Cart className="w-5 h-5" />
-                          <span>Adicionar ao Carrinho</span>
-                        </>
+                      {/* Header do grupo */}
+                      <div className="p-4 border-b border-[#1e3a5f]/5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-grow">
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-[#1e3a5f]">{group.name}</h3>
+                              {group.isRequired && (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#1e3a5f] text-white">
+                                  Obrigatório
+                                </span>
+                              )}
+                            </div>
+                            {group.description && (
+                              <p className="text-xs text-[#1e3a5f]/50 mt-1">{group.description}</p>
+                            )}
+                            <p className="text-xs text-[#1e3a5f]/40 mt-1">
+                              {group.selectionType === 'SINGLE' 
+                                ? 'Escolha 1 opção'
+                                : group.minSelection > 0 
+                                  ? `Escolha de ${group.minSelection} a ${group.maxSelection} opções`
+                                  : `Escolha até ${group.maxSelection} ${group.maxSelection === 1 ? 'opção' : 'opções'}`
+                              }
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <span className={`text-sm font-medium ${
+                              selectionCount > 0 ? 'text-[#1e3a5f]' : 'text-[#1e3a5f]/30'
+                            }`}>
+                              {selectionCount}/{group.selectionType === 'SINGLE' ? 1 : group.maxSelection}
+                            </span>
+                          </div>
+                        </div>
+                        {hasError && (
+                          <div className="flex items-center gap-2 mt-2 text-red-500">
+                            <Icons.Alert className="w-4 h-4" />
+                            <span className="text-xs font-medium">{hasError}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Lista de opcionais */}
+                      <div className="divide-y divide-[#1e3a5f]/5">
+                        {availableAddons.map((addon) => {
+                          const isSelected = isAddonSelected(group.id, addon.id);
+                          const isDisabled = !isSelected && 
+                            group.selectionType === 'MULTIPLE' && 
+                            selectionCount >= group.maxSelection;
+
+                          return (
+                            <button
+                              key={addon.id}
+                              type="button"
+                              onClick={() => handleAddonSelect(group.id, addon, group)}
+                              disabled={isDisabled}
+                              className={`w-full flex items-center gap-3 p-4 text-left transition-all ${
+                                isSelected 
+                                  ? 'bg-[#1e3a5f]/5' 
+                                  : isDisabled 
+                                    ? 'opacity-40 cursor-not-allowed' 
+                                    : 'hover:bg-[#faf8f5]'
+                              }`}
+                            >
+                              {/* Ícone de seleção */}
+                              <div className={`flex-shrink-0 w-6 h-6 rounded-${group.selectionType === 'SINGLE' ? 'full' : 'lg'} border-2 flex items-center justify-center transition-all ${
+                                isSelected 
+                                  ? 'bg-[#1e3a5f] border-[#1e3a5f]' 
+                                  : 'border-[#1e3a5f]/20'
+                              }`}>
+                                {isSelected && (
+                                  <Icons.Check className="w-4 h-4 text-white" />
+                                )}
+                              </div>
+
+                              {/* Nome do opcional */}
+                              <span className={`flex-grow font-medium ${
+                                isSelected ? 'text-[#1e3a5f]' : 'text-[#1e3a5f]/70'
+                              }`}>
+                                {addon.name}
+                              </span>
+
+                              {/* Preço */}
+                              {addon.price > 0 && (
+                                <span className={`font-semibold ${
+                                  isSelected ? 'text-[#1e3a5f]' : 'text-[#1e3a5f]/50'
+                                }`}>
+                                  + R$ {Number(addon.price).toFixed(2).replace('.', ',')}
+                                </span>
+                              )}
+                              {addon.price === 0 && (
+                                <span className="text-xs text-[#1e3a5f]/30 font-medium">
+                                  Grátis
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {!isAdmin && (
+              <>
+                <div className={`bg-white rounded-2xl p-5 border border-[#1e3a5f]/5 mb-6 shadow-sm ${!isStoreOpen ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <p className="text-sm text-[#1e3a5f]/50 mb-3">Quantidade</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={decrementQuantity}
+                        disabled={quantity <= 1 || !isStoreOpen}
+                        className="w-12 h-12 bg-[#faf8f5] rounded-xl flex items-center justify-center border border-[#1e3a5f]/10 hover:bg-[#1e3a5f]/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <Icons.Minus className="w-5 h-5 text-[#1e3a5f]" />
+                      </button>
+                      <span className="text-2xl font-bold text-[#1e3a5f] w-8 text-center">
+                        {quantity}
+                      </span>
+                      <button
+                        onClick={incrementQuantity}
+                        disabled={quantity >= 999 || !isStoreOpen}
+                        className="w-12 h-12 bg-[#faf8f5] rounded-xl flex items-center justify-center border border-[#1e3a5f]/10 hover:bg-[#1e3a5f]/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <Icons.Plus className="w-5 h-5 text-[#1e3a5f]" />
+                      </button>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-[#1e3a5f]/40">Total</p>
+                      <p className="text-xl font-bold text-[#1e3a5f]">
+                        R$ {getTotal().toFixed(2).replace('.', ',')}
+                      </p>
+                      {addonsTotal > 0 && (
+                        <p className="text-xs text-[#1e3a5f]/40">
+                          (+ R$ {addonsTotal.toFixed(2).replace('.', ',')} em opcionais)
+                        </p>
                       )}
-                    </button>
-                  </>
-                )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className={`bg-white rounded-2xl p-5 border border-[#1e3a5f]/5 mb-6 shadow-sm ${!isStoreOpen ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <p className="text-sm text-[#1e3a5f]/50 mb-3">
+                    Observações para o pedido (opcional)
+                  </p>
+                  <textarea
+                    value={observations}
+                    onChange={(e) => setObservations(e.target.value)}
+                    placeholder="Ex: sem cebola, molho separado..."
+                    maxLength={200}
+                    disabled={!isStoreOpen}
+                    className="w-full h-24 resize-none rounded-xl border border-[#1e3a5f]/10 p-3 text-sm outline-none focus:border-[#1e3a5f] bg-[#faf8f5] disabled:cursor-not-allowed"
+                  />
+                  <div className="text-right text-xs text-[#1e3a5f]/30 mt-1">
+                    {observations.length}/200
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleAddToCart}
+                  disabled={addedToCart || !isStoreOpen}
+                  className={`w-full py-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-3 ${
+                    !isStoreOpen
+                      ? 'bg-[#1e3a5f]/30 text-white/50 cursor-not-allowed'
+                      : addedToCart
+                        ? 'bg-[#1e3a5f] text-white cursor-not-allowed'
+                        : 'bg-[#1e3a5f] text-white hover:bg-[#162d4a] shadow-lg shadow-[#1e3a5f]/20'
+                  }`}
+                >
+                  {!isStoreOpen ? (
+                    <>
+                      <Icons.Clock className="w-5 h-5" />
+                      <span>Loja Fechada</span>
+                    </>
+                  ) : addedToCart ? (
+                    <>
+                      <Icons.Check className="w-5 h-5" />
+                      <span>Adicionado ao Carrinho!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Icons.Cart className="w-5 h-5" />
+                      <span>Adicionar · R$ {getTotal().toFixed(2).replace('.', ',')}</span>
+                    </>
+                  )}
+                </button>
               </>
             )}
           </div>

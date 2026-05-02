@@ -12,6 +12,16 @@ const getCouponStorageKey = (userId) => {
   return userId ? `delivery_coupon_${userId}` : null;
 };
 
+// Função para criar uma chave única para o item do carrinho
+// Considera produto + observação + opcionais selecionados
+const createCartItemKey = (productId, observation, selectedAddons = []) => {
+  const addonsKey = selectedAddons
+    .map(a => a.addonId)
+    .sort()
+    .join('-');
+  return `${productId}|${observation || ''}|${addonsKey}`;
+};
+
 // Função para carregar carrinho do localStorage
 const loadCartFromStorage = (userId) => {
   if (!userId) return [];
@@ -22,7 +32,13 @@ const loadCartFromStorage = (userId) => {
     if (savedCart) {
       const parsed = JSON.parse(savedCart);
       if (Array.isArray(parsed)) {
-        return parsed;
+        // Garante que todos os itens tenham a estrutura correta
+        return parsed.map(item => ({
+          ...item,
+          selectedAddons: item.selectedAddons || [],
+          addonsTotal: item.addonsTotal || 0,
+          cartItemKey: item.cartItemKey || createCartItemKey(item.id, item.observation, item.selectedAddons)
+        }));
       }
     }
   } catch (error) {
@@ -94,6 +110,7 @@ export function CartProvider({ children }) {
     isOpen: false,
     product: null,
     observation: '',
+    cartItemKey: '',
     action: null
   });
   
@@ -143,11 +160,12 @@ export function CartProvider({ children }) {
   // ============================================
   // FUNÇÕES DO MODAL DE CONFIRMAÇÃO
   // ============================================
-  const openConfirmModal = useCallback((product, observation, action) => {
+  const openConfirmModal = useCallback((product, observation, action, cartItemKey = '') => {
     setConfirmModal({
       isOpen: true,
       product,
       observation,
+      cartItemKey: cartItemKey || createCartItemKey(product.id, observation, product.selectedAddons),
       action
     });
   }, []);
@@ -157,35 +175,38 @@ export function CartProvider({ children }) {
       isOpen: false,
       product: null,
       observation: '',
+      cartItemKey: '',
       action: null
     });
   }, []);
 
   const confirmRemoval = useCallback(() => {
-    const { product, observation } = confirmModal;
-    if (product) {
+    const { cartItemKey } = confirmModal;
+    if (cartItemKey) {
       setCart((prevCart) => 
-        prevCart.filter(
-          (item) => !(item.id === product.id && item.observation === observation)
-        )
+        prevCart.filter((item) => item.cartItemKey !== cartItemKey)
       );
     }
     closeConfirmModal();
   }, [confirmModal, closeConfirmModal]);
 
   // ============================================
-  // ADICIONAR AO CARRINHO
+  // ADICIONAR AO CARRINHO (COM SUPORTE A OPCIONAIS)
   // ============================================
-  const addToCart = useCallback((product, quantity = 1, observation = '') => {
+  const addToCart = useCallback((product, quantity = 1, observation = '', selectedAddons = [], addonsTotal = 0) => {
     if (addingRef.current) return;
     addingRef.current = true;
     
+    const cartItemKey = createCartItemKey(product.id, observation, selectedAddons);
+    
     setCart((prevCart) => {
+      // Busca item existente pela chave única (produto + observação + opcionais)
       const existingIndex = prevCart.findIndex(
-        (item) => item.id === product.id && item.observation === observation
+        (item) => item.cartItemKey === cartItemKey
       );
       
       if (existingIndex > -1) {
+        // Atualiza quantidade se já existe item idêntico
         const updated = prevCart.map((item, index) => 
           index === existingIndex 
             ? { ...item, quantity: item.quantity + quantity }
@@ -194,18 +215,29 @@ export function CartProvider({ children }) {
         return updated;
       }
       
+      // Calcula o preço base do produto
+      const basePrice = Number(product.promotionalPrice) > 0 
+        ? Number(product.promotionalPrice) 
+        : Number(product.price);
+      
+      // Preço unitário = preço base + opcionais
+      const unitPrice = basePrice + Number(addonsTotal || 0);
+      
+      // Adiciona novo item ao carrinho
       return [
         ...prevCart,
         {
           id: product.id,
           name: product.name,
-          price: Number(product.promotionalPrice) > 0 
-            ? Number(product.promotionalPrice) 
-            : Number(product.price),
+          price: unitPrice, // Preço unitário já com opcionais
+          basePrice: basePrice, // Preço base sem opcionais
           imageUrl: product.imageUrl,
           quantity,
           observation,
           category: product.category,
+          selectedAddons: selectedAddons || [],
+          addonsTotal: Number(addonsTotal || 0),
+          cartItemKey, // Chave única para identificação
         },
       ];
     });
@@ -216,49 +248,127 @@ export function CartProvider({ children }) {
   }, []);
 
   // ============================================
+  // ATUALIZAR ITEM DO CARRINHO (EDIÇÃO COMPLETA)
+  // ============================================
+  const updateCartItem = useCallback((index, updates) => {
+    setCart((prevCart) => {
+      const newCart = [...prevCart];
+      
+      if (index >= 0 && index < newCart.length) {
+        const currentItem = newCart[index];
+        
+        // Se os opcionais ou observação mudaram, recalcula a chave
+        const newSelectedAddons = updates.selectedAddons !== undefined 
+          ? updates.selectedAddons 
+          : currentItem.selectedAddons;
+        const newObservation = updates.observation !== undefined 
+          ? updates.observation 
+          : currentItem.observation;
+        const newAddonsTotal = updates.addonsTotal !== undefined 
+          ? updates.addonsTotal 
+          : currentItem.addonsTotal;
+        
+        // Recalcula o preço unitário
+        const newPrice = currentItem.basePrice + Number(newAddonsTotal || 0);
+        
+        // Cria nova chave única
+        const newCartItemKey = createCartItemKey(
+          currentItem.id, 
+          newObservation, 
+          newSelectedAddons
+        );
+        
+        newCart[index] = {
+          ...currentItem,
+          ...updates,
+          price: newPrice,
+          addonsTotal: Number(newAddonsTotal || 0),
+          cartItemKey: newCartItemKey,
+        };
+      }
+      
+      return newCart;
+    });
+  }, []);
+
+  // ============================================
   // REMOVER DO CARRINHO (COM CONFIRMAÇÃO)
   // ============================================
-  const removeFromCart = useCallback((productId, observation = '') => {
-    const product = cart.find(
-      (item) => item.id === productId && item.observation === observation
-    );
+  const removeFromCart = useCallback((productId, observation = '', selectedAddons = [], index = null) => {
+    let product;
+    
+    // Se tiver index, usa diretamente
+    if (index !== null && index >= 0 && index < cart.length) {
+      product = cart[index];
+    } else {
+      // Tenta encontrar pelo cartItemKey
+      const cartItemKey = createCartItemKey(productId, observation, selectedAddons);
+      product = cart.find((item) => item.cartItemKey === cartItemKey);
+      
+      // Fallback para método antigo
+      if (!product) {
+        product = cart.find(
+          (item) => item.id === productId && item.observation === observation
+        );
+      }
+    }
     
     if (product) {
-      openConfirmModal(product, observation, 'remove');
+      openConfirmModal(product, product.observation, 'remove', product.cartItemKey);
     }
   }, [cart, openConfirmModal]);
 
   // Remoção direta sem confirmação (para uso interno)
-  const removeFromCartDirect = useCallback((productId, observation = '') => {
-    setCart((prevCart) => 
-      prevCart.filter(
+  const removeFromCartDirect = useCallback((productId, observation = '', cartItemKey = '') => {
+    setCart((prevCart) => {
+      if (cartItemKey) {
+        return prevCart.filter((item) => item.cartItemKey !== cartItemKey);
+      }
+      // Fallback para o método antigo
+      return prevCart.filter(
         (item) => !(item.id === productId && item.observation === observation)
-      )
-    );
+      );
+    });
   }, []);
 
   // ============================================
   // ATUALIZAR QUANTIDADE (COM CONFIRMAÇÃO AO ZERAR)
   // ============================================
-  const updateQuantity = useCallback((productId, quantity, observation = '') => {
-    if (quantity <= 0) {
-      const product = cart.find(
-        (item) => item.id === productId && item.observation === observation
-      );
+  const updateQuantity = useCallback((productId, quantity, observation = '', selectedAddons = [], index = null) => {
+    // Encontra o item
+    let product;
+    let itemIndex = index;
+    
+    if (index !== null && index >= 0 && index < cart.length) {
+      product = cart[index];
+    } else {
+      const cartItemKey = createCartItemKey(productId, observation, selectedAddons);
+      itemIndex = cart.findIndex((item) => item.cartItemKey === cartItemKey);
+      product = itemIndex > -1 ? cart[itemIndex] : null;
       
+      // Fallback
+      if (!product) {
+        itemIndex = cart.findIndex(
+          (item) => item.id === productId && item.observation === observation
+        );
+        product = itemIndex > -1 ? cart[itemIndex] : null;
+      }
+    }
+    
+    if (quantity <= 0) {
       if (product) {
-        openConfirmModal(product, observation, 'decrease');
+        openConfirmModal(product, product.observation, 'decrease', product.cartItemKey);
       }
       return;
     }
     
-    setCart((prevCart) =>
-      prevCart.map((item) =>
-        item.id === productId && item.observation === observation 
-          ? { ...item, quantity } 
-          : item
-      )
-    );
+    if (itemIndex !== null && itemIndex > -1) {
+      setCart((prevCart) =>
+        prevCart.map((item, idx) => 
+          idx === itemIndex ? { ...item, quantity } : item
+        )
+      );
+    }
   }, [cart, openConfirmModal]);
 
   // ============================================
@@ -468,13 +578,36 @@ export function CartProvider({ children }) {
   // ============================================
   const cartItemsCount = cart.reduce((total, item) => total + item.quantity, 0);
 
+  // Total do carrinho (preço já inclui opcionais)
   const cartTotalValue = cart.reduce(
     (total, item) => total + item.price * item.quantity,
     0
   );
 
+  // Subtotal sem opcionais (para exibição separada, se necessário)
+  const cartSubtotalWithoutAddons = cart.reduce(
+    (total, item) => total + (item.basePrice || item.price) * item.quantity,
+    0
+  );
+
+  // Total de opcionais
+  const cartAddonsTotal = cart.reduce(
+    (total, item) => total + (item.addonsTotal || 0) * item.quantity,
+    0
+  );
+
   const getCartTotal = useCallback(() => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
+  }, [cart]);
+
+  // Retorna o subtotal base (sem opcionais)
+  const getCartSubtotal = useCallback(() => {
+    return cart.reduce((total, item) => total + (item.basePrice || item.price) * item.quantity, 0);
+  }, [cart]);
+
+  // Retorna apenas o total de opcionais
+  const getCartAddonsTotal = useCallback(() => {
+    return cart.reduce((total, item) => total + (item.addonsTotal || 0) * item.quantity, 0);
   }, [cart]);
 
   // ============================================
@@ -518,7 +651,14 @@ export function CartProvider({ children }) {
               items { 
                 name 
                 quantity 
-                price 
+                price
+                selectedAddons {
+                  addonId
+                  name
+                  price
+                  quantity
+                }
+                addonsTotal
               } 
             } 
           }`,
@@ -620,6 +760,34 @@ export function CartProvider({ children }) {
     }
   }, [fetchCashbackBalance]);
 
+  // ============================================
+  // HELPERS PARA OBTER INFORMAÇÕES DE OPCIONAIS
+  // ============================================
+  
+  // Retorna os opcionais de um item específico do carrinho
+  const getItemAddons = useCallback((cartItemKey) => {
+    const item = cart.find(i => i.cartItemKey === cartItemKey);
+    return item?.selectedAddons || [];
+  }, [cart]);
+
+  // Formata os opcionais para exibição
+  const formatAddonsText = useCallback((selectedAddons) => {
+    if (!selectedAddons || selectedAddons.length === 0) return '';
+    return selectedAddons.map(a => a.name).join(', ');
+  }, []);
+
+  // Verifica se dois itens têm os mesmos opcionais
+  const haveSameAddons = useCallback((addons1, addons2) => {
+    if (!addons1 && !addons2) return true;
+    if (!addons1 || !addons2) return false;
+    if (addons1.length !== addons2.length) return false;
+    
+    const ids1 = addons1.map(a => a.addonId).sort();
+    const ids2 = addons2.map(a => a.addonId).sort();
+    
+    return ids1.every((id, index) => id === ids2[index]);
+  }, []);
+
   const cartItems = cart;
   const setActiveTrackingOrders = setMyOrders;
 
@@ -642,10 +810,15 @@ export function CartProvider({ children }) {
     removeFromCart,
     removeFromCartDirect,
     updateQuantity,
+    updateCartItem, // NOVA FUNÇÃO ADICIONADA
     clearCart,
     cartItemsCount,
     cartTotalValue,
+    cartSubtotalWithoutAddons,
+    cartAddonsTotal,
     getCartTotal,
+    getCartSubtotal,
+    getCartAddonsTotal,
     fetchMyOrders,
     handleConfirmDelivery,
     handleLogin,
@@ -675,6 +848,11 @@ export function CartProvider({ children }) {
     openConfirmModal,
     closeConfirmModal,
     confirmRemoval,
+    // Helpers para opcionais
+    getItemAddons,
+    formatAddonsText,
+    haveSameAddons,
+    createCartItemKey,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

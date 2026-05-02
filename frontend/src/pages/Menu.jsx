@@ -213,19 +213,15 @@ export default function Menu() {
     cart,
     isCartOpen,
     setIsCartOpen,
-    addToCart,
-    removeFromCart,
-    removeFromCartDirect,
     updateQuantity,
     clearCart,
     cartItemsCount,
     cartTotalValue,
     isTrackingOpen,
     setIsTrackingOpen,
-    myOrders,
     fetchMyOrders,
     activeTrackingOrders,
-    handleConfirmDelivery,
+    removeFromCartDirect,
   } = useCart();
 
   const categories = [
@@ -238,15 +234,11 @@ export default function Menu() {
     { id: 'DESSERT', label: 'Doces' },
   ];
 
-  // Função para obter quantidade do produto no carrinho
+  // Função para obter quantidade total do produto no carrinho (todas as variações)
   const getProductQuantityInCart = (productId) => {
-    const cartItem = cart.find(item => item.id === productId);
-    return cartItem ? cartItem.quantity : 0;
-  };
-
-  // Função para obter item do carrinho
-  const getCartItem = (productId) => {
-    return cart.find(item => item.id === productId);
+    return cart
+      .filter(item => item.id === productId)
+      .reduce((sum, item) => sum + item.quantity, 0);
   };
 
   useEffect(() => {
@@ -398,69 +390,10 @@ export default function Menu() {
     navigate(`/product/${productId}`);
   };
 
-  const handleAddToCart = (e, product) => {
-    e.stopPropagation();
-
-    if (!storeStatus.isOpen) {
-      alert('A loja está fechada no momento. Volte no horário de funcionamento para fazer seu pedido.');
-      return;
-    }
-
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-
-    addToCart(product);
-  };
-
-  // Função para incrementar quantidade
-  const handleIncrement = (e, product) => {
-    e.stopPropagation();
-    
-    if (!storeStatus.isOpen) {
-      alert('A loja está fechada no momento.');
-      return;
-    }
-
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-
-    addToCart(product);
-  };
-
-  // Função para decrementar quantidade
-  const handleDecrement = (e, product) => {
-    e.stopPropagation();
-    
-    const currentQty = getProductQuantityInCart(product.id);
-    const cartItem = getCartItem(product.id);
-    
-    if (currentQty <= 1) {
-      // Abre modal de confirmação
-      setRemoveModal({
-        isOpen: true,
-        product: {
-          ...product,
-          imageUrl: product.imageUrl,
-          quantity: currentQty
-        }
-      });
-    } else {
-      // Apenas decrementa
-      updateQuantity(product.id, currentQty - 1, cartItem?.observation || '');
-    }
-  };
-
   // Função para confirmar remoção
   const handleConfirmRemove = () => {
     if (removeModal.product) {
-      const cartItem = getCartItem(removeModal.product.id);
-      removeFromCartDirect(removeModal.product.id, cartItem?.observation || '');
+      removeFromCartDirect(removeModal.product.id, removeModal.product.observation || '');
     }
     setRemoveModal({ isOpen: false, product: null });
   };
@@ -791,61 +724,12 @@ export default function Menu() {
                           )}
                         </div>
 
-                        {/* Botão de adicionar ou contador de quantidade */}
+                        {/* Indicador visual para ver detalhes */}
                         {!isAdmin && (
-                          <>
-                            {isInCart ? (
-                              // Contador de quantidade
-                              <div 
-                                className="flex items-center gap-1 bg-[#1e3a5f] rounded-xl overflow-hidden shadow-lg shadow-[#1e3a5f]/20"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <button
-                                  onClick={(e) => handleDecrement(e, p)}
-                                  disabled={!storeStatus.isOpen}
-                                  className={`w-10 h-10 flex items-center justify-center transition-all ${
-                                    storeStatus.isOpen
-                                      ? 'text-white hover:bg-white/10 active:scale-95'
-                                      : 'text-white/30 cursor-not-allowed'
-                                  }`}
-                                  title="Diminuir quantidade"
-                                >
-                                  <Icons.Minus className="w-4 h-4" />
-                                </button>
-                                
-                                <span className="w-8 text-center text-white font-bold text-sm">
-                                  {quantityInCart}
-                                </span>
-                                
-                                <button
-                                  onClick={(e) => handleIncrement(e, p)}
-                                  disabled={!storeStatus.isOpen}
-                                  className={`w-10 h-10 flex items-center justify-center transition-all ${
-                                    storeStatus.isOpen
-                                      ? 'text-white hover:bg-white/10 active:scale-95'
-                                      : 'text-white/30 cursor-not-allowed'
-                                  }`}
-                                  title="Aumentar quantidade"
-                                >
-                                  <Icons.Plus className="w-4 h-4" />
-                                </button>
-                              </div>
-                            ) : (
-                              // Botão de adicionar
-                              <button
-                                onClick={(e) => handleAddToCart(e, p)}
-                                disabled={!storeStatus.isOpen}
-                                className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 shadow-lg active:scale-95 group/btn ${
-                                  storeStatus.isOpen
-                                    ? 'bg-[#1e3a5f] hover:bg-[#162d4a] text-white shadow-[#1e3a5f]/20 hover:shadow-xl hover:shadow-[#1e3a5f]/30'
-                                    : 'bg-[#1e3a5f]/30 text-white/50 cursor-not-allowed shadow-[#1e3a5f]/10'
-                                }`}
-                                title={storeStatus.isOpen ? 'Adicionar ao carrinho' : 'Loja fechada'}
-                              >
-                                <Icons.Plus className={`w-5 h-5 ${storeStatus.isOpen ? 'group-hover/btn:scale-110' : ''} transition-transform`} />
-                              </button>
-                            )}
-                          </>
+                          <div className="flex items-center gap-1 text-[#1e3a5f]/40 group-hover:text-[#1e3a5f] transition-colors">
+                            <span className="text-xs font-medium">Ver</span>
+                            <Icons.ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1019,10 +903,10 @@ export default function Menu() {
                   <p className="text-[#1e3a5f]/30 text-sm mt-1">Adicione itens do cardápio</p>
                 </div>
               ) : (
-                cart.map((item) => (
+                cart.map((item, index) => (
                   <div
-                    key={`${item.id}-${item.observation || ''}`}
-                    className="bg-white p-4 rounded-2xl border border-[#1e3a5f]/5 flex items-center gap-4 group hover:shadow-lg hover:shadow-[#1e3a5f]/5 transition-all"
+                    key={`${item.id}-${item.observation || ''}-${index}`}
+                    className="bg-white p-4 rounded-2xl border border-[#1e3a5f]/5 flex items-start gap-4 group hover:shadow-lg hover:shadow-[#1e3a5f]/5 transition-all"
                   >
                     <div className="w-16 h-16 bg-gradient-to-br from-[#f5f3f0] to-[#ebe8e4] rounded-xl overflow-hidden flex-shrink-0">
                       {item.imageUrl ? (
@@ -1036,12 +920,36 @@ export default function Menu() {
 
                     <div className="flex-grow min-w-0">
                       <h4 className="font-semibold text-[#1e3a5f] truncate">{item.name}</h4>
-                      <p className="text-[#1e3a5f] font-bold mt-1">
-                        R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}
-                      </p>
+                      
+                      {/* Mostrar opcionais selecionados */}
+                      {item.selectedAddons && item.selectedAddons.length > 0 && (
+                        <div className="mt-1 space-y-0.5">
+                          {item.selectedAddons.map((addon, idx) => (
+                            <p key={idx} className="text-xs text-[#1e3a5f]/50">
+                              + {addon.name} {addon.price > 0 && `(R$ ${Number(addon.price).toFixed(2).replace('.', ',')})`}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* Mostrar observação */}
+                      {item.observation && (
+                        <p className="text-xs text-[#1e3a5f]/40 mt-1 italic">
+                          Obs: {item.observation}
+                        </p>
+                      )}
+                      
+                      <div className="flex items-center justify-between mt-2">
+                        <p className="text-[#1e3a5f] font-bold">
+                          R$ {((item.price + (item.addonsTotal || 0)) * item.quantity).toFixed(2).replace('.', ',')}
+                        </p>
+                        <span className="text-sm text-[#1e3a5f]/50">
+                          Qtd: {item.quantity}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col items-center gap-2">
                       {/* Contador no carrinho sidebar */}
                       <div className="flex items-center gap-1 bg-[#faf8f5] rounded-lg border border-[#1e3a5f]/10">
                         <button
@@ -1052,7 +960,7 @@ export default function Menu() {
                                 product: item
                               });
                             } else {
-                              updateQuantity(item.id, item.quantity - 1, item.observation || '');
+                              updateQuantity(item.id, item.quantity - 1, item.observation || '', item.selectedAddons);
                             }
                           }}
                           disabled={!storeStatus.isOpen}
@@ -1064,7 +972,7 @@ export default function Menu() {
                           {item.quantity}
                         </span>
                         <button
-                          onClick={() => updateQuantity(item.id, item.quantity + 1, item.observation || '')}
+                          onClick={() => updateQuantity(item.id, item.quantity + 1, item.observation || '', item.selectedAddons)}
                           disabled={!storeStatus.isOpen}
                           className="w-8 h-8 flex items-center justify-center text-[#1e3a5f] hover:bg-[#1e3a5f]/5 rounded-r-lg transition-all disabled:opacity-30"
                         >

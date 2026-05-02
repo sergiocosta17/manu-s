@@ -47,8 +47,43 @@ const typeDefs = gql`
 
   enum DayOfWeek { SUNDAY MONDAY TUESDAY WEDNESDAY THURSDAY FRIDAY SATURDAY }
 
+  # Tipo de seleção do grupo de opcionais
+  enum AddonGroupSelectionType { SINGLE MULTIPLE }
+
   # ============================================
-  # TYPES
+  # TYPES - OPCIONAIS
+  # ============================================
+
+  # Opcional individual
+  type Addon {
+    id: ID!
+    name: String!
+    price: Float!
+    isAvailable: Boolean!
+  }
+
+  # Grupo de opcionais
+  type AddonGroup {
+    id: ID!
+    name: String!
+    description: String
+    selectionType: AddonGroupSelectionType!
+    minSelection: Int!
+    maxSelection: Int!
+    isRequired: Boolean!
+    addons: [Addon!]!
+  }
+
+  # Opcional selecionado no item do pedido
+  type SelectedAddon {
+    addonId: ID!
+    name: String!
+    price: Float!
+    quantity: Int!
+  }
+
+  # ============================================
+  # TYPES - PRINCIPAIS
   # ============================================
 
   # Resultado da validação de endereço de entrega
@@ -111,6 +146,7 @@ const typeDefs = gql`
     imageUrl: String
     isFeatured: Boolean!
     isAvailable: Boolean!
+    addonGroups: [AddonGroup!]
   }
 
   # Banner promocional
@@ -175,6 +211,9 @@ const typeDefs = gql`
     name: String!
     price: Float!
     quantity: Int!
+    observation: String
+    selectedAddons: [SelectedAddon!]
+    addonsTotal: Float
   }
 
   # Histórico de status do pedido
@@ -220,7 +259,7 @@ const typeDefs = gql`
   }
 
   # ============================================
-  # HORÁRIO DE FUNCIONAMENTO (para cupons e campanhas)
+  # HORÁRIO DE FUNCIONAMENTO
   # ============================================
   type TimeSchedule {
     startTime: String!
@@ -229,42 +268,42 @@ const typeDefs = gql`
   }
 
   # ============================================
-  # CUPOM (Completo)
+  # CUPOM
   # ============================================
   
-type CouponUserUse {
-  user: ID!
-  count: Int!
-  lastUsedAt: String
-}
+  type CouponUserUse {
+    user: ID!
+    count: Int!
+    lastUsedAt: String
+  }
 
-type Coupon {
-  id: ID!
-  code: String!
-  name: String!
-  description: String
-  discountType: DiscountType!
-  discountValue: Float!
-  maxDiscountValue: Float
-  minOrderValue: Float!
-  applicableCategories: [Category!]
-  applicableProducts: [Product!]
-  customerType: CouponCustomerType!
-  specificCustomers: [User!]
-  maxTotalUses: Int
-  maxUsesPerUser: Int!
-  totalUsedCount: Int!
-  userUses: [CouponUserUse!]
-  allowWithCashback: Boolean!
-  allowStacking: Boolean!
-  startDate: String!
-  endDate: String
-  hasNoEndDate: Boolean!
-  schedule: TimeSchedule
-  isActive: Boolean!
-  createdAt: String!
-  updatedAt: String!
-}
+  type Coupon {
+    id: ID!
+    code: String!
+    name: String!
+    description: String
+    discountType: DiscountType!
+    discountValue: Float!
+    maxDiscountValue: Float
+    minOrderValue: Float!
+    applicableCategories: [Category!]
+    applicableProducts: [Product!]
+    customerType: CouponCustomerType!
+    specificCustomers: [User!]
+    maxTotalUses: Int
+    maxUsesPerUser: Int!
+    totalUsedCount: Int!
+    userUses: [CouponUserUse!]
+    allowWithCashback: Boolean!
+    allowStacking: Boolean!
+    startDate: String!
+    endDate: String
+    hasNoEndDate: Boolean!
+    schedule: TimeSchedule
+    isActive: Boolean!
+    createdAt: String!
+    updatedAt: String!
+  }
 
   # Resultado da validação de cupom
   type CouponValidation {
@@ -397,10 +436,6 @@ type Coupon {
     message: String!
   }
 
-  # ============================================
-  # FIM CASHBACK
-  # ============================================
-
   # Payload de autenticação
   type AuthPayload {
     token: String!
@@ -441,6 +476,34 @@ type Coupon {
   # INPUTS
   # ============================================
 
+  # Input para opcional individual
+  input AddonInput {
+    id: ID
+    name: String!
+    price: Float!
+    isAvailable: Boolean
+  }
+
+  # Input para grupo de opcionais
+  input AddonGroupInput {
+    id: ID
+    name: String!
+    description: String
+    selectionType: AddonGroupSelectionType!
+    minSelection: Int
+    maxSelection: Int
+    isRequired: Boolean
+    addons: [AddonInput!]!
+  }
+
+  # Input para opcional selecionado no pedido
+  input SelectedAddonInput {
+    addonId: ID!
+    name: String!
+    price: Float!
+    quantity: Int
+  }
+
   input AddressInput {
     label: String
     zipCode: String!
@@ -470,6 +533,7 @@ type Coupon {
     imageUrl: String
     isFeatured: Boolean
     isAvailable: Boolean
+    addonGroups: [AddonGroupInput!]
   }
 
   input BannerInput {
@@ -515,6 +579,9 @@ type Coupon {
     price: Float!
     quantity: Int!
     category: Category
+    observation: String
+    selectedAddons: [SelectedAddonInput!]
+    addonsTotal: Float
   }
 
   input OrderInput {
@@ -540,14 +607,12 @@ type Coupon {
     isActive: Boolean
   }
 
-  # Input para horário de funcionamento
   input TimeScheduleInput {
     startTime: String!
     endTime: String!
     daysOfWeek: [DayOfWeek!]!
   }
 
-  # Input para cupom (completo)
   input CouponInput {
     code: String!
     name: String!
@@ -571,7 +636,6 @@ type Coupon {
     isActive: Boolean
   }
 
-  # Input para regra de cashback
   input CashbackRuleInput {
     name: String!
     description: String
@@ -588,7 +652,6 @@ type Coupon {
     isActive: Boolean
   }
 
-  # Input para campanha de cashback
   input CashbackCampaignInput {
     name: String!
     description: String
@@ -606,7 +669,6 @@ type Coupon {
     isActive: Boolean
   }
 
-  # Input para configurações de cashback
   input CashbackSettingsInput {
     isEnabled: Boolean
     defaultPercentage: Float
@@ -617,7 +679,6 @@ type Coupon {
     displayMessage: String
   }
 
-  # Input para preview do pedido
   input OrderPreviewInput {
     items: [OrderItemInput!]!
     subtotal: Float!
@@ -658,71 +719,40 @@ type Coupon {
   # QUERIES
   # ============================================
   type Query {
-    # Validação de endereço
     validateDeliveryAddress(city: String!, state: String!): DeliveryValidationResult!
-
-    # Auth
     me: User!
-    
-    # Products
     products(category: Category, onlyAvailable: Boolean): [Product!]!
     product(id: ID!): Product
     featuredProducts: [Product!]!
     productsOnSale: [Product!]!
-    
-    # Banners
     banners(location: BannerLocation): [Banner!]!
-    
-    # Couriers
     couriers(onlyActive: Boolean): [Courier!]!
     courier(id: ID!): Courier
     couriersMetrics(period: String!): CouriersOverviewMetrics!
     courierDeliveries(courierId: ID!, period: String!): [Order!]!
     availableCouriers: [Courier!]!
-    
-    # Orders
     orders(status: OrderStatus, limit: Int, offset: Int): [Order!]!
     order(id: ID!): Order
     activeOrders: [Order!]!
     orderHistory(limit: Int, offset: Int): [Order!]!
-    
-    # Promotions
     promotions(onlyActive: Boolean): [Promotion!]!
     promotion(id: ID!): Promotion
     activePromotions: [Promotion!]!
-    
-    # Coupons (Admin)
     coupons(onlyActive: Boolean): [Coupon!]!
     coupon(id: ID!): Coupon
-    
-    # Validate coupon (Client)
     validateCoupon(code: String!, orderTotal: Float!, userId: ID): CouponValidation!
-    
-    # Cashback - Cliente
     myCashbackWallet: CashbackWallet
     myCashbackSummary: CashbackSummary!
-    
-    # Cashback - Admin
     cashbackRules(onlyActive: Boolean): [CashbackRule!]!
     cashbackRule(id: ID!): CashbackRule
     cashbackCampaigns(onlyActive: Boolean): [CashbackCampaign!]!
     cashbackCampaign(id: ID!): CashbackCampaign
     cashbackSettings: CashbackSettings!
     cashbackReport(startDate: String!, endDate: String!): CashbackReport!
-    
-    # Campanhas ativas (para cliente)
     activeCashbackCampaigns: [CashbackCampaign!]!
-    
-    # Preview do pedido
     previewOrderDiscounts(input: OrderPreviewInput!): OrderDiscountPreview!
-    
-    # Dashboard
     dashboardMetrics: DashboardMetrics!
-    
-    # Shipping
     calculateShipping(zipCode: String!): ShippingQuote!
-    
-    # Store
     storeInfo: User
     storeSettings: StoreSettings
   }
@@ -731,79 +761,52 @@ type Coupon {
   # MUTATIONS
   # ============================================
   type Mutation {
-    # Auth
     signup(name: String!, email: String!, password: String!, role: Role, adminKey: String): AuthPayload!
     login(email: String!, password: String!): AuthPayload!
     changePassword(input: ChangePasswordInput!): Boolean!
-    
-    # Profile
     updateProfile(input: UpdateProfileInput!): User!
     updateStore(input: UpdateStoreInput!): User!
     updateStoreSettings(input: StoreSettingsInput!): StoreSettings!
-    
-    # Addresses
     addAddress(input: AddressInput!): User!
     updateAddress(addressId: ID!, input: AddressInput!): User!
     deleteAddress(addressId: ID!): User!
     setDefaultAddress(addressId: ID!): User!
-    
-    # Payment Methods
     addPaymentMethod(input: PaymentMethodInput!): User!
     deletePaymentMethod(paymentMethodId: ID!): User!
     setDefaultPaymentMethod(paymentMethodId: ID!): User!
-    
-    # Products
     createProduct(input: ProductInput!): Product!
     updateProduct(id: ID!, input: ProductInput!): Product!
     deleteProduct(id: ID!): Boolean!
     toggleProductAvailability(id: ID!): Product!
     toggleProductFeatured(id: ID!): Product!
-    
-    # Banners
     createBanner(input: BannerInput!): Banner!
     updateBanner(id: ID!, input: BannerInput!): Banner!
     deleteBanner(id: ID!): Boolean!
-    
-    # Couriers
     createCourier(input: CourierInput!): Courier!
     updateCourier(id: ID!, input: UpdateCourierInput!): Courier!
     deleteCourier(id: ID!): Boolean!
     toggleCourierActive(id: ID!): Courier!
-    
-    # Orders
     createOrder(input: OrderInput!): Order!
     updateOrderStatus(id: ID!, status: OrderStatus!): Order!
     assignCourier(orderId: ID!, courierId: ID!): Order!
     confirmOrderReceived(id: ID!): Order!
     confirmDelivery(id: ID!): Order!
-    
-    # Promotions
     createPromotion(input: PromotionInput!): Promotion!
     updatePromotion(id: ID!, input: PromotionInput!): Promotion!
     deletePromotion(id: ID!): Boolean!
-    
-    # Coupons (Admin)
     createCoupon(input: CouponInput!): Coupon!
     updateCoupon(id: ID!, input: CouponInput!): Coupon!
     deleteCoupon(id: ID!): Boolean!
     toggleCouponActive(id: ID!): Coupon!
-    
-    # Cashback Rules (Admin)
     createCashbackRule(input: CashbackRuleInput!): CashbackRule!
     updateCashbackRule(id: ID!, input: CashbackRuleInput!): CashbackRule!
     deleteCashbackRule(id: ID!): Boolean!
     toggleCashbackRuleActive(id: ID!): CashbackRule!
-    
-    # Cashback Campaigns (Admin)
     createCashbackCampaign(input: CashbackCampaignInput!): CashbackCampaign!
     updateCashbackCampaign(id: ID!, input: CashbackCampaignInput!): CashbackCampaign!
     deleteCashbackCampaign(id: ID!): Boolean!
     toggleCashbackCampaignActive(id: ID!): CashbackCampaign!
-    
-    # Cashback Settings (Admin)
     updateCashbackSettings(input: CashbackSettingsInput!): CashbackSettings!
-    
-    # Cashback Wallet - Admin
     adjustCashbackBalance(userId: ID!, amount: Float!, description: String!): CashbackWallet!
     expireCashback: ExpireCashbackResult!
   }

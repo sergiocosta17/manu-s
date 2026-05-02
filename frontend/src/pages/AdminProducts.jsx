@@ -16,7 +16,8 @@ export default function AdminProducts() {
     description: '',
     category: 'BURGER',
     imageUrl: '',
-    isFeatured: false
+    isFeatured: false,
+    addonGroups: []
   });
 
   // Estados para o modal de ajuste de imagem
@@ -33,6 +34,9 @@ export default function AdminProducts() {
   // Estados para feedback visual (toast e confirm modal)
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [confirmModal, setConfirmModal] = useState({ show: false, title: '', message: '', onConfirm: null, data: null });
+  
+  // Estado para controlar qual grupo de opcionais está expandido
+  const [expandedGroups, setExpandedGroups] = useState({});
   
   const navigate = useNavigate();
 
@@ -87,7 +91,34 @@ export default function AdminProducts() {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
-          query: `query { products(onlyAvailable: false) { id name price promotionalPrice description category imageUrl isAvailable isFeatured } }`
+          query: `query { 
+            products(onlyAvailable: false) { 
+              id 
+              name 
+              price 
+              promotionalPrice 
+              description 
+              category 
+              imageUrl 
+              isAvailable 
+              isFeatured 
+              addonGroups {
+                id
+                name
+                description
+                selectionType
+                minSelection
+                maxSelection
+                isRequired
+                addons {
+                  id
+                  name
+                  price
+                  isAvailable
+                }
+              }
+            } 
+          }`
         })
       });
       
@@ -100,6 +131,94 @@ export default function AdminProducts() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ============================================
+  // FUNÇÕES PARA GERENCIAR GRUPOS DE OPCIONAIS
+  // ============================================
+
+  const generateId = () => `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+  const addAddonGroup = () => {
+    const newGroup = {
+      id: generateId(),
+      name: '',
+      description: '',
+      selectionType: 'MULTIPLE',
+      minSelection: 0,
+      maxSelection: 10,
+      isRequired: false,
+      addons: []
+    };
+    setProductForm(prev => ({
+      ...prev,
+      addonGroups: [...prev.addonGroups, newGroup]
+    }));
+    setExpandedGroups(prev => ({ ...prev, [newGroup.id]: true }));
+  };
+
+  const updateAddonGroup = (groupId, field, value) => {
+    setProductForm(prev => ({
+      ...prev,
+      addonGroups: prev.addonGroups.map(group => 
+        group.id === groupId ? { ...group, [field]: value } : group
+      )
+    }));
+  };
+
+  const removeAddonGroup = (groupId) => {
+    setProductForm(prev => ({
+      ...prev,
+      addonGroups: prev.addonGroups.filter(group => group.id !== groupId)
+    }));
+  };
+
+  const addAddonToGroup = (groupId) => {
+    const newAddon = {
+      id: generateId(),
+      name: '',
+      price: 0,
+      isAvailable: true
+    };
+    setProductForm(prev => ({
+      ...prev,
+      addonGroups: prev.addonGroups.map(group => 
+        group.id === groupId 
+          ? { ...group, addons: [...group.addons, newAddon] }
+          : group
+      )
+    }));
+  };
+
+  const updateAddon = (groupId, addonId, field, value) => {
+    setProductForm(prev => ({
+      ...prev,
+      addonGroups: prev.addonGroups.map(group => 
+        group.id === groupId 
+          ? {
+              ...group,
+              addons: group.addons.map(addon =>
+                addon.id === addonId ? { ...addon, [field]: value } : addon
+              )
+            }
+          : group
+      )
+    }));
+  };
+
+  const removeAddon = (groupId, addonId) => {
+    setProductForm(prev => ({
+      ...prev,
+      addonGroups: prev.addonGroups.map(group => 
+        group.id === groupId 
+          ? { ...group, addons: group.addons.filter(addon => addon.id !== addonId) }
+          : group
+      )
+    }));
+  };
+
+  const toggleGroupExpanded = (groupId) => {
+    setExpandedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
   };
 
   // Processa upload de imagem e abre modal de ajuste
@@ -288,6 +407,41 @@ export default function AdminProducts() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validar grupos de opcionais
+    for (const group of productForm.addonGroups) {
+      if (!group.name.trim()) {
+        showToast('Todos os grupos de opcionais devem ter um nome', 'error');
+        return;
+      }
+      if (group.addons.length === 0) {
+        showToast(`O grupo "${group.name}" deve ter pelo menos um opcional`, 'error');
+        return;
+      }
+      for (const addon of group.addons) {
+        if (!addon.name.trim()) {
+          showToast(`Todos os opcionais do grupo "${group.name}" devem ter um nome`, 'error');
+          return;
+        }
+      }
+    }
+
+    // Preparar os grupos de opcionais para envio
+    const addonGroupsForSubmit = productForm.addonGroups.map(group => ({
+      id: group.id.startsWith('temp_') ? undefined : group.id,
+      name: group.name,
+      description: group.description || '',
+      selectionType: group.selectionType,
+      minSelection: parseInt(group.minSelection) || 0,
+      maxSelection: parseInt(group.maxSelection) || 10,
+      isRequired: group.isRequired,
+      addons: group.addons.map(addon => ({
+        id: addon.id.startsWith('temp_') ? undefined : addon.id,
+        name: addon.name,
+        price: parseFloat(addon.price) || 0,
+        isAvailable: addon.isAvailable !== false
+      }))
+    }));
+
     const input = {
       name: productForm.name,
       price: parseFloat(productForm.price),
@@ -295,7 +449,8 @@ export default function AdminProducts() {
       category: productForm.category,
       imageUrl: productForm.imageUrl || '',
       promotionalPrice: productForm.promotionalPrice ? parseFloat(productForm.promotionalPrice) : null,
-      isFeatured: productForm.isFeatured
+      isFeatured: productForm.isFeatured,
+      addonGroups: addonGroupsForSubmit
     };
 
     const mutation = editingProduct 
@@ -319,7 +474,17 @@ export default function AdminProducts() {
       
       setIsModalOpen(false);
       setEditingProduct(null);
-      setProductForm({ name: '', price: '', promotionalPrice: '', description: '', category: 'BURGER', imageUrl: '', isFeatured: false });
+      setProductForm({ 
+        name: '', 
+        price: '', 
+        promotionalPrice: '', 
+        description: '', 
+        category: 'BURGER', 
+        imageUrl: '', 
+        isFeatured: false,
+        addonGroups: []
+      });
+      setExpandedGroups({});
       fetchProducts();
       showToast(editingProduct ? 'Produto atualizado com sucesso!' : 'Produto criado com sucesso!', 'success');
     } catch (err) {
@@ -368,8 +533,18 @@ export default function AdminProducts() {
       description: product.description || '',
       category: product.category || 'BURGER',
       imageUrl: product.imageUrl || '',
-      isFeatured: product.isFeatured || false
+      isFeatured: product.isFeatured || false,
+      addonGroups: product.addonGroups?.map(group => ({
+        ...group,
+        addons: group.addons?.map(addon => ({ ...addon })) || []
+      })) || []
     });
+    // Expandir todos os grupos existentes
+    const expanded = {};
+    product.addonGroups?.forEach(group => {
+      expanded[group.id] = true;
+    });
+    setExpandedGroups(expanded);
     setIsModalOpen(true);
   };
 
@@ -382,8 +557,10 @@ export default function AdminProducts() {
       description: '', 
       category: activeCategory === 'ALL' || activeCategory === 'FEATURED' ? 'BURGER' : activeCategory, 
       imageUrl: '',
-      isFeatured: activeCategory === 'FEATURED'
+      isFeatured: activeCategory === 'FEATURED',
+      addonGroups: []
     });
+    setExpandedGroups({});
     setIsModalOpen(true);
   };
 
@@ -587,6 +764,12 @@ export default function AdminProducts() {
                       Indisponível
                     </span>
                   )}
+                  {p.addonGroups && p.addonGroups.length > 0 && (
+                    <span className="bg-[#1e3a5f]/60 text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                      <SettingsIcon className="w-3 h-3" />
+                      {p.addonGroups.length} {p.addonGroups.length === 1 ? 'opcional' : 'opcionais'}
+                    </span>
+                  )}
                 </div>
 
                 {/* Botão de toggle destaque no canto superior direito */}
@@ -664,7 +847,7 @@ export default function AdminProducts() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-hidden">
           <div className="absolute inset-0 bg-[#1e3a5f]/70 backdrop-blur-md" onClick={() => setIsModalOpen(false)}></div>
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto animate-scale-in">
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-scale-in">
             <div className="flex items-center justify-between p-6 border-b border-[#1e3a5f]/10 sticky top-0 bg-white z-10">
               <h2 className="text-xl font-bold text-[#1e3a5f]">
                 {editingProduct ? 'Editar Produto' : 'Novo Produto'}
@@ -806,7 +989,238 @@ export default function AdminProducts() {
                 <StarIcon className={`w-5 h-5 ${productForm.isFeatured ? 'text-[#1e3a5f]' : 'text-[#1e3a5f]/20'}`} />
               </div>
 
-              <div className="flex gap-3 pt-4">
+              {/* ============================================ */}
+              {/* SEÇÃO DE OPCIONAIS */}
+              {/* ============================================ */}
+              <div className="border-t border-[#1e3a5f]/10 pt-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="font-semibold text-[#1e3a5f] flex items-center gap-2">
+                      <SettingsIcon className="w-5 h-5" />
+                      Opcionais do Produto
+                    </h3>
+                    <p className="text-xs text-[#1e3a5f]/40 mt-0.5">
+                      Adicione grupos de opcionais como adicionais, tamanhos, etc.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addAddonGroup}
+                    className="bg-[#1e3a5f]/10 hover:bg-[#1e3a5f]/20 text-[#1e3a5f] text-sm font-medium px-4 py-2 rounded-xl flex items-center gap-2 transition-all"
+                  >
+                    <PlusIcon className="w-4 h-4" />
+                    Novo Grupo
+                  </button>
+                </div>
+
+                {productForm.addonGroups.length === 0 ? (
+                  <div className="bg-[#faf8f5] rounded-xl p-6 text-center border border-dashed border-[#1e3a5f]/20">
+                    <SettingsIcon className="w-10 h-10 text-[#1e3a5f]/20 mx-auto mb-2" />
+                    <p className="text-[#1e3a5f]/40 text-sm">Nenhum grupo de opcionais</p>
+                    <p className="text-[#1e3a5f]/30 text-xs mt-1">Clique em "Novo Grupo" para adicionar</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {productForm.addonGroups.map((group, groupIndex) => (
+                      <div 
+                        key={group.id} 
+                        className="bg-[#faf8f5] rounded-xl border border-[#1e3a5f]/10 overflow-hidden"
+                      >
+                        {/* Header do grupo */}
+                        <div 
+                          className="flex items-center gap-3 p-4 cursor-pointer hover:bg-[#1e3a5f]/5 transition-colors"
+                          onClick={() => toggleGroupExpanded(group.id)}
+                        >
+                          <div className="w-8 h-8 bg-[#1e3a5f]/10 rounded-lg flex items-center justify-center text-[#1e3a5f] font-semibold text-sm">
+                            {groupIndex + 1}
+                          </div>
+                          <div className="flex-grow">
+                            <p className="font-medium text-[#1e3a5f]">
+                              {group.name || 'Novo Grupo'}
+                            </p>
+                            <p className="text-xs text-[#1e3a5f]/40">
+                              {group.addons.length} {group.addons.length === 1 ? 'opcional' : 'opcionais'}
+                              {group.isRequired && ' • Obrigatório'}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeAddonGroup(group.id);
+                            }}
+                            className="w-8 h-8 rounded-lg text-[#1e3a5f]/30 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-all"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                          <ChevronIcon 
+                            className={`w-5 h-5 text-[#1e3a5f]/40 transition-transform ${
+                              expandedGroups[group.id] ? 'rotate-180' : ''
+                            }`} 
+                          />
+                        </div>
+
+                        {/* Conteúdo expandido do grupo */}
+                        {expandedGroups[group.id] && (
+                          <div className="px-4 pb-4 space-y-4 border-t border-[#1e3a5f]/10">
+                            {/* Configurações do grupo */}
+                            <div className="grid grid-cols-2 gap-3 pt-4">
+                              <div className="col-span-2">
+                                <label className="block text-xs font-medium text-[#1e3a5f]/50 mb-1.5">Nome do Grupo</label>
+                                <input
+                                  type="text"
+                                  className="w-full px-3 py-2.5 rounded-lg bg-white border border-[#1e3a5f]/10 focus:border-[#1e3a5f]/30 outline-none text-[#1e3a5f] text-sm"
+                                  placeholder="Ex: Adicionais, Tamanho, Ponto da Carne..."
+                                  value={group.name}
+                                  onChange={(e) => updateAddonGroup(group.id, 'name', e.target.value)}
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <label className="block text-xs font-medium text-[#1e3a5f]/50 mb-1.5">Descrição (opcional)</label>
+                                <input
+                                  type="text"
+                                  className="w-full px-3 py-2.5 rounded-lg bg-white border border-[#1e3a5f]/10 focus:border-[#1e3a5f]/30 outline-none text-[#1e3a5f] text-sm"
+                                  placeholder="Ex: Escolha seus adicionais favoritos"
+                                  value={group.description || ''}
+                                  onChange={(e) => updateAddonGroup(group.id, 'description', e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-[#1e3a5f]/50 mb-1.5">Tipo de Seleção</label>
+                                <select
+                                  className="w-full px-3 py-2.5 rounded-lg bg-white border border-[#1e3a5f]/10 focus:border-[#1e3a5f]/30 outline-none text-[#1e3a5f] text-sm"
+                                  value={group.selectionType}
+                                  onChange={(e) => updateAddonGroup(group.id, 'selectionType', e.target.value)}
+                                >
+                                  <option value="MULTIPLE">Múltipla escolha</option>
+                                  <option value="SINGLE">Escolha única</option>
+                                </select>
+                              </div>
+                              <div className="flex gap-2">
+                                <div className="flex-1">
+                                  <label className="block text-xs font-medium text-[#1e3a5f]/50 mb-1.5">Mín.</label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    className="w-full px-3 py-2.5 rounded-lg bg-white border border-[#1e3a5f]/10 focus:border-[#1e3a5f]/30 outline-none text-[#1e3a5f] text-sm"
+                                    value={group.minSelection}
+                                    onChange={(e) => updateAddonGroup(group.id, 'minSelection', parseInt(e.target.value) || 0)}
+                                  />
+                                </div>
+                                <div className="flex-1">
+                                  <label className="block text-xs font-medium text-[#1e3a5f]/50 mb-1.5">Máx.</label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    className="w-full px-3 py-2.5 rounded-lg bg-white border border-[#1e3a5f]/10 focus:border-[#1e3a5f]/30 outline-none text-[#1e3a5f] text-sm"
+                                    value={group.maxSelection}
+                                    onChange={(e) => updateAddonGroup(group.id, 'maxSelection', parseInt(e.target.value) || 1)}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Checkbox obrigatório */}
+                            <div 
+                              onClick={() => updateAddonGroup(group.id, 'isRequired', !group.isRequired)}
+                              className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
+                                group.isRequired 
+                                  ? 'bg-[#1e3a5f]/10 border border-[#1e3a5f]/20' 
+                                  : 'bg-white border border-[#1e3a5f]/10 hover:border-[#1e3a5f]/20'
+                              }`}
+                            >
+                              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                                group.isRequired 
+                                  ? 'bg-[#1e3a5f] border-[#1e3a5f]' 
+                                  : 'border-[#1e3a5f]/20'
+                              }`}>
+                                {group.isRequired && <CheckIcon className="w-3 h-3 text-white" />}
+                              </div>
+                              <span className="text-sm text-[#1e3a5f]">Seleção obrigatória</span>
+                            </div>
+
+                            {/* Lista de opcionais */}
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <label className="text-xs font-medium text-[#1e3a5f]/50">Opcionais</label>
+                                <button
+                                  type="button"
+                                  onClick={() => addAddonToGroup(group.id)}
+                                  className="text-xs text-[#1e3a5f] hover:text-[#162d4a] font-medium flex items-center gap-1"
+                                >
+                                  <PlusIcon className="w-3 h-3" />
+                                  Adicionar
+                                </button>
+                              </div>
+
+                              {group.addons.length === 0 ? (
+                                <div className="bg-white rounded-lg p-4 text-center border border-dashed border-[#1e3a5f]/10">
+                                  <p className="text-[#1e3a5f]/30 text-xs">Clique em "Adicionar" para criar opcionais</p>
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  {group.addons.map((addon, addonIndex) => (
+                                    <div 
+                                      key={addon.id}
+                                      className="flex items-center gap-2 bg-white rounded-lg p-3 border border-[#1e3a5f]/10"
+                                    >
+                                      <span className="text-xs text-[#1e3a5f]/30 w-5">{addonIndex + 1}.</span>
+                                      <input
+                                        type="text"
+                                        className="flex-grow px-2 py-1.5 rounded-md bg-[#faf8f5] border border-[#1e3a5f]/10 focus:border-[#1e3a5f]/30 outline-none text-[#1e3a5f] text-sm"
+                                        placeholder="Nome do opcional"
+                                        value={addon.name}
+                                        onChange={(e) => updateAddon(group.id, addon.id, 'name', e.target.value)}
+                                      />
+                                      <div className="flex items-center gap-1 bg-[#faf8f5] rounded-md border border-[#1e3a5f]/10 px-2">
+                                        <span className="text-xs text-[#1e3a5f]/40">R$</span>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          className="w-16 py-1.5 bg-transparent outline-none text-[#1e3a5f] text-sm text-right"
+                                          placeholder="0,00"
+                                          value={addon.price || ''}
+                                          onChange={(e) => updateAddon(group.id, addon.id, 'price', e.target.value)}
+                                        />
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => updateAddon(group.id, addon.id, 'isAvailable', !addon.isAvailable)}
+                                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                                          addon.isAvailable !== false
+                                            ? 'bg-green-50 text-green-500'
+                                            : 'bg-gray-100 text-gray-400'
+                                        }`}
+                                        title={addon.isAvailable !== false ? 'Disponível' : 'Indisponível'}
+                                      >
+                                        {addon.isAvailable !== false ? (
+                                          <CheckIcon className="w-4 h-4" />
+                                        ) : (
+                                          <CloseIcon className="w-4 h-4" />
+                                        )}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => removeAddon(group.id, addon.id)}
+                                        className="w-8 h-8 rounded-lg text-[#1e3a5f]/30 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-all"
+                                      >
+                                        <TrashIcon className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t border-[#1e3a5f]/10">
                 <button 
                   type="button" 
                   onClick={() => setIsModalOpen(false)} 
@@ -1184,5 +1598,17 @@ const InfoIcon = ({ className = "w-5 h-5" }) => (
 const AlertIcon = ({ className = "w-6 h-6" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+  </svg>
+);
+
+const SettingsIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+  </svg>
+);
+
+const ChevronIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
   </svg>
 );

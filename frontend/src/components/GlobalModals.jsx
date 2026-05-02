@@ -24,6 +24,11 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
     </svg>
   ),
+  ArrowLeft: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+    </svg>
+  ),
   Clipboard: ({ className = "w-5 h-5" }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -107,7 +112,57 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
+  Edit: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+    </svg>
+  ),
+  Plus: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+    </svg>
+  ),
+  Minus: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" />
+    </svg>
+  ),
+  Alert: ({ className = "w-5 h-5" }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+    </svg>
+  ),
 };
+
+// Query para buscar produto com opcionais
+const GET_PRODUCT = `
+  query GetProduct($id: ID!) {
+    product(id: $id) {
+      id
+      name
+      description
+      price
+      promotionalPrice
+      imageUrl
+      category
+      addonGroups {
+        id
+        name
+        description
+        selectionType
+        minSelection
+        maxSelection
+        isRequired
+        addons {
+          id
+          name
+          price
+          isAvailable
+        }
+      }
+    }
+  }
+`;
 
 export default function GlobalModals() {
   const {
@@ -118,6 +173,7 @@ export default function GlobalModals() {
     cartItems,
     updateQuantity,
     removeFromCart,
+    updateCartItem,
     getCartTotal,
     activeTrackingOrders,
     fetchMyOrders,
@@ -139,6 +195,16 @@ export default function GlobalModals() {
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState('');
   const [couponSuccess, setCouponSuccess] = useState('');
+
+  // Estados para edição de item
+  const [editingItem, setEditingItem] = useState(null);
+  const [editingItemIndex, setEditingItemIndex] = useState(null);
+  const [editProduct, setEditProduct] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editSelectedAddons, setEditSelectedAddons] = useState({});
+  const [editObservation, setEditObservation] = useState('');
+  const [editQuantity, setEditQuantity] = useState(1);
+  const [editValidationErrors, setEditValidationErrors] = useState({});
 
   useEffect(() => {
     if (!isTrackingOpen) return;
@@ -164,6 +230,197 @@ export default function GlobalModals() {
       setConfirmError(null);
     }
   }, [isTrackingOpen]);
+
+  // ============================================
+  // FUNÇÕES DE EDIÇÃO DE ITEM
+  // ============================================
+
+  const openEditModal = async (item, index) => {
+    setEditingItem(item);
+    setEditingItemIndex(index);
+    setEditLoading(true);
+    setEditObservation(item.observation || '');
+    setEditQuantity(item.quantity);
+    setEditValidationErrors({});
+
+    try {
+      const response = await fetch('http://localhost:4000/graphql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+        },
+        body: JSON.stringify({
+          query: GET_PRODUCT,
+          variables: { id: item.id },
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.errors) {
+        throw new Error(result.errors[0].message);
+      }
+
+      const product = result.data?.product;
+      setEditProduct(product);
+
+      // Inicializar seleções baseadas nos opcionais já selecionados no item
+      const initialSelections = {};
+      product?.addonGroups?.forEach(group => {
+        initialSelections[group.id] = [];
+        
+        // Verificar quais addons já estão selecionados
+        if (item.selectedAddons && item.selectedAddons.length > 0) {
+          group.addons.forEach(addon => {
+            const isSelected = item.selectedAddons.some(
+              selected => selected.addonId === addon.id || selected.name === addon.name
+            );
+            if (isSelected) {
+              initialSelections[group.id].push(addon);
+            }
+          });
+        }
+      });
+      setEditSelectedAddons(initialSelections);
+
+    } catch (err) {
+      console.error('Erro ao carregar produto:', err);
+      alert('Erro ao carregar detalhes do produto');
+      closeEditModal();
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const closeEditModal = () => {
+    setEditingItem(null);
+    setEditingItemIndex(null);
+    setEditProduct(null);
+    setEditSelectedAddons({});
+    setEditObservation('');
+    setEditQuantity(1);
+    setEditValidationErrors({});
+  };
+
+  const handleEditAddonSelect = (groupId, addon, group) => {
+    setEditSelectedAddons(prev => {
+      const currentSelections = prev[groupId] || [];
+      
+      if (group.selectionType === 'SINGLE') {
+        if (currentSelections.some(a => a.id === addon.id)) {
+          if (group.isRequired || group.minSelection > 0) {
+            return prev;
+          }
+          return { ...prev, [groupId]: [] };
+        }
+        return { ...prev, [groupId]: [addon] };
+      } else {
+        const isSelected = currentSelections.some(a => a.id === addon.id);
+        
+        if (isSelected) {
+          return { 
+            ...prev, 
+            [groupId]: currentSelections.filter(a => a.id !== addon.id) 
+          };
+        } else {
+          if (currentSelections.length >= group.maxSelection) {
+            return prev;
+          }
+          return { 
+            ...prev, 
+            [groupId]: [...currentSelections, addon] 
+          };
+        }
+      }
+    });
+    
+    setEditValidationErrors(prev => ({ ...prev, [groupId]: null }));
+  };
+
+  const isEditAddonSelected = (groupId, addonId) => {
+    return (editSelectedAddons[groupId] || []).some(a => a.id === addonId);
+  };
+
+  const getEditGroupSelectionCount = (groupId) => {
+    return (editSelectedAddons[groupId] || []).length;
+  };
+
+  const calculateEditAddonsTotal = () => {
+    let total = 0;
+    Object.values(editSelectedAddons).forEach(addons => {
+      addons.forEach(addon => {
+        total += Number(addon.price) || 0;
+      });
+    });
+    return total;
+  };
+
+  const validateEditAddons = () => {
+    const errors = {};
+    let isValid = true;
+
+    editProduct?.addonGroups?.forEach(group => {
+      const selectionCount = getEditGroupSelectionCount(group.id);
+      
+      if (group.isRequired && selectionCount === 0) {
+        errors[group.id] = `Selecione pelo menos ${group.minSelection || 1} opção`;
+        isValid = false;
+      } else if (selectionCount < group.minSelection) {
+        errors[group.id] = `Selecione pelo menos ${group.minSelection} ${group.minSelection === 1 ? 'opção' : 'opções'}`;
+        isValid = false;
+      }
+    });
+
+    setEditValidationErrors(errors);
+    return isValid;
+  };
+
+  const getEditSelectedAddonsForCart = () => {
+    const result = [];
+    Object.entries(editSelectedAddons).forEach(([groupId, addons]) => {
+      addons.forEach(addon => {
+        result.push({
+          addonId: addon.id,
+          name: addon.name,
+          price: Number(addon.price) || 0,
+          quantity: 1
+        });
+      });
+    });
+    return result;
+  };
+
+  const getEditCurrentPrice = () => {
+    if (!editProduct) return editingItem?.price || 0;
+    const hasPromo = editProduct.promotionalPrice && Number(editProduct.promotionalPrice) > 0;
+    return hasPromo ? Number(editProduct.promotionalPrice) : Number(editProduct.price);
+  };
+
+  const getEditTotal = () => {
+    const basePrice = getEditCurrentPrice();
+    const addonsTotal = calculateEditAddonsTotal();
+    return (basePrice + addonsTotal) * editQuantity;
+  };
+
+  const handleSaveEdit = () => {
+    if (!validateEditAddons()) {
+      return;
+    }
+
+    const newSelectedAddons = getEditSelectedAddonsForCart();
+    const newAddonsTotal = calculateEditAddonsTotal();
+
+    // Atualizar o item no carrinho
+    updateCartItem(editingItemIndex, {
+      quantity: editQuantity,
+      observation: editObservation,
+      selectedAddons: newSelectedAddons,
+      addonsTotal: newAddonsTotal,
+    });
+
+    closeEditModal();
+  };
 
   // Handler para aplicar cupom
   const handleApplyCoupon = async () => {
@@ -374,7 +631,7 @@ export default function GlobalModals() {
   };
 
   const onConfirmDelivery = async (orderId) => {
-    if (confirmingOrderId) return; // Evita cliques duplos
+    if (confirmingOrderId) return;
     
     setConfirmingOrderId(orderId);
     setConfirmError(null);
@@ -385,7 +642,6 @@ export default function GlobalModals() {
       if (result && !result.success) {
         setConfirmError(result.message || 'Erro ao confirmar');
       } else {
-        // Sucesso - atualiza a lista
         await fetchMyOrders();
       }
     } catch (err) {
@@ -401,10 +657,12 @@ export default function GlobalModals() {
   const finalShippingFee = couponFreeShipping ? 0 : deliveryFee;
   const orderTotal = cartTotal - couponDiscount + finalShippingFee;
 
+  const hasAddons = editProduct?.addonGroups && editProduct.addonGroups.length > 0;
+
   return (
     <>
       {/* MODAL DO CARRINHO */}
-      {isCartOpen && (
+      {isCartOpen && !editingItem && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div
             className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm"
@@ -447,7 +705,7 @@ export default function GlobalModals() {
                 <div className="space-y-3">
                   {cartItems.map((item, index) => (
                     <div
-                      key={`${item.id}-${item.observation || index}`}
+                      key={`${item.id}-${item.observation || ''}-${index}`}
                       className="bg-white rounded-2xl p-4 shadow-sm border border-[#1e3a5f]/5"
                     >
                       <div className="flex gap-4">
@@ -460,11 +718,25 @@ export default function GlobalModals() {
                         )}
                         <div className="flex-1 min-w-0">
                           <h3 className="text-[#1e3a5f] font-bold truncate">{item.name}</h3>
+                          
+                          {/* Mostrar opcionais */}
+                          {item.selectedAddons && item.selectedAddons.length > 0 && (
+                            <div className="mt-1 space-y-0.5">
+                              {item.selectedAddons.map((addon, idx) => (
+                                <p key={idx} className="text-xs text-[#1e3a5f]/50">
+                                  + {addon.name} {addon.price > 0 && `(R$ ${Number(addon.price).toFixed(2).replace('.', ',')})`}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {/* Mostrar observação */}
                           {item.observation && (
-                            <p className="text-[#1e3a5f]/40 text-xs mt-1 truncate">
+                            <p className="text-xs text-[#1e3a5f]/40 mt-1 italic truncate">
                               Obs: {item.observation}
                             </p>
                           )}
+                          
                           <p className="text-[#1e3a5f] font-black text-lg mt-1">
                             R$ {(item.price * item.quantity).toFixed(2).replace('.', ',')}
                           </p>
@@ -472,25 +744,39 @@ export default function GlobalModals() {
                           <div className="flex items-center justify-between mt-3">
                             <div className="flex items-center gap-2 bg-[#faf8f5] rounded-xl p-1">
                               <button
-                                onClick={() => updateQuantity(item.id, item.quantity - 1, item.observation)}
+                                onClick={() => updateQuantity(item.id, item.quantity - 1, item.observation, item.selectedAddons, index)}
                                 className="w-8 h-8 rounded-lg bg-white border border-[#1e3a5f]/10 text-[#1e3a5f] font-bold hover:bg-[#1e3a5f] hover:text-white transition-colors flex items-center justify-center"
                               >
                                 -
                               </button>
                               <span className="text-[#1e3a5f] font-bold w-8 text-center">{item.quantity}</span>
                               <button
-                                onClick={() => updateQuantity(item.id, item.quantity + 1, item.observation)}
+                                onClick={() => updateQuantity(item.id, item.quantity + 1, item.observation, item.selectedAddons, index)}
                                 className="w-8 h-8 rounded-lg bg-white border border-[#1e3a5f]/10 text-[#1e3a5f] font-bold hover:bg-[#1e3a5f] hover:text-white transition-colors flex items-center justify-center"
                               >
                                 +
                               </button>
                             </div>
-                            <button
-                              onClick={() => removeFromCart(item.id, item.observation)}
-                              className="p-2 text-[#1e3a5f]/40 hover:text-[#1e3a5f] hover:bg-[#1e3a5f]/5 rounded-lg transition-colors"
-                            >
-                              <Icons.Trash className="w-5 h-5" />
-                            </button>
+                            
+                            <div className="flex items-center gap-1">
+                              {/* Botão de editar */}
+                              <button
+                                onClick={() => openEditModal(item, index)}
+                                className="p-2 text-[#1e3a5f]/40 hover:text-[#1e3a5f] hover:bg-[#1e3a5f]/5 rounded-lg transition-colors"
+                                title="Editar item"
+                              >
+                                <Icons.Edit className="w-5 h-5" />
+                              </button>
+                              
+                              {/* Botão de remover */}
+                              <button
+                                onClick={() => removeFromCart(item.id, item.observation, item.selectedAddons, index)}
+                                className="p-2 text-[#1e3a5f]/40 hover:text-[#1e3a5f] hover:bg-[#1e3a5f]/5 rounded-lg transition-colors"
+                                title="Remover item"
+                              >
+                                <Icons.Trash className="w-5 h-5" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -505,7 +791,6 @@ export default function GlobalModals() {
                     </div>
 
                     {appliedCoupon ? (
-                      // Cupom aplicado
                       <div className="bg-[#1e3a5f]/5 rounded-xl p-3 border border-[#1e3a5f]/10">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -537,7 +822,6 @@ export default function GlobalModals() {
                         )}
                       </div>
                     ) : (
-                      // Input para adicionar cupom
                       <div className="space-y-2">
                         <div className="flex gap-2">
                           <input
@@ -637,6 +921,270 @@ export default function GlobalModals() {
                 >
                   Finalizar Pedido
                   <Icons.ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE EDIÇÃO DE ITEM */}
+      {editingItem && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="absolute inset-0 bg-[#1e3a5f]/60 backdrop-blur-sm"
+            onClick={closeEditModal}
+          />
+          <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-slide-in-right">
+            
+            {/* Header */}
+            <div className="bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] p-6">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={closeEditModal}
+                    className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                  >
+                    <Icons.ArrowLeft className="w-5 h-5 text-white" />
+                  </button>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Editar Item</h2>
+                    <p className="text-white/60 text-sm truncate max-w-[200px]">{editingItem.name}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeEditModal}
+                  className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                >
+                  <Icons.Close className="w-5 h-5 text-white" />
+                </button>
+              </div>
+            </div>
+
+            {/* Conteúdo */}
+            <div className="flex-1 overflow-y-auto p-4 bg-[#faf8f5]">
+              {editLoading ? (
+                <div className="flex flex-col items-center justify-center h-full">
+                  <Icons.Spinner className="w-10 h-10 text-[#1e3a5f]" />
+                  <p className="text-[#1e3a5f]/50 mt-4">Carregando opções...</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Imagem e info do produto */}
+                  <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#1e3a5f]/5">
+                    <div className="flex gap-4">
+                      {(editProduct?.imageUrl || editingItem.imageUrl) && (
+                        <img
+                          src={editProduct?.imageUrl || editingItem.imageUrl}
+                          alt={editingItem.name}
+                          className="w-24 h-24 object-cover rounded-xl"
+                        />
+                      )}
+                      <div className="flex-1">
+                        <h3 className="text-[#1e3a5f] font-bold text-lg">{editingItem.name}</h3>
+                        {editProduct?.description && (
+                          <p className="text-[#1e3a5f]/50 text-sm mt-1 line-clamp-2">
+                            {editProduct.description}
+                          </p>
+                        )}
+                        <p className="text-[#1e3a5f] font-bold text-xl mt-2">
+                          R$ {getEditCurrentPrice().toFixed(2).replace('.', ',')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quantidade */}
+                  <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#1e3a5f]/5">
+                    <p className="text-sm text-[#1e3a5f]/50 mb-3">Quantidade</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={() => setEditQuantity(prev => Math.max(1, prev - 1))}
+                          disabled={editQuantity <= 1}
+                          className="w-12 h-12 bg-[#faf8f5] rounded-xl flex items-center justify-center border border-[#1e3a5f]/10 hover:bg-[#1e3a5f]/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <Icons.Minus className="w-5 h-5 text-[#1e3a5f]" />
+                        </button>
+                        <span className="text-2xl font-bold text-[#1e3a5f] w-8 text-center">
+                          {editQuantity}
+                        </span>
+                        <button
+                          onClick={() => setEditQuantity(prev => Math.min(99, prev + 1))}
+                          disabled={editQuantity >= 99}
+                          className="w-12 h-12 bg-[#faf8f5] rounded-xl flex items-center justify-center border border-[#1e3a5f]/10 hover:bg-[#1e3a5f]/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <Icons.Plus className="w-5 h-5 text-[#1e3a5f]" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Opcionais */}
+                  {hasAddons && (
+                    <div className="space-y-4">
+                      {editProduct.addonGroups.map((group) => {
+                        const selectionCount = getEditGroupSelectionCount(group.id);
+                        const hasError = editValidationErrors[group.id];
+                        const availableAddons = group.addons.filter(a => a.isAvailable !== false);
+                        
+                        if (availableAddons.length === 0) return null;
+
+                        return (
+                          <div 
+                            key={group.id} 
+                            className={`bg-white rounded-2xl border overflow-hidden shadow-sm transition-all ${
+                              hasError 
+                                ? 'border-red-300 bg-red-50/30' 
+                                : 'border-[#1e3a5f]/5'
+                            }`}
+                          >
+                            {/* Header do grupo */}
+                            <div className="p-4 border-b border-[#1e3a5f]/5">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-grow">
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="font-semibold text-[#1e3a5f]">{group.name}</h3>
+                                    {group.isRequired && (
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#1e3a5f] text-white">
+                                        Obrigatório
+                                      </span>
+                                    )}
+                                  </div>
+                                  {group.description && (
+                                    <p className="text-xs text-[#1e3a5f]/50 mt-1">{group.description}</p>
+                                  )}
+                                  <p className="text-xs text-[#1e3a5f]/40 mt-1">
+                                    {group.selectionType === 'SINGLE' 
+                                      ? 'Escolha 1 opção'
+                                      : group.minSelection > 0 
+                                        ? `Escolha de ${group.minSelection} a ${group.maxSelection} opções`
+                                        : `Escolha até ${group.maxSelection} ${group.maxSelection === 1 ? 'opção' : 'opções'}`
+                                    }
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <span className={`text-sm font-medium ${
+                                    selectionCount > 0 ? 'text-[#1e3a5f]' : 'text-[#1e3a5f]/30'
+                                  }`}>
+                                    {selectionCount}/{group.selectionType === 'SINGLE' ? 1 : group.maxSelection}
+                                  </span>
+                                </div>
+                              </div>
+                              {hasError && (
+                                <div className="flex items-center gap-2 mt-2 text-red-500">
+                                  <Icons.Alert className="w-4 h-4" />
+                                  <span className="text-xs font-medium">{hasError}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Lista de opcionais */}
+                            <div className="divide-y divide-[#1e3a5f]/5">
+                              {availableAddons.map((addon) => {
+                                const isSelected = isEditAddonSelected(group.id, addon.id);
+                                const isDisabled = !isSelected && 
+                                  group.selectionType === 'MULTIPLE' && 
+                                  selectionCount >= group.maxSelection;
+
+                                return (
+                                  <button
+                                    key={addon.id}
+                                    type="button"
+                                    onClick={() => handleEditAddonSelect(group.id, addon, group)}
+                                    disabled={isDisabled}
+                                    className={`w-full flex items-center gap-3 p-4 text-left transition-all ${
+                                      isSelected 
+                                        ? 'bg-[#1e3a5f]/5' 
+                                        : isDisabled 
+                                          ? 'opacity-40 cursor-not-allowed' 
+                                          : 'hover:bg-[#faf8f5]'
+                                    }`}
+                                  >
+                                    {/* Ícone de seleção */}
+                                    <div className={`flex-shrink-0 w-6 h-6 rounded-${group.selectionType === 'SINGLE' ? 'full' : 'lg'} border-2 flex items-center justify-center transition-all ${
+                                      isSelected 
+                                        ? 'bg-[#1e3a5f] border-[#1e3a5f]' 
+                                        : 'border-[#1e3a5f]/20'
+                                    }`}>
+                                      {isSelected && (
+                                        <Icons.Check className="w-4 h-4 text-white" />
+                                      )}
+                                    </div>
+
+                                    {/* Nome do opcional */}
+                                    <span className={`flex-grow font-medium ${
+                                      isSelected ? 'text-[#1e3a5f]' : 'text-[#1e3a5f]/70'
+                                    }`}>
+                                      {addon.name}
+                                    </span>
+
+                                    {/* Preço */}
+                                    {addon.price > 0 && (
+                                      <span className={`font-semibold ${
+                                        isSelected ? 'text-[#1e3a5f]' : 'text-[#1e3a5f]/50'
+                                      }`}>
+                                        + R$ {Number(addon.price).toFixed(2).replace('.', ',')}
+                                      </span>
+                                    )}
+                                    {addon.price === 0 && (
+                                      <span className="text-xs text-[#1e3a5f]/30 font-medium">
+                                        Grátis
+                                      </span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Observações */}
+                  <div className="bg-white rounded-2xl p-4 shadow-sm border border-[#1e3a5f]/5">
+                    <p className="text-sm text-[#1e3a5f]/50 mb-3">
+                      Observações (opcional)
+                    </p>
+                    <textarea
+                      value={editObservation}
+                      onChange={(e) => setEditObservation(e.target.value)}
+                      placeholder="Ex: sem cebola, molho separado..."
+                      maxLength={200}
+                      className="w-full h-24 resize-none rounded-xl border border-[#1e3a5f]/10 p-3 text-sm outline-none focus:border-[#1e3a5f] bg-[#faf8f5]"
+                    />
+                    <div className="text-right text-xs text-[#1e3a5f]/30 mt-1">
+                      {editObservation.length}/200
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer com total e botão salvar */}
+            {!editLoading && (
+              <div className="bg-white border-t border-[#1e3a5f]/10 p-6 space-y-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm text-[#1e3a5f]/50">Total do item</p>
+                    {calculateEditAddonsTotal() > 0 && (
+                      <p className="text-xs text-[#1e3a5f]/40">
+                        (+ R$ {calculateEditAddonsTotal().toFixed(2).replace('.', ',')} em opcionais)
+                      </p>
+                    )}
+                  </div>
+                  <span className="text-[#1e3a5f] font-black text-2xl">
+                    R$ {getEditTotal().toFixed(2).replace('.', ',')}
+                  </span>
+                </div>
+
+                <button
+                  onClick={handleSaveEdit}
+                  className="w-full bg-gradient-to-r from-[#1e3a5f] to-[#2d4a6f] hover:from-[#162d4a] hover:to-[#1e3a5f] text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-[#1e3a5f]/20 flex items-center justify-center gap-2"
+                >
+                  <Icons.Check className="w-5 h-5" />
+                  Salvar Alterações
                 </button>
               </div>
             )}
