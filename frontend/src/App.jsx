@@ -16,8 +16,6 @@ import ConfirmModal from './components/ConfirmModal';
 
 // Páginas institucionais
 import AboutPage from './pages/AboutPage';
-import CareersPage from './pages/CareersPage';
-import FAQPage from './pages/FAQPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import CookiePolicyPage from './pages/CookiePolicyPage';
 import TermsOfUsePage from './pages/TermsOfUsePage';
@@ -103,8 +101,6 @@ function App() {
           
           {/* Páginas institucionais - públicas */}
           <Route path="/about" element={<AboutPage />} />
-          <Route path="/careers" element={<CareersPage />} />
-          <Route path="/faq" element={<FAQPage />} />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/cookies" element={<CookiePolicyPage />} />
           <Route path="/terms" element={<TermsOfUsePage />} />

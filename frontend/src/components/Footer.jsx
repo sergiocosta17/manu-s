@@ -138,8 +138,6 @@ export default function Footer() {
                 { label: 'Cardápio', to: '/menu' },
                 { label: 'Promoções', to: '/promotions' },
                 { label: 'Sobre Nós', to: '/about' },
-                { label: 'Trabalhe Conosco', to: '/careers' },
-                { label: 'Perguntas Frequentes', to: '/faq' },
               ].map((item) => (
                 <li key={item.to}>
                   <Link
