@@ -13,6 +13,7 @@ import Footer from './components/Footer';
 import GlobalModals from './components/GlobalModals';
 import ProductPage from './pages/ProductPage';
 import ConfirmModal from './components/ConfirmModal';
+import ScrollToTop from './components/ScrollToTop';
 
 // Páginas institucionais
 import AboutPage from './pages/AboutPage';
@@ -20,7 +21,7 @@ import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import CookiePolicyPage from './pages/CookiePolicyPage';
 import TermsOfUsePage from './pages/TermsOfUsePage';
 
-// Componente para proteger rotas que exigem autenticação (qualquer usuário logado)
+// Componente para proteger rotas que exigem autenticação
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token');
   
@@ -69,6 +70,7 @@ function CartConfirmModal() {
 function AppLayout() {
   return (
     <div className="relative flex flex-col min-h-screen">
+      <ScrollToTop />
       <Header />
       <main className="flex-grow pt-6 pb-2 md:pb-0">
         <Outlet />
@@ -85,34 +87,29 @@ function AppLayout() {
 function App() {
   return (
     <CartProvider>
+      <ScrollToTop />
       <Routes>
-        {/* Redireciona a raiz para o cardápio */}
         <Route path="/" element={<Navigate to="/menu" replace />} />
         
-        {/* Login como rota separada */}
         <Route path="/login" element={<Login />} />
         
-        {/* Rotas que utilizam o layout padrão */}
         <Route element={<AppLayout />}>
-          {/* Rotas públicas - acessíveis sem autenticação */}
+
           <Route path="/menu" element={<Menu />} />
           <Route path="/product/:id" element={<ProductPage />} />
           <Route path="/promotions" element={<Promotions />} />
           
-          {/* Páginas institucionais - públicas */}
           <Route path="/about" element={<AboutPage />} />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/cookies" element={<CookiePolicyPage />} />
           <Route path="/terms" element={<TermsOfUsePage />} />
           
-          {/* Rota protegida - exige login */}
           <Route path="/profile" element={
             <PrivateRoute>
               <Profile />
             </PrivateRoute>
           } />
           
-          {/* Rotas de administrador - exigem login + role ADMIN */}
           <Route path="/admin" element={
             <AdminRoute>
               <AdminDashboard />
