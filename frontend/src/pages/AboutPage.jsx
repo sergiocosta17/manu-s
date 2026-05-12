@@ -1,6 +1,7 @@
 import React from 'react';
 import StaticPageLayout, { Section, InfoCard } from '../components/StaticPageLayout';
 
+// Ícones usados na página
 const Icons = {
   Building: ({ className = "w-5 h-5" }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -43,6 +44,25 @@ const Icons = {
     </svg>
   ),
 };
+
+// Dados dos diferenciais (evita repetição no JSX)
+const DIFFERENTIALS = [
+  {
+    number: 1,
+    title: 'Ingredientes Selecionados',
+    description: 'Trabalhamos com fornecedores locais para garantir a frescura e qualidade de cada ingrediente.'
+  },
+  {
+    number: 2,
+    title: 'Técnica Smash Autêntica',
+    description: 'Nossa técnica de preparo garante aquela crosta caramelizada perfeita que só o smash burger proporciona.'
+  },
+  {
+    number: 3,
+    title: 'Receitas Exclusivas',
+    description: 'Molhos artesanais e combinações únicas desenvolvidas especialmente para você.'
+  }
+];
 
 export default function AboutPage() {
   return (
@@ -103,42 +123,20 @@ export default function AboutPage() {
         </p>
       </Section>
 
-      {/* Diferenciais */}
+      {/* Por Que Nos Escolher? */}
       <Section title="Por Que Nos Escolher?" icon={Icons.Sparkles}>
         <div className="space-y-4 mt-2">
-          <div className="flex items-start gap-4 p-4 bg-[#1e3a5f]/5 rounded-xl">
-            <div className="w-8 h-8 bg-[#1e3a5f] rounded-lg flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-bold text-sm">1</span>
+          {DIFFERENTIALS.map((item) => (
+            <div key={item.number} className="flex items-start gap-4 p-4 bg-[#1e3a5f]/5 rounded-xl">
+              <div className="w-8 h-8 bg-[#1e3a5f] rounded-lg flex items-center justify-center flex-shrink-0">
+                <span className="text-white font-bold text-sm">{item.number}</span>
+              </div>
+              <div>
+                <h4 className="font-semibold text-[#1e3a5f]">{item.title}</h4>
+                <p className="text-sm text-[#1e3a5f]/60 mt-1">{item.description}</p>
+              </div>
             </div>
-            <div>
-              <h4 className="font-semibold text-[#1e3a5f]">Ingredientes Selecionados</h4>
-              <p className="text-sm text-[#1e3a5f]/60 mt-1">
-                Trabalhamos com fornecedores locais para garantir a frescura e qualidade de cada ingrediente.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-4 p-4 bg-[#1e3a5f]/5 rounded-xl">
-            <div className="w-8 h-8 bg-[#1e3a5f] rounded-lg flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-bold text-sm">2</span>
-            </div>
-            <div>
-              <h4 className="font-semibold text-[#1e3a5f]">Técnica Smash Autêntica</h4>
-              <p className="text-sm text-[#1e3a5f]/60 mt-1">
-                Nossa técnica de preparo garante aquela crosta caramelizada perfeita que só o smash burger proporciona.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-4 p-4 bg-[#1e3a5f]/5 rounded-xl">
-            <div className="w-8 h-8 bg-[#1e3a5f] rounded-lg flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-bold text-sm">3</span>
-            </div>
-            <div>
-              <h4 className="font-semibold text-[#1e3a5f]">Receitas Exclusivas</h4>
-              <p className="text-sm text-[#1e3a5f]/60 mt-1">
-                Molhos artesanais e combinações únicas desenvolvidas especialmente para você.
-              </p>
-            </div>
-          </div>
+          ))}
         </div>
       </Section>
     </StaticPageLayout>

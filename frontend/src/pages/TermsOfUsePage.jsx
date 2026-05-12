@@ -63,7 +63,7 @@ export default function TermsOfUsePage() {
       subtitle="Condições para utilização dos nossos serviços"
       icon={Icons.Document}
     >
-      {/* Data de Atualização */}
+      {/* Data de atualização */}
       <div className="bg-[#1e3a5f]/5 rounded-xl px-5 py-4 flex items-center gap-3 border border-[#1e3a5f]/10">
         <Icons.Calendar className="w-5 h-5 text-[#1e3a5f]" />
         <span className="text-sm text-[#1e3a5f]">
@@ -71,7 +71,7 @@ export default function TermsOfUsePage() {
         </span>
       </div>
 
-      {/* Aceitação */}
+      {/* Aceitação dos termos */}
       <Section title="Aceitação dos Termos" icon={Icons.CheckCircle}>
         <p>
           Ao acessar e utilizar o site e serviços da <strong className="text-[#1e3a5f]">Smash Burger</strong>, 
@@ -84,7 +84,7 @@ export default function TermsOfUsePage() {
         </p>
       </Section>
 
-      {/* Serviços */}
+      {/* Nossos serviços */}
       <Section title="Nossos Serviços" icon={Icons.ShoppingBag}>
         <p className="mb-4">
           A Smash Burger oferece uma plataforma online para:
@@ -102,7 +102,7 @@ export default function TermsOfUsePage() {
         </p>
       </Section>
 
-      {/* Cadastro */}
+      {/* Cadastro e conta */}
       <Section title="Cadastro e Conta" icon={Icons.Shield}>
         <p>
           Para utilizar determinadas funcionalidades, você precisará criar uma conta. 
@@ -121,7 +121,7 @@ export default function TermsOfUsePage() {
         </p>
       </Section>
 
-      {/* Pedidos e Pagamentos */}
+      {/* Pedidos e pagamentos */}
       <Section title="Pedidos e Pagamentos" icon={Icons.CreditCard}>
         <p className="mb-4">
           Ao realizar um pedido através de nossa plataforma:
@@ -147,7 +147,7 @@ export default function TermsOfUsePage() {
         </div>
       </Section>
 
-      {/* Obrigações do Usuário */}
+      {/* Obrigações do usuário */}
       <Section title="Obrigações do Usuário" icon={Icons.CheckCircle}>
         <p className="mb-4">
           Ao utilizar nossos serviços, você se compromete a:
@@ -162,7 +162,7 @@ export default function TermsOfUsePage() {
         ]} />
       </Section>
 
-      {/* Condutas Proibidas */}
+      {/* Condutas proibidas */}
       <Section title="Condutas Proibidas" icon={Icons.XCircle}>
         <p className="mb-4">
           É expressamente proibido:
@@ -182,7 +182,7 @@ export default function TermsOfUsePage() {
         </p>
       </Section>
 
-      {/* Propriedade Intelectual */}
+      {/* Propriedade intelectual */}
       <Section title="Propriedade Intelectual" icon={Icons.Globe}>
         <p>
           Todo o conteúdo presente na plataforma, incluindo mas não se limitando a textos, 
@@ -196,7 +196,7 @@ export default function TermsOfUsePage() {
         </p>
       </Section>
 
-      {/* Limitação de Responsabilidade */}
+      {/* Limitação de responsabilidade */}
       <Section title="Limitação de Responsabilidade" icon={Icons.Scale}>
         <p className="mb-4">
           A Smash Burger não será responsável por:
@@ -214,7 +214,7 @@ export default function TermsOfUsePage() {
         </p>
       </Section>
 
-      {/* Modificações */}
+      {/* Modificações dos termos */}
       <Section title="Modificações dos Termos" icon={Icons.Document}>
         <p>
           Reservamo-nos o direito de modificar estes Termos de Uso a qualquer momento. 
@@ -229,7 +229,7 @@ export default function TermsOfUsePage() {
         </p>
       </Section>
 
-      {/* Legislação e Foro */}
+      {/* Legislação e foro */}
       <Section title="Legislação Aplicável e Foro" icon={Icons.Scale}>
         <p>
           Estes Termos de Uso são regidos pelas leis da República Federativa do Brasil. 

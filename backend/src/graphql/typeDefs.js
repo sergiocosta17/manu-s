@@ -1,9 +1,7 @@
 const { gql } = require('apollo-server-express');
 
 const typeDefs = gql`
-  # ============================================
-  # ENUMS
-  # ============================================
+  // ENUMS
   enum Role { USER ADMIN }
   
   enum OrderStatus { 
@@ -47,14 +45,11 @@ const typeDefs = gql`
 
   enum DayOfWeek { SUNDAY MONDAY TUESDAY WEDNESDAY THURSDAY FRIDAY SATURDAY }
 
-  # Tipo de seleção do grupo de opcionais
+  // Tipo de seleção do grupo de opcionais
   enum AddonGroupSelectionType { SINGLE MULTIPLE }
 
-  # ============================================
-  # TYPES - OPCIONAIS
-  # ============================================
-
-  # Opcional individual
+  // TYPES - OPCIONAIS
+  // Opcional individual
   type Addon {
     id: ID!
     name: String!
@@ -62,7 +57,7 @@ const typeDefs = gql`
     isAvailable: Boolean!
   }
 
-  # Grupo de opcionais
+  // Grupo de opcionais
   type AddonGroup {
     id: ID!
     name: String!
@@ -74,7 +69,7 @@ const typeDefs = gql`
     addons: [Addon!]!
   }
 
-  # Opcional selecionado no item do pedido
+  // Opcional selecionado no item do pedido
   type SelectedAddon {
     addonId: ID!
     name: String!
@@ -82,11 +77,8 @@ const typeDefs = gql`
     quantity: Int!
   }
 
-  # ============================================
-  # TYPES - PRINCIPAIS
-  # ============================================
-
-  # Resultado da validação de endereço de entrega
+  // TYPES - PRINCIPAIS
+  // Resultado da validação de endereço de entrega
   type DeliveryValidationResult {
     valid: Boolean!
     message: String!
@@ -94,7 +86,7 @@ const typeDefs = gql`
     allowedState: String
   }
   
-  # Endereço do usuário
+  // Endereço do usuário
   type Address {
     id: ID!
     label: String!
@@ -108,7 +100,7 @@ const typeDefs = gql`
     isDefault: Boolean!
   }
 
-  # Método de pagamento salvo
+  // Método de pagamento salvo
   type SavedPaymentMethod {
     id: ID!
     type: PaymentMethod!
@@ -118,7 +110,7 @@ const typeDefs = gql`
     isDefault: Boolean!
   }
 
-  # Usuário (cliente ou admin)
+  // Usuário (cliente ou admin)
   type User {
     id: ID!
     name: String!
@@ -135,7 +127,7 @@ const typeDefs = gql`
     createdAt: String!
   }
 
-  # Produto do cardápio
+  // Produto do cardápio
   type Product {
     id: ID!
     name: String!
@@ -149,7 +141,7 @@ const typeDefs = gql`
     addonGroups: [AddonGroup!]
   }
 
-  # Banner promocional
+  // Banner promocional
   type Banner {
     id: ID!
     title: String
@@ -160,7 +152,7 @@ const typeDefs = gql`
     isActive: Boolean!
   }
 
-  # Informações do veículo do entregador
+  // Informações do veículo do entregador
   type Vehicle {
     brand: String!
     model: String!
@@ -169,7 +161,7 @@ const typeDefs = gql`
     color: String!
   }
 
-  # Entregador
+  // Entregador
   type Courier {
     id: ID!
     firstName: String!
@@ -186,7 +178,7 @@ const typeDefs = gql`
     updatedAt: String!
   }
 
-  # Métricas do entregador por período
+  // Métricas do entregador por período
   type CourierMetrics {
     courierId: ID!
     courierName: String!
@@ -194,7 +186,7 @@ const typeDefs = gql`
     earnings: Float!
   }
 
-  # Métricas gerais de entregadores
+  // Métricas gerais de entregadores
   type CouriersOverviewMetrics {
     totalCouriers: Int!
     activeCouriers: Int!
@@ -205,7 +197,7 @@ const typeDefs = gql`
     courierMetrics: [CourierMetrics!]!
   }
 
-  # Item do pedido
+  // Item do pedido
   type OrderItem {
     product: Product
     name: String!
@@ -216,13 +208,13 @@ const typeDefs = gql`
     addonsTotal: Float
   }
 
-  # Histórico de status do pedido
+  // Histórico de status do pedido
   type StatusHistory {
     status: OrderStatus!
     timestamp: String!
   }
 
-  # Pedido
+  // Pedido
   type Order {
     id: ID!
     user: User!
@@ -246,7 +238,7 @@ const typeDefs = gql`
     updatedAt: String!
   }
 
-  # Promoção de produtos
+  // Promoção de produtos
   type Promotion {
     id: ID!
     name: String!
@@ -258,19 +250,14 @@ const typeDefs = gql`
     isActive: Boolean!
   }
 
-  # ============================================
-  # HORÁRIO DE FUNCIONAMENTO
-  # ============================================
+  // HORÁRIO DE FUNCIONAMENTO
   type TimeSchedule {
     startTime: String!
     endTime: String!
     daysOfWeek: [DayOfWeek!]!
   }
 
-  # ============================================
-  # CUPOM
-  # ============================================
-  
+  // CUPOM
   type CouponUserUse {
     user: ID!
     count: Int!
@@ -305,7 +292,7 @@ const typeDefs = gql`
     updatedAt: String!
   }
 
-  # Resultado da validação de cupom
+  // Resultado da validação de cupom
   type CouponValidation {
     valid: Boolean!
     message: String
@@ -314,11 +301,8 @@ const typeDefs = gql`
     coupon: Coupon
   }
 
-  # ============================================
-  # CASHBACK
-  # ============================================
-  
-  # Transação de cashback
+  // CASHBACK
+  // Transação de cashback
   type CashbackTransaction {
     id: ID!
     type: CashbackTransactionType!
@@ -329,7 +313,7 @@ const typeDefs = gql`
     createdAt: String!
   }
 
-  # Carteira de cashback do usuário
+  // Carteira de cashback do usuário
   type CashbackWallet {
     id: ID!
     user: User!
@@ -342,7 +326,7 @@ const typeDefs = gql`
     updatedAt: String!
   }
 
-  # Regra de cashback
+  // Regra de cashback
   type CashbackRule {
     id: ID!
     name: String!
@@ -362,7 +346,7 @@ const typeDefs = gql`
     updatedAt: String!
   }
 
-  # Campanha de cashback
+  // Campanha de cashback
   type CashbackCampaign {
     id: ID!
     name: String!
@@ -383,7 +367,7 @@ const typeDefs = gql`
     updatedAt: String!
   }
 
-  # Configurações gerais de cashback
+  // Configurações gerais de cashback
   type CashbackSettings {
     id: ID!
     isEnabled: Boolean!
@@ -396,7 +380,7 @@ const typeDefs = gql`
     updatedAt: String!
   }
 
-  # Resumo de cashback para o cliente
+  // Resumo de cashback para o cliente
   type CashbackSummary {
     balance: Float!
     pendingExpiration: Float!
@@ -406,7 +390,7 @@ const typeDefs = gql`
     currentCampaign: CashbackCampaign
   }
 
-  # Preview do pedido com descontos
+  // Preview do pedido com descontos
   type OrderDiscountPreview {
     subtotal: Float!
     couponDiscount: Float!
@@ -420,7 +404,7 @@ const typeDefs = gql`
     errors: [String!]
   }
 
-  # Relatório de Cashback
+  // Relatório de Cashback
   type CashbackReport {
     totalCredited: Float!
     totalDebited: Float!
@@ -430,19 +414,19 @@ const typeDefs = gql`
     transactionCount: Int!
   }
 
-  # Resultado da expiração de cashback
+  // Resultado da expiração de cashback
   type ExpireCashbackResult {
     success: Boolean!
     message: String!
   }
 
-  # Payload de autenticação
+  // Payload de autenticação
   type AuthPayload {
     token: String!
     user: User!
   }
 
-  # Métricas do dashboard administrativo
+  // Métricas do dashboard administrativo
   type DashboardMetrics {
     totalOrders: Int!
     pendingOrders: Int!
@@ -455,13 +439,13 @@ const typeDefs = gql`
     monthRevenue: Float!
   }
 
-  # Cotação de frete
+  // Cotação de frete
   type ShippingQuote {
     fee: Float!
     estimatedDays: Int!
   }
 
-  # Configurações da loja
+  // Configurações da loja
   type StoreSettings {
     id: ID!
     storeName: String
@@ -472,11 +456,8 @@ const typeDefs = gql`
     updatedAt: String
   }
 
-  # ============================================
-  # INPUTS
-  # ============================================
-
-  # Input para opcional individual
+  // INPUTS
+  // Input para opcional individual
   input AddonInput {
     id: ID
     name: String!
@@ -484,7 +465,7 @@ const typeDefs = gql`
     isAvailable: Boolean
   }
 
-  # Input para grupo de opcionais
+  // Input para grupo de opcionais
   input AddonGroupInput {
     id: ID
     name: String!
@@ -496,7 +477,7 @@ const typeDefs = gql`
     addons: [AddonInput!]!
   }
 
-  # Input para opcional selecionado no pedido
+  // Input para opcional selecionado no pedido
   input SelectedAddonInput {
     addonId: ID!
     name: String!
@@ -715,9 +696,7 @@ const typeDefs = gql`
     businessHours: String
   }
 
-  # ============================================
-  # QUERIES
-  # ============================================
+  // QUERIES
   type Query {
     validateDeliveryAddress(city: String!, state: String!): DeliveryValidationResult!
     me: User!
@@ -757,9 +736,7 @@ const typeDefs = gql`
     storeSettings: StoreSettings
   }
 
-  # ============================================
-  # MUTATIONS
-  # ============================================
+  // MUTATIONS
   type Mutation {
     signup(name: String!, email: String!, password: String!, role: Role, adminKey: String): AuthPayload!
     login(email: String!, password: String!): AuthPayload!

@@ -1,6 +1,7 @@
 import React from 'react';
 import StaticPageLayout, { Section, List } from '../components/StaticPageLayout';
 
+// Ícones utilizados na página
 const Icons = {
   Cookie: ({ className = "w-5 h-5" }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -39,6 +40,7 @@ const Icons = {
   ),
 };
 
+// Dados dos tipos de cookie (evita repetição no JSX)
 const cookieTypes = [
   {
     name: 'Cookies Essenciais',
@@ -66,6 +68,14 @@ const cookieTypes = [
   },
 ];
 
+// Dados para links de configuração dos navegadores
+const browserLinks = [
+  { name: 'Google Chrome', url: 'https://support.google.com/chrome/answer/95647' },
+  { name: 'Mozilla Firefox', url: 'https://support.mozilla.org/pt-BR/kb/cookies' },
+  { name: 'Microsoft Edge', url: 'https://support.microsoft.com/pt-br/microsoft-edge' },
+  { name: 'Safari', url: 'https://support.apple.com/pt-br/guide/safari' },
+];
+
 export default function CookiePolicyPage() {
   const lastUpdated = '28 de Abril de 2026';
 
@@ -75,7 +85,7 @@ export default function CookiePolicyPage() {
       subtitle="Entenda como utilizamos cookies em nosso site"
       icon={Icons.Cookie}
     >
-      {/* Data de Atualização */}
+      {/* Data de atualização */}
       <div className="bg-[#1e3a5f]/5 rounded-xl px-5 py-4 flex items-center gap-3 border border-[#1e3a5f]/10">
         <Icons.Calendar className="w-5 h-5 text-[#1e3a5f]" />
         <span className="text-sm text-[#1e3a5f]">
@@ -83,7 +93,7 @@ export default function CookiePolicyPage() {
         </span>
       </div>
 
-      {/* O que são Cookies */}
+      {/* O que são cookies */}
       <Section title="O que são Cookies?" icon={Icons.Info}>
         <p>
           Cookies são pequenos arquivos de texto armazenados no seu dispositivo (computador, 
@@ -97,14 +107,11 @@ export default function CookiePolicyPage() {
         </p>
       </Section>
 
-      {/* Tipos de Cookies */}
+      {/* Tipos de cookies */}
       <Section title="Tipos de Cookies que Utilizamos" icon={Icons.Layers}>
         <div className="space-y-4 mt-4">
           {cookieTypes.map((cookie, index) => (
-            <div 
-              key={index}
-              className="border border-[#1e3a5f]/10 rounded-xl p-5"
-            >
+            <div key={index} className="border border-[#1e3a5f]/10 rounded-xl p-5">
               <div className="flex items-start justify-between mb-3">
                 <h4 className="font-semibold text-[#1e3a5f]">{cookie.name}</h4>
                 <span className={`text-xs px-2.5 py-1 rounded-full ${
@@ -118,10 +125,7 @@ export default function CookiePolicyPage() {
               <p className="text-[#1e3a5f]/60 text-sm mb-3">{cookie.description}</p>
               <div className="flex flex-wrap gap-2">
                 {cookie.examples.map((example, idx) => (
-                  <span 
-                    key={idx}
-                    className="text-xs bg-[#1e3a5f]/5 text-[#1e3a5f]/70 px-2.5 py-1 rounded-md"
-                  >
+                  <span key={idx} className="text-xs bg-[#1e3a5f]/5 text-[#1e3a5f]/70 px-2.5 py-1 rounded-md">
                     {example}
                   </span>
                 ))}
@@ -131,7 +135,7 @@ export default function CookiePolicyPage() {
         </div>
       </Section>
 
-      {/* Por que usamos */}
+      {/* Por que usamos cookies */}
       <Section title="Por que Usamos Cookies?" icon={Icons.Shield}>
         <p className="mb-4">
           Utilizamos cookies por diversos motivos, incluindo:
@@ -146,7 +150,7 @@ export default function CookiePolicyPage() {
         ]} />
       </Section>
 
-      {/* Gerenciamento */}
+      {/* Como gerenciar cookies */}
       <Section title="Como Gerenciar Cookies" icon={Icons.Settings}>
         <p>
           Você tem controle sobre os cookies armazenados em seu dispositivo. A maioria 
@@ -164,16 +168,11 @@ export default function CookiePolicyPage() {
           de compras.
         </p>
 
-        {/* Links para configurações dos navegadores */}
+        {/* Configurações por navegador */}
         <div className="mt-6 p-5 bg-[#1e3a5f]/5 rounded-xl border border-[#1e3a5f]/10">
           <h4 className="font-semibold text-[#1e3a5f] mb-3">Configurações por Navegador</h4>
           <div className="grid sm:grid-cols-2 gap-3">
-            {[
-              { name: 'Google Chrome', url: 'https://support.google.com/chrome/answer/95647' },
-              { name: 'Mozilla Firefox', url: 'https://support.mozilla.org/pt-BR/kb/cookies' },
-              { name: 'Microsoft Edge', url: 'https://support.microsoft.com/pt-br/microsoft-edge' },
-              { name: 'Safari', url: 'https://support.apple.com/pt-br/guide/safari' },
-            ].map((browser, idx) => (
+            {browserLinks.map((browser, idx) => (
               <a
                 key={idx}
                 href={browser.url}
@@ -191,7 +190,7 @@ export default function CookiePolicyPage() {
         </div>
       </Section>
 
-      {/* Cookies de Terceiros */}
+      {/* Cookies de terceiros */}
       <Section title="Cookies de Terceiros" icon={Icons.Layers}>
         <p>
           Alguns cookies são colocados por serviços de terceiros que aparecem em nossas 

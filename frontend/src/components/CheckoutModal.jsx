@@ -1025,7 +1025,7 @@ if (showPaymentModal) {
             </div>
           )}
 
-          {/* SEÇÃO DE CUPOM */}
+          {/* Seção de cupom */}
           <div className="bg-white rounded-2xl p-4 border border-[#1e3a5f]/10">
             <div className="flex items-center gap-2 mb-3">
               <Icons.Ticket className="w-5 h-5 text-[#1e3a5f]" />
@@ -1109,7 +1109,7 @@ if (showPaymentModal) {
             )}
           </div>
 
-          {/* SEÇÃO DE CASHBACK */}
+          {/* Seção de cashback */}
           {cashbackSettings?.isEnabled && (
             <div className="bg-white rounded-2xl p-4 border border-[#1e3a5f]/10">
               <div className="flex items-center justify-between mb-3">

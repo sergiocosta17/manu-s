@@ -133,9 +133,7 @@ export default function AdminProducts() {
     }
   };
 
-  // ============================================
-  // FUNÇÕES PARA GERENCIAR GRUPOS DE OPCIONAIS
-  // ============================================
+  // Funções para gerenciar grupo de opicionais
 
   const generateId = () => `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -989,9 +987,8 @@ export default function AdminProducts() {
                 <StarIcon className={`w-5 h-5 ${productForm.isFeatured ? 'text-[#1e3a5f]' : 'text-[#1e3a5f]/20'}`} />
               </div>
 
-              {/* ============================================ */}
-              {/* SEÇÃO DE OPCIONAIS */}
-              {/* ============================================ */}
+              {/* Seção de opicionais */}
+
               <div className="border-t border-[#1e3a5f]/10 pt-5">
                 <div className="flex items-center justify-between mb-4">
                   <div>
@@ -1412,9 +1409,9 @@ export default function AdminProducts() {
   );
 }
 
-// COMPONENTES AUXILIARES
+// Componentes auxiliares
 
-// Toast Notification Component
+// Componente de notificação
 const Toast = ({ toast, onClose }) => {
   if (!toast.show) return null;
 
@@ -1443,7 +1440,7 @@ const Toast = ({ toast, onClose }) => {
   );
 };
 
-// Confirm Modal Component
+// Modal de confirmação
 const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, productName }) => {
   if (!isOpen) return null;
 
@@ -1491,7 +1488,7 @@ const NavBtn = ({ onClick, icon, label, active }) => (
   </button>
 );
 
-// ÍCONES SVG
+// ícones svg
 
 const BoxIcon = ({ className = "w-6 h-6" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">

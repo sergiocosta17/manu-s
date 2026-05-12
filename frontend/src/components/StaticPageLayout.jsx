@@ -2,14 +2,14 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import backgroundImage from '../assets/hamburgueres-de-fundo-16x9.png';
 
-const Icons = {
-  ArrowLeft: ({ className = "w-5 h-5" }) => (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-    </svg>
-  ),
-};
+// Ícone de seta para esquerda
+const ArrowLeftIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+  </svg>
+);
 
+// Componente de layout principal para páginas estáticas (termos, privacidade, etc.)
 export default function StaticPageLayout({ children, title, subtitle, icon: Icon }) {
   const navigate = useNavigate();
 
@@ -24,23 +24,25 @@ export default function StaticPageLayout({ children, title, subtitle, icon: Icon
         backgroundAttachment: 'fixed',
       }}
     >
+      {/* Overlay de fundo */}
       <div className="fixed inset-0 bg-[#faf8f5]/90 pointer-events-none z-0"></div>
 
+      {/* Espaço para compensar header fixo */}
       <div className="h-20"></div>
 
       <main className="relative z-10 max-w-4xl mx-auto px-4 py-8 md:py-12">
-        {/* Botão Voltar */}
+        {/* Botão voltar */}
         <button
           onClick={() => navigate(-1)}
           className="mb-8 flex items-center gap-2 text-[#1e3a5f]/60 hover:text-[#1e3a5f] transition-colors group"
         >
           <span className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-all border border-[#1e3a5f]/10">
-            <Icons.ArrowLeft className="w-5 h-5 text-[#1e3a5f]" />
+            <ArrowLeftIcon className="w-5 h-5 text-[#1e3a5f]" />
           </span>
           <span className="font-medium">Voltar</span>
         </button>
 
-        {/* Cabeçalho */}
+        {/* Cabeçalho da página */}
         <div className="bg-white rounded-2xl p-8 md:p-10 shadow-sm border border-[#1e3a5f]/5 mb-8">
           <div className="flex items-center gap-4 mb-4">
             {Icon && (
@@ -50,23 +52,19 @@ export default function StaticPageLayout({ children, title, subtitle, icon: Icon
             )}
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-[#1e3a5f]">{title}</h1>
-              {subtitle && (
-                <p className="text-[#1e3a5f]/50 mt-1">{subtitle}</p>
-              )}
+              {subtitle && <p className="text-[#1e3a5f]/50 mt-1">{subtitle}</p>}
             </div>
           </div>
         </div>
 
-        {/* Conteúdo */}
-        <div className="space-y-6">
-          {children}
-        </div>
+        {/* Conteúdo da página */}
+        <div className="space-y-6">{children}</div>
       </main>
     </div>
   );
 }
 
-// Componentes auxiliares para uso nas páginas
+// Seção com título opcional e ícone
 export function Section({ title, children, icon: Icon }) {
   return (
     <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-[#1e3a5f]/5">
@@ -80,13 +78,12 @@ export function Section({ title, children, icon: Icon }) {
           <h2 className="text-lg md:text-xl font-semibold text-[#1e3a5f]">{title}</h2>
         </div>
       )}
-      <div className="text-[#1e3a5f]/70 leading-relaxed space-y-4">
-        {children}
-      </div>
+      <div className="text-[#1e3a5f]/70 leading-relaxed space-y-4">{children}</div>
     </div>
   );
 }
 
+// Lista de itens com marcador circular
 export function List({ items }) {
   return (
     <ul className="space-y-3">
@@ -100,6 +97,7 @@ export function List({ items }) {
   );
 }
 
+// Card informativo com ícone, título e descrição
 export function InfoCard({ icon: Icon, title, description }) {
   return (
     <div className="bg-[#1e3a5f]/5 rounded-xl p-5 border border-[#1e3a5f]/10">

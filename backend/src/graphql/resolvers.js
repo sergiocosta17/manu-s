@@ -17,9 +17,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../config/env');
 
-// ============================================
-// HELPERS
-// ============================================
+// Helpers de autenticação
 const requireAuth = (user) => {
   if (!user) throw new Error('Não autenticado');
   return user;
@@ -31,11 +29,13 @@ const requireAdmin = (user) => {
   return user;
 };
 
+// Helper de string
 const normalizeString = (str) => {
   if (!str) return '';
   return str.toUpperCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 };
 
+// Validação de área de entrega
 const validateDeliveryArea = (city, state) => {
   const normalizedCity = normalizeString(city);
   const normalizedState = normalizeString(state);
@@ -48,6 +48,7 @@ const throwDeliveryAreaError = () => {
   throw new Error('Desculpe, nosso delivery atende apenas a cidade de Campina Grande - PB.');
 };
 
+// Datas por período
 const getPeriodDates = (period) => {
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -74,9 +75,7 @@ const getUserId = (user) => {
   return user.toString();
 };
 
-// ============================================
-// SCHEDULE HELPERS
-// ============================================
+// Helpers de horário (schedule)
 const DAY_OF_WEEK_MAP = {
   0: 'SUNDAY', 1: 'MONDAY', 2: 'TUESDAY', 3: 'WEDNESDAY',
   4: 'THURSDAY', 5: 'FRIDAY', 6: 'SATURDAY'
@@ -118,9 +117,7 @@ const getScheduleMessage = (schedule) => {
   return null;
 };
 
-// ============================================
-// CASHBACK HELPERS
-// ============================================
+// Helpers de cashback
 const getOrCreateWallet = async (userId) => {
   let wallet = await CashbackWallet.findOne({ user: userId });
   if (!wallet) {
@@ -213,9 +210,7 @@ const calculateCashbackToEarn = async (items, subtotal, userId, usedCoupon = fal
   return { amount: Math.round(totalCashback * 100) / 100, expirationDays };
 };
 
-// ============================================
-// VALIDAÇÃO DE CUPOM
-// ============================================
+// Validação de cupom
 const validateCouponForUser = async (code, orderTotal, userId, items = []) => {
   const now = new Date();
   const coupon = await Coupon.findOne({
@@ -293,9 +288,7 @@ const registerCouponUsage = async (couponCode, userId) => {
   }
 };
 
-// ============================================
-// HELPER PARA CALCULAR SUBTOTAL COM OPCIONAIS
-// ============================================
+// Helper para calcular subtotal com opcionais
 const calculateSubtotalWithAddons = (items) => {
   let subtotal = 0;
   for (const item of items) {
@@ -308,13 +301,9 @@ const calculateSubtotalWithAddons = (items) => {
   return subtotal;
 };
 
-// ============================================
-// RESOLVERS
-// ============================================
+// Resolvers
 const resolvers = {
-  // ============================================
-  // TYPE RESOLVERS
-  // ============================================
+  // Type resolvers
   Product: {
     addonGroups: (parent) => parent.addonGroups || []
   },
@@ -362,9 +351,7 @@ const resolvers = {
     addonsTotal: (parent) => parent.addonsTotal || 0
   },
 
-  // ============================================
-  // QUERIES
-  // ============================================
+  // Queries
   Query: {
     me: async (_, __, { user }) => {
       requireAuth(user);
@@ -598,7 +585,6 @@ const resolvers = {
       const { items, shippingFee, couponCode, cashbackToUse } = input;
       const errors = [];
       
-      // Calcular subtotal incluindo opcionais
       const subtotal = calculateSubtotalWithAddons(items);
       
       let couponDiscount = 0, freeShipping = false, appliedCouponCode = null;
@@ -665,9 +651,7 @@ const resolvers = {
     }
   },
 
-  // ============================================
-  // MUTATIONS
-  // ============================================
+  // Mutations
   Mutation: {
     signup: async (_, { name, email, password, role, adminKey }) => {
       const existingUser = await User.findOne({ email });
@@ -783,8 +767,6 @@ const resolvers = {
       await dbUser.save();
       return dbUser;
     },
-
-    // PRODUCTS COM OPCIONAIS
     createProduct: async (_, { input }, { user }) => {
       requireAdmin(user);
       const addonGroups = input.addonGroups?.map(group => ({
@@ -841,8 +823,6 @@ const resolvers = {
       product.isFeatured = !product.isFeatured;
       return await product.save();
     },
-
-    // BANNERS
     createBanner: async (_, { input }, { user }) => {
       requireAdmin(user);
       const banner = new Banner({ ...input, location: input.location || 'HOME', order: input.order || 0, isActive: input.isActive !== false });
@@ -857,8 +837,6 @@ const resolvers = {
       await Banner.findByIdAndDelete(id);
       return true;
     },
-
-    // COURIERS
     createCourier: async (_, { input }, { user }) => {
       requireAdmin(user);
       if (await Courier.findOne({ email: input.email })) throw new Error('Já existe um entregador com este e-mail');
@@ -886,17 +864,13 @@ const resolvers = {
       courier.isActive = !courier.isActive;
       return await courier.save();
     },
-
-    // ORDERS COM OPCIONAIS - CORRIGIDO
     createOrder: async (_, { input }, { user }) => {
       requireAuth(user);
       
-      // Validação de área de entrega
       if (input.deliveryType === 'DELIVERY' && input.deliveryAddress) {
         if (!validateDeliveryArea(input.deliveryAddress.city, input.deliveryAddress.state)) throwDeliveryAreaError();
       }
       
-      // Processar itens e calcular addonsTotal para cada item
       const processedItems = input.items.map(item => {
         const addonsTotal = item.selectedAddons?.reduce((sum, addon) => {
           return sum + (addon.price * (addon.quantity || 1));
@@ -918,7 +892,6 @@ const resolvers = {
         };
       });
       
-      // Calcular subtotal incluindo opcionais
       const subtotal = calculateSubtotalWithAddons(processedItems);
       
       let discount = input.discount || 0;
@@ -926,7 +899,6 @@ const resolvers = {
       let cashbackUsed = 0;
       let shippingFee = input.shippingFee || 0;
       
-      // Validar e aplicar cupom
       if (couponCode) {
         const couponValidation = await validateCouponForUser(couponCode, subtotal, user.userId, input.items);
         if (!couponValidation.valid) throw new Error(couponValidation.message);
@@ -934,7 +906,6 @@ const resolvers = {
         if (couponValidation.freeShipping) shippingFee = 0;
       }
       
-      // Validar e aplicar cashback
       if (input.cashbackToUse && input.cashbackToUse > 0) {
         const settings = await getCashbackSettings();
         const wallet = await getOrCreateWallet(user.userId);
@@ -946,7 +917,6 @@ const resolvers = {
         cashbackUsed = Math.min(input.cashbackToUse, maxAllowed, wallet.balance);
       }
       
-      // Calcular total final
       const total = Math.max(0, subtotal - discount - cashbackUsed + shippingFee);
       
       console.log('🧮 Pedido criado:');
@@ -956,7 +926,6 @@ const resolvers = {
       console.log('   Frete:', shippingFee);
       console.log('   TOTAL:', total);
       
-      // Criar pedido
       const order = new Order({
         user: user.userId,
         items: processedItems,
@@ -976,10 +945,8 @@ const resolvers = {
       
       await order.save();
       
-      // Registrar uso do cupom
       if (couponCode) await registerCouponUsage(couponCode, user.userId);
       
-      // Debitar cashback usado
       if (cashbackUsed > 0) {
         const wallet = await getOrCreateWallet(user.userId);
         wallet.balance -= cashbackUsed;
@@ -994,14 +961,12 @@ const resolvers = {
         await wallet.save();
       }
       
-      // Calcular cashback a ganhar
       const cashbackEarn = await calculateCashbackToEarn(input.items, subtotal, user.userId, discount > 0, cashbackUsed > 0);
       order.cashbackEarned = cashbackEarn.amount;
       await order.save();
       
       return await Order.findById(order._id).populate('user').populate('items.product').populate('courier');
     },
-    
     updateOrderStatus: async (_, { id, status }, { user }) => {
       requireAdmin(user);
       const order = await Order.findById(id);
@@ -1061,8 +1026,6 @@ const resolvers = {
       await order.save();
       return await Order.findById(id).populate('user').populate('items.product').populate('courier');
     },
-
-    // PROMOTIONS
     createPromotion: async (_, { input }, { user }) => {
       requireAdmin(user);
       const promotion = new Promotion({ ...input, isActive: input.isActive !== false });
@@ -1077,8 +1040,6 @@ const resolvers = {
       await Promotion.findByIdAndDelete(id);
       return true;
     },
-
-    // COUPONS
     createCoupon: async (_, { input }, { user }) => {
       requireAdmin(user);
       if (await Coupon.findOne({ code: input.code.toUpperCase().trim() })) throw new Error('Já existe um cupom com este código');
@@ -1104,8 +1065,6 @@ const resolvers = {
       coupon.isActive = !coupon.isActive;
       return await coupon.save();
     },
-
-    // CASHBACK RULES
     createCashbackRule: async (_, { input }, { user }) => {
       requireAdmin(user);
       const rule = new CashbackRule({ ...input, priority: input.priority || 0, expirationDays: input.expirationDays || 30, isActive: input.isActive !== false });
@@ -1126,8 +1085,6 @@ const resolvers = {
       rule.isActive = !rule.isActive;
       return await rule.save();
     },
-
-    // CASHBACK CAMPAIGNS
     createCashbackCampaign: async (_, { input }, { user }) => {
       requireAdmin(user);
       const campaign = new CashbackCampaign({ ...input, isActive: input.isActive !== false });
@@ -1148,8 +1105,6 @@ const resolvers = {
       campaign.isActive = !campaign.isActive;
       return await campaign.save();
     },
-
-    // CASHBACK SETTINGS
     updateCashbackSettings: async (_, { input }, { user }) => {
       requireAdmin(user);
       let settings = await CashbackSettings.findOne();
@@ -1158,8 +1113,6 @@ const resolvers = {
       await settings.save();
       return settings;
     },
-
-    // CASHBACK ADMIN
     adjustCashbackBalance: async (_, { userId, amount, description }, { user }) => {
       requireAdmin(user);
       const wallet = await getOrCreateWallet(userId);

@@ -39,9 +39,7 @@ const orderSchema = new mongoose.Schema({
   shippingFee: { type: Number, default: 0 },
   discount: { type: Number, default: 0 },
   
-  // ============================================
-  // CAMPOS DE CASHBACK
-  // ============================================
+  // Campos de cashback
   cashbackUsed: { 
     type: Number, 
     default: 0,

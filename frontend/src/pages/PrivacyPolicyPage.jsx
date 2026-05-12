@@ -1,6 +1,7 @@
 import React from 'react';
 import StaticPageLayout, { Section, List } from '../components/StaticPageLayout';
 
+// Ícones utilizados na página
 const Icons = {
   Shield: ({ className = "w-5 h-5" }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -54,7 +55,7 @@ export default function PrivacyPolicyPage() {
       subtitle="Como coletamos, usamos e protegemos seus dados"
       icon={Icons.Shield}
     >
-      {/* Data de Atualização */}
+      {/* Data de atualização */}
       <div className="bg-[#1e3a5f]/5 rounded-xl px-5 py-4 flex items-center gap-3 border border-[#1e3a5f]/10">
         <Icons.Calendar className="w-5 h-5 text-[#1e3a5f]" />
         <span className="text-sm text-[#1e3a5f]">
@@ -77,7 +78,7 @@ export default function PrivacyPolicyPage() {
         </p>
       </Section>
 
-      {/* Dados Coletados */}
+      {/* Dados coletados */}
       <Section title="Dados que Coletamos" icon={Icons.Database}>
         <p className="mb-4">
           Coletamos diferentes tipos de informações para fornecer e melhorar nossos serviços:
@@ -101,7 +102,7 @@ export default function PrivacyPolicyPage() {
         ]} />
       </Section>
 
-      {/* Uso dos Dados */}
+      {/* Como usamos os dados */}
       <Section title="Como Usamos seus Dados" icon={Icons.Eye}>
         <p className="mb-4">
           Utilizamos suas informações pessoais para as seguintes finalidades:
@@ -117,7 +118,7 @@ export default function PrivacyPolicyPage() {
         ]} />
       </Section>
 
-      {/* Compartilhamento */}
+      {/* Compartilhamento de dados */}
       <Section title="Compartilhamento de Dados" icon={Icons.Share}>
         <p className="mb-4">
           Não vendemos suas informações pessoais. Podemos compartilhar seus dados apenas com:
@@ -150,7 +151,7 @@ export default function PrivacyPolicyPage() {
         ]} />
       </Section>
 
-      {/* Direitos do Usuário */}
+      {/* Seus direitos */}
       <Section title="Seus Direitos" icon={Icons.User}>
         <p className="mb-4">
           De acordo com a Lei Geral de Proteção de Dados (LGPD), você possui os seguintes direitos:

@@ -1,11 +1,9 @@
 import { gql } from '@apollo/client';
 
-// ============================================
-// QUERIES - CASHBACK
-// ============================================
+// queries - cashback
 
-export const GET_CASHBACK_SETTINGS = gql`
-  query GetCashbackSettings {
+export const getCashbackSettings = gql`
+  query getCashbackSettings {
     cashbackSettings {
       id
       isEnabled
@@ -20,8 +18,8 @@ export const GET_CASHBACK_SETTINGS = gql`
   }
 `;
 
-export const GET_CASHBACK_RULES = gql`
-  query GetCashbackRules($onlyActive: Boolean) {
+export const getCashbackRules = gql`
+  query getCashbackRules($onlyActive: Boolean) {
     cashbackRules(onlyActive: $onlyActive) {
       id
       name
@@ -46,8 +44,8 @@ export const GET_CASHBACK_RULES = gql`
   }
 `;
 
-export const GET_CASHBACK_RULE = gql`
-  query GetCashbackRule($id: ID!) {
+export const getCashbackRule = gql`
+  query getCashbackRule($id: ID!) {
     cashbackRule(id: $id) {
       id
       name
@@ -70,8 +68,8 @@ export const GET_CASHBACK_RULE = gql`
   }
 `;
 
-export const GET_CASHBACK_CAMPAIGNS = gql`
-  query GetCashbackCampaigns($onlyActive: Boolean) {
+export const getCashbackCampaigns = gql`
+  query getCashbackCampaigns($onlyActive: Boolean) {
     cashbackCampaigns(onlyActive: $onlyActive) {
       id
       name
@@ -95,8 +93,8 @@ export const GET_CASHBACK_CAMPAIGNS = gql`
   }
 `;
 
-export const GET_CASHBACK_CAMPAIGN = gql`
-  query GetCashbackCampaign($id: ID!) {
+export const getCashbackCampaign = gql`
+  query getCashbackCampaign($id: ID!) {
     cashbackCampaign(id: $id) {
       id
       name
@@ -118,8 +116,8 @@ export const GET_CASHBACK_CAMPAIGN = gql`
   }
 `;
 
-export const GET_CASHBACK_REPORT = gql`
-  query GetCashbackReport($startDate: String!, $endDate: String!) {
+export const getCashbackReport = gql`
+  query getCashbackReport($startDate: String!, $endDate: String!) {
     cashbackReport(startDate: $startDate, endDate: $endDate) {
       totalCredited
       totalDebited
@@ -131,8 +129,8 @@ export const GET_CASHBACK_REPORT = gql`
   }
 `;
 
-export const GET_MY_CASHBACK_WALLET = gql`
-  query GetMyCashbackWallet {
+export const getMyCashbackWallet = gql`
+  query getMyCashbackWallet {
     myCashbackWallet {
       id
       balance
@@ -152,8 +150,8 @@ export const GET_MY_CASHBACK_WALLET = gql`
   }
 `;
 
-export const GET_MY_CASHBACK_SUMMARY = gql`
-  query GetMyCashbackSummary {
+export const getMyCashbackSummary = gql`
+  query getMyCashbackSummary {
     myCashbackSummary {
       balance
       pendingExpiration
@@ -172,12 +170,10 @@ export const GET_MY_CASHBACK_SUMMARY = gql`
   }
 `;
 
-// ============================================
-// MUTATIONS - CASHBACK SETTINGS
-// ============================================
+// mutations - cashback settings
 
-export const UPDATE_CASHBACK_SETTINGS = gql`
-  mutation UpdateCashbackSettings($input: CashbackSettingsInput!) {
+export const updateCashbackSettings = gql`
+  mutation updateCashbackSettings($input: CashbackSettingsInput!) {
     updateCashbackSettings(input: $input) {
       id
       isEnabled
@@ -192,12 +188,10 @@ export const UPDATE_CASHBACK_SETTINGS = gql`
   }
 `;
 
-// ============================================
-// MUTATIONS - CASHBACK RULES
-// ============================================
+// mutations - cashback rules
 
-export const CREATE_CASHBACK_RULE = gql`
-  mutation CreateCashbackRule($input: CashbackRuleInput!) {
+export const createCashbackRule = gql`
+  mutation createCashbackRule($input: CashbackRuleInput!) {
     createCashbackRule(input: $input) {
       id
       name
@@ -216,8 +210,8 @@ export const CREATE_CASHBACK_RULE = gql`
   }
 `;
 
-export const UPDATE_CASHBACK_RULE = gql`
-  mutation UpdateCashbackRule($id: ID!, $input: CashbackRuleInput!) {
+export const updateCashbackRule = gql`
+  mutation updateCashbackRule($id: ID!, $input: CashbackRuleInput!) {
     updateCashbackRule(id: $id, input: $input) {
       id
       name
@@ -236,14 +230,14 @@ export const UPDATE_CASHBACK_RULE = gql`
   }
 `;
 
-export const DELETE_CASHBACK_RULE = gql`
-  mutation DeleteCashbackRule($id: ID!) {
+export const deleteCashbackRule = gql`
+  mutation deleteCashbackRule($id: ID!) {
     deleteCashbackRule(id: $id)
   }
 `;
 
-export const TOGGLE_CASHBACK_RULE_ACTIVE = gql`
-  mutation ToggleCashbackRuleActive($id: ID!) {
+export const toggleCashbackRuleActive = gql`
+  mutation toggleCashbackRuleActive($id: ID!) {
     toggleCashbackRuleActive(id: $id) {
       id
       isActive
@@ -251,12 +245,10 @@ export const TOGGLE_CASHBACK_RULE_ACTIVE = gql`
   }
 `;
 
-// ============================================
-// MUTATIONS - CASHBACK CAMPAIGNS
-// ============================================
+// mutations - cashback campaigns
 
-export const CREATE_CASHBACK_CAMPAIGN = gql`
-  mutation CreateCashbackCampaign($input: CashbackCampaignInput!) {
+export const createCashbackCampaign = gql`
+  mutation createCashbackCampaign($input: CashbackCampaignInput!) {
     createCashbackCampaign(input: $input) {
       id
       name
@@ -274,8 +266,8 @@ export const CREATE_CASHBACK_CAMPAIGN = gql`
   }
 `;
 
-export const UPDATE_CASHBACK_CAMPAIGN = gql`
-  mutation UpdateCashbackCampaign($id: ID!, $input: CashbackCampaignInput!) {
+export const updateCashbackCampaign = gql`
+  mutation updateCashbackCampaign($id: ID!, $input: CashbackCampaignInput!) {
     updateCashbackCampaign(id: $id, input: $input) {
       id
       name
@@ -293,14 +285,14 @@ export const UPDATE_CASHBACK_CAMPAIGN = gql`
   }
 `;
 
-export const DELETE_CASHBACK_CAMPAIGN = gql`
-  mutation DeleteCashbackCampaign($id: ID!) {
+export const deleteCashbackCampaign = gql`
+  mutation deleteCashbackCampaign($id: ID!) {
     deleteCashbackCampaign(id: $id)
   }
 `;
 
-export const TOGGLE_CASHBACK_CAMPAIGN_ACTIVE = gql`
-  mutation ToggleCashbackCampaignActive($id: ID!) {
+export const toggleCashbackCampaignActive = gql`
+  mutation toggleCashbackCampaignActive($id: ID!) {
     toggleCashbackCampaignActive(id: $id) {
       id
       isActive
@@ -308,12 +300,10 @@ export const TOGGLE_CASHBACK_CAMPAIGN_ACTIVE = gql`
   }
 `;
 
-// ============================================
-// MUTATIONS - AJUSTES MANUAIS
-// ============================================
+// mutations - ajustes manuais
 
-export const ADJUST_USER_CASHBACK = gql`
-  mutation AdjustUserCashback($userId: ID!, $amount: Float!, $description: String!) {
+export const adjustUserCashback = gql`
+  mutation adjustUserCashback($userId: ID!, $amount: Float!, $description: String!) {
     adjustUserCashback(userId: $userId, amount: $amount, description: $description) {
       id
       balance
@@ -330,8 +320,8 @@ export const ADJUST_USER_CASHBACK = gql`
   }
 `;
 
-export const EXPIRE_OLD_CASHBACK = gql`
-  mutation ExpireOldCashback {
+export const expireOldCashback = gql`
+  mutation expireOldCashback {
     expireOldCashback
   }
 `;

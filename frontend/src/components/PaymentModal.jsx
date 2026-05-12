@@ -115,7 +115,7 @@ export default function PaymentModal({
   subtotal, 
   shippingFee, 
   total,
-  // NOVAS PROPS PARA DESCONTOS
+  // Novas Props para descontos
   couponCode = null,
   couponDiscount = 0,
   couponFreeShipping = false,
@@ -748,7 +748,7 @@ export default function PaymentModal({
   );
 }
 
-// Toast Notification Component
+// Componente de notificação pop-up
 const Toast = ({ toast, onClose }) => {
   if (!toast.show) return null;
 

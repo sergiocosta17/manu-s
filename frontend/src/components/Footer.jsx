@@ -51,24 +51,43 @@ const BurgerIcon = ({ className = "w-12 h-12" }) => (
   </svg>
 );
 
+// Dados de navegação (extraídos para constante)
+const NAVIGATION_LINKS = [
+  { label: 'Cardápio', to: '/menu' },
+  { label: 'Promoções', to: '/promotions' },
+  { label: 'Sobre Nós', to: '/about' },
+];
+
+const LEGAL_LINKS = [
+  { label: 'Política de Privacidade', to: '/privacy' },
+  { label: 'Política de Cookies', to: '/cookies' },
+  { label: 'Termos de Uso', to: '/terms' },
+];
+
+const FOOTER_LINKS = [
+  { label: 'Privacidade', to: '/privacy' },
+  { label: 'Cookies', to: '/cookies' },
+  { label: 'Termos', to: '/terms' },
+];
+
 export default function Footer() {
   const currentYear = new Date().getFullYear();
   const [logoError, setLogoError] = React.useState(false);
 
   return (
     <footer className="bg-[#1e3a5f] text-white relative overflow-hidden">
+      {/* Fundo decorativo */}
       <div className="absolute inset-0 opacity-5">
         <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
       </div>
 
-      {/* Main Footer Content */}
+      {/* Conteúdo principal do footer */}
       <div className="relative max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-8">
           
-          {/* Coluna 1: Logo e Descrição */}
+          {/* Coluna 1: Logo e descrição */}
           <div className="lg:col-span-1">
-            {/* Logo */}
             <div className="flex items-center gap-3">
               {!logoError ? (
                 <img 
@@ -90,11 +109,9 @@ export default function Footer() {
               Os melhores smash burgers artesanais de Campina Grande. Ingredientes frescos e selecionados para uma experiência única.
             </p>
             
-            {/* Redes Sociais */}
+            {/* Redes sociais */}
             <div className="mt-6">
-              <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-3">
-                Siga-nos
-              </p>
+              <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-3">Siga-nos</p>
               <div className="flex items-center gap-3">
                 <a
                   href="https://www.instagram.com/manus.smash.burger/"
@@ -134,11 +151,7 @@ export default function Footer() {
               Navegação
             </h4>
             <ul className="space-y-3">
-              {[
-                { label: 'Cardápio', to: '/menu' },
-                { label: 'Promoções', to: '/promotions' },
-                { label: 'Sobre Nós', to: '/about' },
-              ].map((item) => (
+              {NAVIGATION_LINKS.map((item) => (
                 <li key={item.to}>
                   <Link
                     to={item.to}
@@ -159,11 +172,7 @@ export default function Footer() {
               Legal
             </h4>
             <ul className="space-y-3">
-              {[
-                { label: 'Política de Privacidade', to: '/privacy' },
-                { label: 'Política de Cookies', to: '/cookies' },
-                { label: 'Termos de Uso', to: '/terms' },
-              ].map((item) => (
+              {LEGAL_LINKS.map((item) => (
                 <li key={item.to}>
                   <Link
                     to={item.to}
@@ -213,7 +222,7 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Copyright Bar */}
+      {/* Barra de copyright */}
       <div className="relative border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -221,15 +230,15 @@ export default function Footer() {
               © {currentYear} Manu's Smash Burger. Todos os direitos reservados.
             </p>
             <div className="flex items-center gap-6">
-              <Link to="/privacy" className="text-white/40 hover:text-white/60 text-xs transition-colors">
-                Privacidade
-              </Link>
-              <Link to="/cookies" className="text-white/40 hover:text-white/60 text-xs transition-colors">
-                Cookies
-              </Link>
-              <Link to="/terms" className="text-white/40 hover:text-white/60 text-xs transition-colors">
-                Termos
-              </Link>
+              {FOOTER_LINKS.map((link) => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  className="text-white/40 hover:text-white/60 text-xs transition-colors"
+                >
+                  {link.label}
+                </Link>
+              ))}
             </div>
           </div>
         </div>
